@@ -1,0 +1,6 @@
+[submodule "ScalarMin"]
+	path = ScalarMin
+	url = git@github.com:spacewolfXfr/ScalarMin.git
+[submodule "libs/ScalarMin"]
+	path = libs/ScalarMin
+	url = git@github.com:spacewolfXfr/ScalarMin.git
