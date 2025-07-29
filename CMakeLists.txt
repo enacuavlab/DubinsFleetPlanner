@@ -1,0 +1,65 @@
+# Copyright (C) 2025 Mael FEURGARD <mael.feurgard@enac.fr>
+# 
+# This file is part of DubinsFleetPlanner.
+# 
+# DubinsFleetPlanner is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+# 
+# DubinsFleetPlanner is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with DubinsFleetPlanner.  If not, see <https://www.gnu.org/licenses/>.
+
+# CMake general configuration
+cmake_minimum_required(VERSION 3.30.0)
+set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_DEBUG_POSTFIX d)
+
+# set(CMAKE_VERBOSE_MAKEFILE ON)
+
+# -------------------- Project declaration -------------------- #
+project(DubinsFleetPlanner VERSION 0.1.0 LANGUAGES C CXX)
+
+# -------------------- Required packages -------------------- #
+add_subdirectory(libs)
+
+### Boost ###
+set(Boost_USE_STATIC_LIBS OFF) 
+set(Boost_USE_MULTITHREADED ON)  
+set(Boost_USE_STATIC_RUNTIME OFF) 
+
+find_package(Boost REQUIRED)
+
+include_directories(${Boost_INCLUDE_DIRS})
+
+### ScalarMin solver ###
+find_package(ScalarMin REQUIRED)
+
+# -------------------- Targets -------------------- #
+
+add_subdirectory(src)
+
+# -------------------- Options -------------------- #
+
+option(VISUALISATION "Include visualisation in the solver (for debug/demo purpose)" OFF)
+
+if(VISUALISATON)
+    include(FetchContent)
+
+    FetchContent_Declare(
+        sciplot
+        GIT_REPOSITORY https://github.com/sciplot/sciplot.git
+        GIT_TAG        f8d779a # release-0.3.0
+        )
+
+    # For Windows: Prevent overriding the parent project's compiler/linker settings
+    FetchContent_MakeAvailable(sciplot)    
+
+    target_compile_definitions(DubinsFleetPlanner PUBLIC DEBUG_VISUALISE 1)
+    target_compile_definitions(DubinsFleetPlanner PUBLIC DEBUG_VISUALISE_SAMPLES 200)
+endif()
