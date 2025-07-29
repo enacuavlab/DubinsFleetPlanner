@@ -390,6 +390,8 @@ double LRL_small_d_approx(double alpha, double beta, [[maybe_unused]] double d)
 
 double SRS_first_distance(double alpha, double beta, double d)
 {
+    // We don't care about the special case where alpha=beta=0 because then the solution
+    // is a straight line, which will overlap with LSL
     double da = central_angle(alpha-beta);
     if (std::abs(da) - M_PI == 0)
     {

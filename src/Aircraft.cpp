@@ -15,3 +15,54 @@
 // You should have received a copy of the GNU General Public License
 // along with PH_Spline.  If not, see <https://www.gnu.org/licenses/>.
 
+#include "Aircraft.h"
+
+void move_straight(Pose3D& pose, double duration, double speed, double climb_rate)
+{
+    double x_dir = std::cos(pose.theta);
+    double y_dir = std::sin(pose.theta);
+
+    pose.x += x_dir*duration*speed;
+    pose.y += y_dir*duration*speed;
+    pose.z += climb_rate*duration;
+}
+
+[[gnu::const]]
+Pose3D move_straight(const Pose3D& pose, double duration, double speed, double climb_rate)
+{
+    Pose3D output(pose);
+    move_straight(output,duration,speed,climb_rate);
+    return output;
+}
+
+void turn_left(Pose3D& pose, double duration, double speed, double climb_rate, double turn_radius)
+{
+    double len = speed*duration;    // Distance travelled
+    double alpha = len/turn_radius; // Angle travelled (in radian)
+
+    pose.z += climb_rate*duration;
+}
+
+[[gnu::const]]
+Pose3D turn_left(const Pose3D& pose, double duration, double speed, double climb_rate, double turn_radius)
+{
+    Pose3D output(pose);
+    turn_left(output,duration,speed,climb_rate,turn_radius);
+    return output;
+}
+
+void turn_right(Pose3D& pose, double duration, double speed, double climb_rate, double turn_radius)
+{
+    double len = speed*duration;    // Distance travelled
+    double alpha = len/turn_radius; // Angle travelled (in radian)
+
+    pose.z += climb_rate*duration;
+}
+
+[[gnu::const]]
+Pose3D turn_right(const Pose3D& pose, double duration, double speed, double climb_rate, double turn_radius)
+{
+    Pose3D output(pose);
+    turn_right(output,duration,speed,climb_rate,turn_radius);
+    return output;
+}

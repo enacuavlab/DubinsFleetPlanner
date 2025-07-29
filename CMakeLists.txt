@@ -38,7 +38,7 @@ find_package(Boost REQUIRED)
 include_directories(${Boost_INCLUDE_DIRS})
 
 ### ScalarMin solver ###
-find_package(ScalarMin REQUIRED)
+#find_package(ScalarMin REQUIRED)
 
 # -------------------- Targets -------------------- #
 

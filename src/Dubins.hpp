@@ -76,8 +76,34 @@ class BaseDubins : public Dubins
 private:
     static double normalized_length(double alpha, double beta, double d) [[gnu::const]];
 
-    double alpha;
-    double beta;
-    double d;
+    double alpha;   // Start orientation in normalized problem
+    double beta;    // End orientation in normalized problem
+    double d;       // Distance between endpoints in normalized problem
+    Pose3D normalize_transform;     // Encode the transform from standard to normalized problem (add a shift then rotate) 
+
+    /**
+     * @brief  Compute the normalized equivalent of the given path planning problem.
+     * 
+     * That is, given the initial pose `start` and final pose `end`, compute the equivalent 
+     * start at (0,0) oriented with angle `alpha` (radian) and end at (d,0) oriented with angle `beta`
+     * 
+     */
+    void normalize()
+    {
+        normalize_transform.x = -start.x;
+        normalize_transform.y = -start.y;
+        normalize_transform.z = -start.z;
+
+        double dx = end.x - start.x;
+        double dy = end.y - start.y;
+
+        double theta = std::atan2(dy,dx);
+
+        normalize_transform.theta = theta;
+        
+        alpha   = start.theta - theta;
+        beta    = end.theta - theta;
+        d       = std::sqrt(dx*dx+dy*dy);
+    }
 };
 

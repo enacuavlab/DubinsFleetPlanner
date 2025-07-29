@@ -23,18 +23,11 @@
 #include "DubinsPrimitives.hpp"
 
 
-double fit_LSL(double alpha, double beta, double d, double min_rho);
-
-double fit_RSR(double alpha, double beta, double d, double min_rho);
-
-double fit_RSL(double alpha, double beta, double d, double min_rho);
-
-double fit_LSR(double alpha, double beta, double d, double min_rho);
-
-double fit_RLR(double alpha, double beta, double d, double min_rho);
-
-double fit_LRL(double alpha, double beta, double d, double min_rho);
-
-double fit_SRS(double alpha, double beta, double d, double min_rho);
-
-double fit_SLS(double alpha, double beta, double d, double min_rho);
+double fit_LSL(double alpha, double beta, double d, double min_rho, double target_l, double tol);
+double fit_RSR(double alpha, double beta, double d, double min_rho, double target_l, double tol);
+double fit_RSL(double alpha, double beta, double d, double min_rho, double target_l, double tol);
+double fit_LSR(double alpha, double beta, double d, double min_rho, double target_l, double tol);
+double fit_RLR(double alpha, double beta, double d, double min_rho, double target_l, double tol);
+double fit_LRL(double alpha, double beta, double d, double min_rho, double target_l, double tol);
+double fit_SRS(double alpha, double beta, double d, double min_rho, double target_l, double tol);
+double fit_SLS(double alpha, double beta, double d, double min_rho, double target_l, double tol);

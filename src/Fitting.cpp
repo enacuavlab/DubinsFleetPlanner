@@ -16,3 +16,87 @@
 // along with DubinsFleetPlanner.  If not, see <https://www.gnu.org/licenses/>.
 
 #include "Fitting.hpp"
+
+using namespace boost::math::tools;
+
+template<typename F>
+double generic_fit(F f, double min_rho, double target_l, double tol=1e-6)
+{
+    bool increasing;
+    double left_val = f(min_rho);
+    if (left_val < target_l)
+    {
+        increasing = true;
+    }
+    else
+    {
+        increasing = false;
+    }
+
+    std::uintmax_t inter_count = 0;
+
+    auto tol_func = eps_tolerance<double>(-std::log2(tol));
+
+    std::pair<double,double> bracket = bracket_and_solve_root(f,min_rho,2,increasing,tol_func,inter_count);
+
+    bool valid_bracket  = boost::math::sign(f(bracket.first))*boost::math::sign(f(bracket.second)) <= 0;
+    bool precise_enough = tol_func(bracket.first,bracket.second);
+    
+    if (valid_bracket && precise_enough)
+    {
+        return (bracket.first+bracket.second)/2;
+    }
+    else
+    {
+        return NAN;
+    }
+}
+
+
+double fit_LSL(double alpha, double beta, double d, double min_rho, double target_l, double tol)
+{
+    auto target_fun = [=](double rho){return LSL_total_distance(alpha,beta,d/rho)*rho;};
+    return generic_fit(target_fun,min_rho,target_l,tol);
+}
+
+double fit_RSR(double alpha, double beta, double d, double min_rho, double target_l, double tol)
+{
+    auto target_fun = [=](double rho){return RSR_total_distance(alpha,beta,d/rho)*rho;};
+    return generic_fit(target_fun,min_rho,target_l,tol);
+}
+
+double fit_RSL(double alpha, double beta, double d, double min_rho, double target_l, double tol)
+{
+    auto target_fun = [=](double rho){return RSL_total_distance(alpha,beta,d/rho)*rho;};
+    return generic_fit(target_fun,min_rho,target_l,tol);
+}
+
+double fit_LSR(double alpha, double beta, double d, double min_rho, double target_l, double tol)
+{
+    auto target_fun = [=](double rho){return LSR_total_distance(alpha,beta,d/rho)*rho;};
+    return generic_fit(target_fun,min_rho,target_l,tol);
+}
+
+double fit_RLR(double alpha, double beta, double d, double min_rho, double target_l, double tol)
+{
+    auto target_fun = [=](double rho){return RLR_total_distance(alpha,beta,d/rho)*rho;};
+    return generic_fit(target_fun,min_rho,target_l,tol);
+}
+
+double fit_LRL(double alpha, double beta, double d, double min_rho, double target_l, double tol)
+{
+    auto target_fun = [=](double rho){return LRL_total_distance(alpha,beta,d/rho)*rho;};
+    return generic_fit(target_fun,min_rho,target_l,tol);
+}
+
+double fit_SRS(double alpha, double beta, double d, double min_rho, double target_l, double tol)
+{
+    auto target_fun = [=](double rho){return SRS_total_distance(alpha,beta,d/rho)*rho;};
+    return generic_fit(target_fun,min_rho,target_l,tol);
+}
+
+double fit_SLS(double alpha, double beta, double d, double min_rho, double target_l, double tol)
+{
+    auto target_fun = [=](double rho){return SLS_total_distance(alpha,beta,d/rho)*rho;};
+    return generic_fit(target_fun,min_rho,target_l,tol);
+}
