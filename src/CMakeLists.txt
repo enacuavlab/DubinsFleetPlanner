@@ -8,4 +8,4 @@
 configure_file(ProjectHeader.h.in ProjectHeader.h)
 
 add_library(DubinsFleetPlanner PUBLIC Aircraft.cpp Dubins.cpp DubinsPrimitives.cpp)
-target_link_libraries(IntervalSolver PUBLIC Boost::headers ScalarMin)
+# target_link_libraries(DubinsFleetPlanner PUBLIC Boost::headers ScalarMin)

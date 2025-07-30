@@ -20,9 +20,20 @@
 #include <tuple>
 #include <boost/math/tools/roots.hpp>
 
-#include "DubinsPrimitives.hpp"
+#include "Primitives.hpp"
 
-
+/**
+ * @brief Given a normalized problem Dubins path planning problem with a minimum turn radius
+ * and a specified length, find a turn radius such that the path achieves said length
+ * 
+ * @param alpha     Starting orientation
+ * @param beta      Ending orientation
+ * @param d         X coordinate of the destination point
+ * @param min_rho   Minimal turning radius
+ * @param target_l  Desired length
+ * @param tol       Desired solution accuracy
+ * @return double   NAN if impossible, otherwise the turning radius achieving le desired length
+ */
 double fit_LSL(double alpha, double beta, double d, double min_rho, double target_l, double tol);
 double fit_RSR(double alpha, double beta, double d, double min_rho, double target_l, double tol);
 double fit_RSL(double alpha, double beta, double d, double min_rho, double target_l, double tol);

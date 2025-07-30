@@ -19,93 +19,11 @@
 
 #include <cmath>
 
-typedef struct {
-    double x    ; // X position
-    double y    ; // Y position
-    double theta; // XY Orientation (in radiants, 0 is pure X, pi/2 is pure Y)
-    double z    ; // Z position
-} Pose3D;
+#include "utils.hpp"
+
 
 typedef struct {
     double airspeed;     // Constant airspeed, in m/s
     double turn_radius;  // Minimal turn radius, in m
     double climb;        // Climb rate, in [alt]/s (with [alt] some unit for altitude; meters above sea level, feets above ground...)
 } AircraftStats;
-
-
-/**
- * @brief Apply a straight (XY) movement to the Pose
- * 
- * This function modifies the given pose
- * 
- * @param pose      Starting pose 
- * @param duration  Movement duration
- * @param speed     XY Speed (positive, m/s)
- * @param climb_rate Z Speed ([alt]/s)
- */
-void move_straight(Pose3D& pose, double duration, double speed, double climb_rate);
-
-/**
- * @brief Apply a straight (XY) movement to the Pose
- * 
- * This function returns a fresh pose without modifying the starting one
- * 
- * @param pose      Starting pose 
- * @param duration  Movement duration (s)
- * @param speed     XY Speed (positive, m/s)
- * @param climb_rate Z Speed ([alt]/s)
- * @return Pose3D   Resulting position
- */
-Pose3D move_straight(const Pose3D& pose, double duration, double speed, double climb_rate) [[gnu::const]];
-
-/**
- * @brief Apply a left turn (XY) movement to the Pose
- * 
- * This function modifies the given pose
- * 
- * @param pose      Starting pose 
- * @param duration  Movement duration (s)
- * @param speed     XY Speed (positive, m/s)
- * @param climb_rate    Z Speed ([alt]/s)
- * @param turn_radius   Turn radius, in m
- */
-void turn_left(Pose3D& pose, double duration, double speed, double climb_rate, double turn_radius);
-
-/**
- * @brief Apply a left turn (XY) movement to the Pose
- * 
- * This function returns a fresh pose without modifying the starting one
- * 
- * @param pose      Starting pose 
- * @param duration  Movement duration (s)
- * @param speed     XY Speed (positive, m/s)
- * @param climb_rate Z Speed ([alt]/s)
- * @return Pose3D   Resulting position
- */
-Pose3D turn_left(const Pose3D& pose, double duration, double speed, double climb_rate, double turn_radius) [[gnu::const]];
-
-/**
- * @brief Apply a right turn (XY) movement to the Pose
- * 
- * This function modifies the given pose
- * 
- * @param pose      Starting pose 
- * @param duration  Movement duration (s)
- * @param speed     XY Speed (positive, m/s)
- * @param climb_rate    Z Speed ([alt]/s)
- * @param turn_radius   Turn radius, in m
- */
-void turn_right(Pose3D& pose, double duration, double speed, double climb_rate, double turn_radius);
-
-/**
- * @brief Apply a right turn (XY) movement to the Pose
- * 
- * This function returns a fresh pose without modifying the starting one
- * 
- * @param pose      Starting pose 
- * @param duration  Movement duration (s)
- * @param speed     XY Speed (positive, m/s)
- * @param climb_rate Z Speed ([alt]/s)
- * @return Pose3D   Resulting position
- */
-Pose3D turn_right(const Pose3D& pose, double duration, double speed, double climb_rate, double turn_radius) [[gnu::const]];
