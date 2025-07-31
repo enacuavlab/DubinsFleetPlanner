@@ -15,8 +15,13 @@
 // You should have received a copy of the GNU General Public License
 // along with PH_Spline.  If not, see <https://www.gnu.org/licenses/>.
 
+#pragma once
+
 #include <vector>
+#include <array>
 #include <cmath>
+
+#include "ProjectHeader.h"
 
 #include "Aircraft.h"
 #include "Primitives.hpp"
@@ -27,52 +32,111 @@
 class Dubins
 {
 protected:
-    Pose3D start;
-    Pose3D end;
+    Pose3D start;   // Start pose (x,y,z, XY orientation)
+    Pose3D end;     // End pose (x,y,z, XY orientation)
 
-    double climb;
-    double turn_radius;
-    double length;
+    double climb;       // Z Climb rate, in [alt]/s
+    double turn_radius; // XY Turn radius, in m
+    double length;      // Path length, in m. Is NAN if the path is not possible.
 
-    bool valid = false;
+    bool valid = false; // Whether the desired path is possible or not
 
+    /**
+     * @brief Recompute the different values deduced from the problem if the start, end or control ever change
+     */
     virtual void recompute() = 0;
-    virtual double compute_length() = 0;
+
+    /**
+     * @brief Compute and return the path length.
+     * 
+     * @return double Path length
+     */
+    virtual double _compute_length() = 0;
+
+    /**
+     * @brief Same as `_compute_length`, but also set the `length` and `valid` attributes
+     * 
+     * @return double 
+     */
+    double compute_length()
+    {
+        length  = _compute_length();
+        valid   = (std::isfinite(length)) && (length >= 0);
+        return length;
+    }
 
 public:
     Dubins(const AircraftStats& stats, const Pose3D& _start, const Pose3D& _end)
-    : climb(stats.climb), turn_radius(stats.turn_radius), start(_start), end(_end)
-    {
-        recompute();
-    }
+    : climb(stats.climb), turn_radius(stats.turn_radius), start(_start), end(_end) {}
 
     /****** Setters and getters ******/
 
     void set_start(const Pose3D& _start) {start = _start; recompute();}
-    Pose3D get_start() {return start;}
+    Pose3D get_start() const {return start;}
 
     void set_end(const Pose3D& _end) {end = _end; recompute();}
-    Pose3D get_end() {return end;}
+    Pose3D get_end() const {return end;}
 
     void set_climb(double _c) {climb = _c; recompute();}
-    double get_climb() {return climb;}
+    double get_climb() const {return climb;}
 
     void set_turn_radius(double _r) {turn_radius = _r; recompute();}
-    double get_turn_radius() {return turn_radius;}
+    double get_turn_radius() const {return turn_radius;}
 
-    double get_length() {return length;}
+    double get_length() const {return length;}
+    bool is_valid() const {return valid;}
 
-    virtual Pose3D get_position(double len) = 0;
-    Pose3D get_position(double time, double speed) {return get_position(time*speed);}
-
-    virtual std::vector<Pose3D> get_positions(const std::vector<double>& lens) = 0;
-    std::vector<Pose3D> get_positions(const std::vector<double>& times, double speed)
+    virtual Pose3D get_position(double len) const = 0;
+    Pose3D get_position(double time, double speed) const
     {
+
+#if DubinsFleetPlanner_ASSERTIONS > 0
+        assert(speed > 0);
+#endif
+
+        return get_position(time*speed);
+    }
+
+    template<unsigned samples>
+    std::array<Pose3D,samples> get_position(const std::array<double,samples>& lens, [[maybe_unused]] bool sorted=false) const
+    {
+        std::array<Pose3D,samples> output;
+        for(unsigned i = 0; i < samples; i++)
+        {
+            output[i] = get_position(lens[i]);
+        }
+
+        return output;
+    }
+
+    virtual std::vector<Pose3D> get_positions(const std::vector<double>& lens, [[maybe_unused]] bool sorted=false) const
+    {
+        std::vector<Pose3D> output;
+        for(const double& l : lens)
+        {
+            output.push_back(get_position(l));
+        }
+        return output;
+    }
+
+    std::vector<Pose3D> get_positions(const std::vector<double>& times, double speed, bool sorted=false) const
+    {
+
+#if DubinsFleetPlanner_ASSERTIONS > 0
+        assert(speed > 0);
+#endif
+
         std::vector<double> lens(times);
         for(double& e : lens)
         {
             e *= speed;
         }
-        return get_positions(lens);
+        return get_positions(lens,sorted);
+    }
+
+    template<unsigned samples>
+    std::array<Pose3D,samples> get_position(const std::array<double,samples>& times, double speed, bool sorted=false) const
+    {
+        return get_positions<samples>(times*speed,sorted);
     }
 };

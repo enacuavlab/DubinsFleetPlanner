@@ -417,3 +417,47 @@ double SLS_total_distance(double alpha, double beta, double d)
         + SLS_middle_distance(alpha,beta,d) 
         + SLS_last_distance(alpha,beta,d); 
 }
+
+
+/******************** Template specialization for Dubins moves ********************/
+
+template<>
+void follow_dubins<STRAIGHT>(Pose3D* pose, double duration, double speed, double climb_rate, [[maybe_unused]] double turn_radius)
+{
+    move_straight(pose,duration,speed,climb_rate);
+}
+
+template<>
+[[gnu::pure]]
+Pose3D update_dubins<STRAIGHT>(const Pose3D& pose, double duration, double speed, double climb_rate, [[maybe_unused]] double turn_radius)
+{
+    return move_straight(pose,duration,speed,climb_rate);
+}
+
+template<>
+void follow_dubins<RIGHT>(Pose3D* pose, double duration, double speed, double climb_rate, double turn_radius)
+{
+    turn_right(pose,duration,speed,climb_rate,turn_radius);
+}
+
+template<>
+[[gnu::pure]]
+Pose3D update_dubins<RIGHT>(const Pose3D& pose, double duration, double speed, double climb_rate, double turn_radius)
+{
+    return turn_right(pose,duration,speed,climb_rate,turn_radius);
+}
+
+template<>
+void follow_dubins<LEFT>(Pose3D* pose, double duration, double speed, double climb_rate, double turn_radius)
+{
+    turn_left(pose,duration,speed,climb_rate,turn_radius);
+}
+
+template<>
+[[gnu::pure]]
+Pose3D update_dubins<LEFT>(const Pose3D& pose, double duration, double speed, double climb_rate, double turn_radius)
+{
+    return turn_left(pose,duration,speed,climb_rate,turn_radius);
+}
+
+

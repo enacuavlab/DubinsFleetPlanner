@@ -328,16 +328,32 @@ double BaseDubins<DubinsMove::STRAIGHT,DubinsMove::LEFT,DubinsMove::STRAIGHT>::a
 // We always return NAN as we don't want acceptable paths for the other cases
 
 template<DubinsMove fst, DubinsMove snd, DubinsMove trd>
-double BaseDubins<fst,snd,trd>::compute_normalized_length(double a, double b , double d)
+double BaseDubins<fst,snd,trd>::compute_normalized_length([[maybe_unused]] double a, [[maybe_unused]] double b , [[maybe_unused]] double d)
 {
     return NAN;
 }
 
 template<DubinsMove fst, DubinsMove snd, DubinsMove trd>
-double BaseDubins<fst,snd,trd>::adjust_length(double target_length, double tol)
+double BaseDubins<fst,snd,trd>::adjust_length([[maybe_unused]] double target_length, [[maybe_unused]] double tol)
 {
     valid   = false;
     length  = NAN;
 
     return NAN;
+}
+
+AllBaseDubins list_possible_baseDubins(const AircraftStats& stats, const Pose3D& _start, const Pose3D& _end)
+{
+    AllBaseDubins candidates = std::make_tuple(
+        BaseDubinsLSL(stats,_start,_end),
+        BaseDubinsLSR(stats,_start,_end),
+        BaseDubinsRSR(stats,_start,_end),
+        BaseDubinsRSL(stats,_start,_end),
+        BaseDubinsRLR(stats,_start,_end),
+        BaseDubinsLRL(stats,_start,_end),
+        BaseDubinsSRS(stats,_start,_end),
+        BaseDubinsSLS(stats,_start,_end)
+    );
+
+    return candidates;
 }

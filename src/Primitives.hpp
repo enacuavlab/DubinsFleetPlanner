@@ -43,60 +43,60 @@
  * and the turn radius is set to 1. 
  */
 
-double LSL_first_distance(double alpha, double beta, double d)  [[gnu::const]];
-double LSL_middle_distance(double alpha, double beta, double d) [[gnu::const]];
-double LSL_last_distance(double alpha, double beta, double d)   [[gnu::const]];
+double LSL_first_distance(double alpha, double beta, double d);
+double LSL_middle_distance(double alpha, double beta, double d);
+double LSL_last_distance(double alpha, double beta, double d);
 
-double LSL_total_distance(double alpha, double beta, double d)  [[gnu::const]];
-
-
-double RSR_first_distance(double alpha, double beta, double d)  [[gnu::const]];
-double RSR_middle_distance(double alpha, double beta, double d) [[gnu::const]];
-double RSR_last_distance(double alpha, double beta, double d)   [[gnu::const]];
-
-double RSR_total_distance(double alpha, double beta, double d)  [[gnu::const]];
+double LSL_total_distance(double alpha, double beta, double d);
 
 
-double RSL_first_distance(double alpha, double beta, double d)  [[gnu::const]];
-double RSL_middle_distance(double alpha, double beta, double d) [[gnu::const]];
-double RSL_last_distance(double alpha, double beta, double d)   [[gnu::const]];
+double RSR_first_distance(double alpha, double beta, double d);
+double RSR_middle_distance(double alpha, double beta, double d);
+double RSR_last_distance(double alpha, double beta, double d);
 
-double RSL_total_distance(double alpha, double beta, double d)  [[gnu::const]];
-
-
-double LSR_first_distance(double alpha, double beta, double d)  [[gnu::const]];
-double LSR_middle_distance(double alpha, double beta, double d) [[gnu::const]];
-double LSR_last_distance(double alpha, double beta, double d)   [[gnu::const]];
-
-double LSR_total_distance(double alpha, double beta, double d)  [[gnu::const]];
+double RSR_total_distance(double alpha, double beta, double d);
 
 
-double RLR_first_distance(double alpha, double beta, double d)  [[gnu::const]];
-double RLR_middle_distance(double alpha, double beta, double d) [[gnu::const]];
-double RLR_last_distance(double alpha, double beta, double d)   [[gnu::const]];
+double RSL_first_distance(double alpha, double beta, double d);
+double RSL_middle_distance(double alpha, double beta, double d);
+double RSL_last_distance(double alpha, double beta, double d);
 
-double RLR_total_distance(double alpha, double beta, double d)  [[gnu::const]];
-
-
-double LRL_first_distance(double alpha, double beta, double d)  [[gnu::const]];
-double LRL_middle_distance(double alpha, double beta, double d) [[gnu::const]];
-double LRL_last_distance(double alpha, double beta, double d)   [[gnu::const]];
-
-double LRL_total_distance(double alpha, double beta, double d)  [[gnu::const]];
+double RSL_total_distance(double alpha, double beta, double d);
 
 
-double SRS_first_distance(double alpha, double beta, double d)  [[gnu::const]];
-double SRS_middle_distance(double alpha, double beta, double d) [[gnu::const]];
-double SRS_last_distance(double alpha, double beta, double d)   [[gnu::const]];
+double LSR_first_distance(double alpha, double beta, double d);
+double LSR_middle_distance(double alpha, double beta, double d);
+double LSR_last_distance(double alpha, double beta, double d);
 
-double SRS_total_distance(double alpha, double beta, double d)  [[gnu::const]];
+double LSR_total_distance(double alpha, double beta, double d);
 
 
-double SLS_first_distance(double alpha, double beta, double d)  [[gnu::const]];
-double SLS_middle_distance(double alpha, double beta, double d) [[gnu::const]];
-double SLS_last_distance(double alpha, double beta, double d)   [[gnu::const]];
+double RLR_first_distance(double alpha, double beta, double d);
+double RLR_middle_distance(double alpha, double beta, double d);
+double RLR_last_distance(double alpha, double beta, double d);
 
-double SLS_total_distance(double alpha, double beta, double d)  [[gnu::const]];
+double RLR_total_distance(double alpha, double beta, double d);
+
+
+double LRL_first_distance(double alpha, double beta, double d);
+double LRL_middle_distance(double alpha, double beta, double d);
+double LRL_last_distance(double alpha, double beta, double d);
+
+double LRL_total_distance(double alpha, double beta, double d);
+
+
+double SRS_first_distance(double alpha, double beta, double d);
+double SRS_middle_distance(double alpha, double beta, double d);
+double SRS_last_distance(double alpha, double beta, double d);
+
+double SRS_total_distance(double alpha, double beta, double d);
+
+
+double SLS_first_distance(double alpha, double beta, double d);
+double SLS_middle_distance(double alpha, double beta, double d);
+double SLS_last_distance(double alpha, double beta, double d);
+
+double SLS_total_distance(double alpha, double beta, double d);
 
 
 /********************  General templates for Dubins functions  ********************/
@@ -136,48 +136,4 @@ void follow_dubins(Pose3D* pose, double duration, double speed, double climb_rat
  * @return Pose3d       Resulting pose
  */
 template<DubinsMove m>
-Pose3D follow_dubins(const Pose3D& pose, double duration, double speed, double climb_rate, double turn_radius) [[gnu::pure]];
-
-
-/********** Template instantiations **********/
-
-template<>
-void follow_dubins<STRAIGHT>(Pose3D* pose, double duration, double speed, double climb_rate, [[maybe_unused]] double turn_radius)
-{
-    move_straight(pose,duration,speed,climb_rate);
-}
-
-template<>
-[[gnu::pure]]
-Pose3D follow_dubins<STRAIGHT>(const Pose3D& pose, double duration, double speed, double climb_rate, [[maybe_unused]] double turn_radius)
-{
-    return move_straight(pose,duration,speed,climb_rate);
-}
-
-template<>
-void follow_dubins<RIGHT>(Pose3D* pose, double duration, double speed, double climb_rate, double turn_radius)
-{
-    turn_right(pose,duration,speed,climb_rate,turn_radius);
-}
-
-template<>
-[[gnu::pure]]
-Pose3D follow_dubins<RIGHT>(const Pose3D& pose, double duration, double speed, double climb_rate, double turn_radius)
-{
-    return turn_right(pose,duration,speed,climb_rate,turn_radius);
-}
-
-template<>
-void follow_dubins<LEFT>(Pose3D* pose, double duration, double speed, double climb_rate, double turn_radius)
-{
-    turn_left(pose,duration,speed,climb_rate,turn_radius);
-}
-
-template<>
-[[gnu::pure]]
-Pose3D follow_dubins<LEFT>(const Pose3D& pose, double duration, double speed, double climb_rate, double turn_radius)
-{
-    return turn_left(pose,duration,speed,climb_rate,turn_radius);
-}
-
-
+Pose3D update_dubins(const Pose3D& pose, double duration, double speed, double climb_rate, double turn_radius);

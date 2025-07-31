@@ -20,6 +20,8 @@
 #include <tuple>
 #include <boost/math/tools/roots.hpp>
 
+#include "ProjectHeader.h"
+
 #include "Primitives.hpp"
 
 /**

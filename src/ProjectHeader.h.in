@@ -19,3 +19,5 @@
 #define DubinsFleetPlanner_VERSION_MINOR @DubinsFleetPlanner_VERSION_MINOR@
 
 #define DubinsFleetPlanner_VERSION_STR "@DubinsFleetPlanner_VERSION_MAJOR@" "." "@DubinsFleetPlanner_VERSION_MINOR@"
+
+#define DubinsFleetPlanner_ASSERTIONS @ASSERTIONS@

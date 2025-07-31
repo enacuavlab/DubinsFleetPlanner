@@ -28,7 +28,7 @@
  * @param x Input angle
  * @return double Reduced equivalent value in [0,2*Pi]
  */
-double mod_2pi(double x) [[gnu::const]];
+double mod_2pi(double x);
 
 /**
  * @brief Reduce an angle to its central form, i.e. into the interval [-Pi,Pi]
@@ -36,7 +36,7 @@ double mod_2pi(double x) [[gnu::const]];
  * @param x Angle
  * @return double Equivalent to x in [-pi,pi]
  */
-double central_angle(double x) [[gnu::const]];
+double central_angle(double x);
 
 // -------------------- Pose and mouvements -------------------- //
 
@@ -72,7 +72,7 @@ void move_straight(Pose3D* pose, double duration, double speed, double climb_rat
  * @param turn_radius   Turn radius, in m 
  * @return Pose3D       Resulting position
  */
-Pose3D move_straight(const Pose3D& pose, double duration, double speed, double climb_rate) [[gnu::pure]];
+Pose3D move_straight(const Pose3D& pose, double duration, double speed, double climb_rate);
 
 /**
  * @brief Apply a left turn (XY) movement to the Pose
@@ -99,7 +99,7 @@ void turn_left(Pose3D* pose, double duration, double speed, double climb_rate, d
  * @param turn_radius   Turn radius, in m 
  * @return Pose3D       Resulting position
  */
-Pose3D turn_left(const Pose3D& pose, double duration, double speed, double climb_rate, double turn_radius) [[gnu::pure]];
+Pose3D turn_left(const Pose3D& pose, double duration, double speed, double climb_rate, double turn_radius);
 
 /**
  * @brief Apply a right turn (XY) movement to the Pose
@@ -126,7 +126,7 @@ void turn_right(Pose3D* pose, double duration, double speed, double climb_rate, 
  * @param turn_radius   Turn radius, in m 
  * @return Pose3D       Resulting position
  */
-Pose3D turn_right(const Pose3D& pose, double duration, double speed, double climb_rate, double turn_radius) [[gnu::pure]];
+Pose3D turn_right(const Pose3D& pose, double duration, double speed, double climb_rate, double turn_radius);
 
 /**
  * @brief  Compute the normalized equivalent of the given path planning problem.
@@ -139,4 +139,4 @@ Pose3D turn_right(const Pose3D& pose, double duration, double speed, double clim
  * @return std::tuple<double,double,double,double> (alpha, beta, d, theta), with theta being the rotation needed
  * to align the `end` on the X axis
  */
-std::tuple<double,double,double,double> normalize(const Pose3D& start, const Pose3D& end) [[gnu::pure]];
+std::tuple<double,double,double,double> normalize_poses(const Pose3D& start, const Pose3D& end);

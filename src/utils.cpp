@@ -117,7 +117,7 @@ Pose3D turn_right(const Pose3D& pose, double duration, double speed, double clim
 }
 
 [[gnu::pure]]
-std::tuple<double,double,double,double> normalize(const Pose3D& start, const Pose3D& end)
+std::tuple<double,double,double,double> normalize_poses(const Pose3D& start, const Pose3D& end)
 {
     double dx       = end.x - start.x;
     double dy       = end.y - start.y;

@@ -22,6 +22,12 @@ using namespace boost::math::tools;
 template<typename F>
 double generic_fit(F f, double min_rho, double target_l, double tol=1e-6)
 {
+
+#if DubinsFleetPlanner_ASSERTIONS > 0
+        assert(target_l > 0);
+        assert(tol > 0);
+#endif
+
     bool increasing;
     double left_val = f(min_rho);
     if (left_val < target_l)
@@ -37,7 +43,7 @@ double generic_fit(F f, double min_rho, double target_l, double tol=1e-6)
 
     auto tol_func = eps_tolerance<double>(-std::log2(tol));
 
-    std::pair<double,double> bracket = bracket_and_solve_root(f,min_rho,2,increasing,tol_func,inter_count);
+    std::pair<double,double> bracket = bracket_and_solve_root(f,min_rho,2.,increasing,tol_func,inter_count);
 
     bool valid_bracket  = boost::math::sign(f(bracket.first))*boost::math::sign(f(bracket.second)) <= 0;
     bool precise_enough = tol_func(bracket.first,bracket.second);

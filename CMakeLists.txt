@@ -19,8 +19,9 @@
 cmake_minimum_required(VERSION 3.30.0)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_DEBUG_POSTFIX d)
+set(CMAKE_POLICY_VERSION_MINIMUM 3.30)
 
-# set(CMAKE_VERBOSE_MAKEFILE ON)
+set(CMAKE_VERBOSE_MAKEFILE ON)
 
 # -------------------- Project declaration -------------------- #
 project(DubinsFleetPlanner VERSION 0.1.0 LANGUAGES C CXX)
@@ -46,20 +47,10 @@ add_subdirectory(src)
 
 # -------------------- Options -------------------- #
 
-option(VISUALISATION "Include visualisation in the solver (for debug/demo purpose)" OFF)
+option(ENABLE_ASSERTIONS "Enable assertion checks" ON)
 
-if(VISUALISATON)
-    include(FetchContent)
+option(VISUALISATION "Include visualisation in the solver (for debug/demo purpose)" ON)
 
-    FetchContent_Declare(
-        sciplot
-        GIT_REPOSITORY https://github.com/sciplot/sciplot.git
-        GIT_TAG        f8d779a # release-0.3.0
-        )
+# -------------------- Testing -------------------- #
 
-    # For Windows: Prevent overriding the parent project's compiler/linker settings
-    FetchContent_MakeAvailable(sciplot)    
-
-    target_compile_definitions(DubinsFleetPlanner PUBLIC DEBUG_VISUALISE 1)
-    target_compile_definitions(DubinsFleetPlanner PUBLIC DEBUG_VISUALISE_SAMPLES 200)
-endif()
+add_subdirectory(test)
