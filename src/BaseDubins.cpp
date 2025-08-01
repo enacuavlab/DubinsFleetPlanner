@@ -342,17 +342,17 @@ double BaseDubins<fst,snd,trd>::adjust_length([[maybe_unused]] double target_len
     return NAN;
 }
 
-AllBaseDubins list_possible_baseDubins(const AircraftStats& stats, const Pose3D& _start, const Pose3D& _end)
+AllBaseDubins list_possible_baseDubins(double _climb, double _turn_radius, const Pose3D& _start, const Pose3D& _end)
 {
     AllBaseDubins candidates = std::make_tuple(
-        BaseDubinsLSL(stats,_start,_end),
-        BaseDubinsLSR(stats,_start,_end),
-        BaseDubinsRSR(stats,_start,_end),
-        BaseDubinsRSL(stats,_start,_end),
-        BaseDubinsRLR(stats,_start,_end),
-        BaseDubinsLRL(stats,_start,_end),
-        BaseDubinsSRS(stats,_start,_end),
-        BaseDubinsSLS(stats,_start,_end)
+        BaseDubinsLSL(_climb, _turn_radius,_start,_end),
+        BaseDubinsLSR(_climb, _turn_radius,_start,_end),
+        BaseDubinsRSR(_climb, _turn_radius,_start,_end),
+        BaseDubinsRSL(_climb, _turn_radius,_start,_end),
+        BaseDubinsRLR(_climb, _turn_radius,_start,_end),
+        BaseDubinsLRL(_climb, _turn_radius,_start,_end),
+        BaseDubinsSRS(_climb, _turn_radius,_start,_end),
+        BaseDubinsSLS(_climb, _turn_radius,_start,_end)
     );
 
     return candidates;

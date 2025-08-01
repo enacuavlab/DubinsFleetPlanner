@@ -25,20 +25,21 @@
 
 int main()
 {
-    Visualisation::Plot2D plot = Visualisation::init_plot(-3,3);
+    Visualisation::Plot2D plot = Visualisation::init_plot();
 
     Pose3D start{0.,0.,0.,0.};
     Pose3D end{1.,2.,0.,M_PI/2};
 
     AircraftStats stats{1.,1.,1.};
 
-    auto candidates = list_possible_baseDubins(stats,start,end);
+    auto candidates = list_possible_baseDubins(stats.climb,stats.turn_radius,start,end);
 
     auto f = [&](Dubins &d)
     {
         if (d.is_valid())
         {
-            Visualisation::plot_path<PLOTTING_SAMPLES>(plot,d);
+            Visualisation::plot_path<PLOTTING_SAMPLES>(plot,d).label(d.get_type_abbr());
+            Visualisation::plot_junctions(plot,d).label(d.get_type_abbr());
             return true;
         }
         return false;
@@ -50,8 +51,9 @@ int main()
     Visualisation::plot_pose(plot,start).label("Start");
     Visualisation::plot_pose(plot,end).label("End");
 
-    sciplot::Figure fig = {{plot}};
-    sciplot::Canvas canvas = {{fig}};
+    sciplot::Figure fig     = {{plot}};
+    sciplot::Canvas canvas  = {{fig}};
+    canvas.size(1920,1080);
     canvas.show();
 
 }

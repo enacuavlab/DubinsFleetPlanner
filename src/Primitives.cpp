@@ -461,3 +461,67 @@ Pose3D update_dubins<LEFT>(const Pose3D& pose, double duration, double speed, do
 }
 
 
+/********************  Recover path shape from two points and a hint  ********************/
+
+template<>
+PathShape<LEFT> compute_params<LEFT>(const Pose3D& start, const Pose3D& end, double h_speed, double turn_radius, double v_speed)
+{
+    PathShape<LEFT> output;
+    double ox,oy;
+
+    ox = turn_radius*std::cos(start.theta+M_PI_2);
+    oy = turn_radius*std::sin(start.theta+M_PI_2);
+
+    output.x = start.x+ox;
+    output.y = start.y+oy;
+    output.z = start.z;
+
+    output.p1 = turn_radius;
+    output.p2 = h_speed/turn_radius;
+    output.p3 = v_speed;
+    output.p4 = start.theta-M_PI_2;
+
+    return output;
+}
+
+template<>
+PathShape<RIGHT> compute_params<RIGHT>(const Pose3D& start, const Pose3D& end, double h_speed, double turn_radius, double v_speed)
+{
+    PathShape<RIGHT> output;
+    double ox,oy;
+
+    ox = turn_radius*std::cos(start.theta-M_PI_2);
+    oy = turn_radius*std::sin(start.theta-M_PI_2);
+
+    output.x = start.x+ox;
+    output.y = start.y+oy;
+    output.z = start.z;
+
+    output.p1 = turn_radius;
+    output.p2 = -h_speed/turn_radius;
+    output.p3 = v_speed;
+    output.p4 = start.theta+M_PI_2;
+
+    return output;
+}
+
+template<>
+PathShape<STRAIGHT> compute_params<STRAIGHT>(const Pose3D& start, const Pose3D& end, double h_speed, [[maybe_unused]] double turn_radius, double v_speed)
+{
+    PathShape<STRAIGHT> output;
+    output.x = start.x;
+    output.y = start.y;
+    output.z = start.z;
+
+    double dx,dy,dz;
+    dx = end.x - start.x;
+    dy = end.y - start.y;
+    dz = end.z - start.z;
+
+    double d_norm = std::sqrt(dx*dx + dy*dy + dz*dz);
+    output.p1 = h_speed*dx/d_norm;
+    output.p2 = h_speed*dy/d_norm;
+    output.p3 = v_speed*dz/d_norm;
+
+    return output;
+}

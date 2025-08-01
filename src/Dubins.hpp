@@ -20,6 +20,7 @@
 #include <vector>
 #include <array>
 #include <cmath>
+#include <string>
 
 #include "ProjectHeader.h"
 
@@ -53,6 +54,7 @@ protected:
      */
     virtual double _compute_length() = 0;
 
+public:
     /**
      * @brief Same as `_compute_length`, but also set the `length` and `valid` attributes
      * 
@@ -65,11 +67,16 @@ protected:
         return length;
     }
 
-public:
-    Dubins(const AircraftStats& stats, const Pose3D& _start, const Pose3D& _end)
-    : climb(stats.climb), turn_radius(stats.turn_radius), start(_start), end(_end) {}
+    /****** Constructors ******/
+
+    Dubins(double _climb, double _turn_radius, const Pose3D& _start, const Pose3D& _end)
+    : climb(_climb), turn_radius(_turn_radius), start(_start), end(_end) {}
 
     /****** Setters and getters ******/
+
+    // virtual constexpr const std::string& get_type_name() const = 0;
+    virtual constexpr const std::string& get_type_abbr() const = 0;
+
 
     void set_start(const Pose3D& _start) {start = _start; recompute();}
     Pose3D get_start() const {return start;}
@@ -139,4 +146,9 @@ public:
     {
         return get_positions<samples>(times*speed,sorted);
     }
+
+    virtual std::vector<double> get_junction_locs() const = 0;
+    virtual std::vector<Pose3D> get_junction_points() const = 0;
+
+    virtual DubinsMove get_section_type(double loc) const = 0;
 };

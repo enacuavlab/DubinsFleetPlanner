@@ -45,6 +45,8 @@ private:
     double fst_length,snd_length,trd_length;        // Lengths of the three sections of the Dubins path
     Pose3D intermediate_pose_1,intermediate_pose_2; // Poses at the junctions between sections
 
+    // static constexpr const std::string class_name = DubinsMoveNames[fst]  + DubinsMoveNames[snd]  + DubinsMoveNames[trd];
+    static constexpr const std::string class_abbr_name = std::string({DubinsMoveNames[fst][0],DubinsMoveNames[snd][0],DubinsMoveNames[trd][0]});
     
     double _compute_length()
     {
@@ -78,14 +80,16 @@ private:
     }
 
 public:
-    BaseDubins(const AircraftStats& stats, const Pose3D& _start, const Pose3D& _end)
-    : Dubins(stats,_start,_end) {recompute();}
+    /****** Constructors ******/
 
-    BaseDubins(const AircraftStats& stats, double _alpha, double _beta, double _d, double _z)
-    : Dubins(stats,{0.,0.,0.,_alpha},{_d,0.,_z,_beta}) {recompute();}
+    BaseDubins(double _climb, double _turn_radius, const Pose3D& _start, const Pose3D& _end)
+    : Dubins(_climb, _turn_radius, _start, _end) {recompute();}
 
-    BaseDubins(const AircraftStats& stats, const Pose3D& _start, const Pose3D& _end, double target_len, double tol)
-    : Dubins(stats,_start,_end)
+    BaseDubins(double _climb, double _turn_radius, double _alpha, double _beta, double _d, double _z)
+    : BaseDubins(_climb,_turn_radius,{0.,0.,0.,_alpha},{_d,0.,_z,_beta}) {}
+
+    BaseDubins(double _climb, double _turn_radius, const Pose3D& _start, const Pose3D& _end, double target_len, double tol)
+    : Dubins(_climb, _turn_radius, _start, _end) 
     {
         normalize();
         adjust_length(target_len,tol);
@@ -96,6 +100,18 @@ public:
 
         intermediate_pose_1 = follow_dubins<fst>(start,fst_length,1.,climb,turn_radius);
         intermediate_pose_2 = follow_dubins<snd>(intermediate_pose_1,snd_length,1.,climb,turn_radius);
+    }
+
+    /****** Getters ******/
+
+    // constexpr const std::string& get_type_name() const
+    // {
+    //     return class_name;
+    // }
+
+    constexpr const std::string& get_type_abbr() const
+    {
+        return class_abbr_name;
     }
 
     Pose3D get_position(double len) const override
@@ -118,8 +134,39 @@ public:
             }
             else
             {
+                len -= snd_length;
                 len = std::min(len,trd_length);
                 return update_dubins<trd>(intermediate_pose_2,len,1.,climb,turn_radius);
+            }
+        }
+    }
+
+    
+    std::vector<double> get_junction_locs() const override
+    {
+        return std::vector<double>({fst_length,fst_length+snd_length});
+    }
+
+    std::vector<Pose3D> get_junction_points() const override
+    {
+        return std::vector<Pose3D>({intermediate_pose_1,intermediate_pose_2});
+    }
+
+    DubinsMove get_section_type(double loc) const override
+    {
+        if (loc < fst_length)
+        {
+            return fst;
+        }
+        else
+        {
+            if (loc < fst_length+snd_length)
+            {
+                return snd;
+            }
+            else
+            {
+                return trd;
             }
         }
     }
@@ -135,9 +182,16 @@ typedef BaseDubins<DubinsMove::LEFT,DubinsMove::RIGHT,DubinsMove::LEFT> BaseDubi
 typedef BaseDubins<DubinsMove::STRAIGHT,DubinsMove::RIGHT,DubinsMove::STRAIGHT> BaseDubinsSRS;  // SRS
 typedef BaseDubins<DubinsMove::STRAIGHT,DubinsMove::LEFT,DubinsMove::STRAIGHT> BaseDubinsSLS;   // SLS
 
-typedef std::tuple<BaseDubinsLSL,BaseDubinsLSR,BaseDubinsRSR,BaseDubinsRSL,
-        BaseDubinsRLR,BaseDubinsLRL,BaseDubinsSRS,BaseDubinsSLS> 
+typedef std::tuple<
+    BaseDubinsLSL,
+    BaseDubinsLSR,
+    BaseDubinsRSR,
+    BaseDubinsRSL,
+    BaseDubinsRLR,
+    BaseDubinsLRL,
+    BaseDubinsSRS,
+    BaseDubinsSLS> 
         AllBaseDubins;
 
 
-AllBaseDubins list_possible_baseDubins(const AircraftStats& stats, const Pose3D& _start, const Pose3D& _end);
+AllBaseDubins list_possible_baseDubins(double _climb, double _turn_radius, const Pose3D& _start, const Pose3D& _end);

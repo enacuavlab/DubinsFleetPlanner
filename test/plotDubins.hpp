@@ -30,7 +30,7 @@ namespace Visualisation
 {
     using namespace sciplot;
 
-    auto plot_pose(Plot2D& plot, const Pose3D& pose)
+    DrawSpecs& plot_pose(Plot2D& plot, const Pose3D& pose)
     {
         return plot.drawWithVecs("vectors",
             std::valarray<double>{pose.x},
@@ -40,9 +40,9 @@ namespace Visualisation
     }
 
     template<unsigned samples>
-    auto plot_path(Plot2D& plot, Dubins& path)
+    DrawSpecs& plot_path(Plot2D& plot, Dubins& path)
     {
-        std::valarray<double> xs(0.,samples),ys(0.,samples);
+        std::valarray<double> xs(samples),ys(samples);
         double len = path.get_length();
         auto lens = linspace(0,len,samples);
         std::vector<double> lens_vec{std::begin(lens),std::end(lens)};
@@ -57,7 +57,21 @@ namespace Visualisation
         return plot.drawCurve(xs,ys);
     }
 
-    Plot2D init_plot(double xmin, double xmax)
+    DrawSpecs& plot_junctions(Plot2D& plot, Dubins& path)
+    {
+        std::vector<Pose3D> locs = path.get_junction_points();
+        size_t num = locs.size();
+        std::valarray<double> xs(num), ys(num);
+        for(unsigned i = 0; i < num; i++)
+        {
+            xs[i] = locs[i].x;
+            ys[i] = locs[i].y;
+        }
+
+        return plot.drawPoints(xs,ys);
+    }
+
+    Plot2D init_plot()
     {
         // Create a Plot object
         Plot2D plot;
@@ -66,9 +80,10 @@ namespace Visualisation
         plot.xlabel("x");
         plot.ylabel("y");
 
-        // Set x and y ranges
-        plot.xrange(xmin,xmax); 
-        plot.yrange("","*"); // Autorange
+        // // Set x and y ranges
+        // plot.xrange(xmin,xmax); 
+        // plot.yrange("","*"); // Autorange
+        plot.gnuplot("set size ratio -1"); // Equal aspect ratio
 
         // Set the legend to be on the bottom along the horizontal
         plot.legend()

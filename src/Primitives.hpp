@@ -20,6 +20,8 @@
 #include <limits>
 #include <cmath>
 #include <tuple>
+#include <array>
+#include <string>
 
 #include "utils.hpp"
 
@@ -111,6 +113,12 @@ enum DubinsMove {
     RIGHT = 2
 };
 
+constexpr const std::array<std::string,3> DubinsMoveNames{
+    std::string("STRAIGHT"),
+    std::string("LEFT"),
+    std::string("RIGHT")
+};
+
 /**
  * @brief Follow a Dubins move for a given duration
  * 
@@ -137,3 +145,33 @@ void follow_dubins(Pose3D* pose, double duration, double speed, double climb_rat
  */
 template<DubinsMove m>
 Pose3D update_dubins(const Pose3D& pose, double duration, double speed, double climb_rate, double turn_radius);
+
+/********************  Recover path shape from two points and a hint  ********************/
+
+/**
+ * @brief Structure to hold parameters describing a simple path
+ * 
+ */
+template<DubinsMove m>
+struct PathShape
+{
+    double x,y,z;   // A reference point (typically starting point)
+    double p1;  // For a Straight: horizontal x speed | For a circle: turn_radius
+    double p2;  // For a Straight: horizontal y speed | For a circle: angular speed
+    double p3;  // Vertical speed
+    double p4;  // For a Straight: unused | For a circle: initial angle
+};
+
+/**
+ * @brief Given a shape and two points on this shape, compute the parameters for its parametric equation
+ * 
+ * @tparam m Shape parameter, being on the Dubins move
+ * @param start     First pose sampled
+ * @param end       Second pose sampled
+ * @param h_speed   XY vehicle speed
+ * @param turn_radius   Turn radius for turns
+ * @param v_speed   Z vehicle speed
+ * @return PathShape    Computed parameters
+ */
+template<DubinsMove m>
+PathShape<m> compute_params(const Pose3D& start, const Pose3D& end, double h_speed, double turn_radius, double v_speed);
