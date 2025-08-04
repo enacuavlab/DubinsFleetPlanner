@@ -43,8 +43,8 @@ double central_angle(double x);
 typedef struct {
     double x    ; // X position
     double y    ; // Y position
-    double theta; // XY Orientation (in radiants, 0 is pure X, pi/2 is pure Y)
     double z    ; // Z position
+    double theta; // XY Orientation (in radiants, 0 is pure X, pi/2 is pure Y)
 } Pose3D;
 
 /**

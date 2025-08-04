@@ -77,7 +77,6 @@ public:
     // virtual constexpr const std::string& get_type_name() const = 0;
     virtual constexpr const std::string& get_type_abbr() const = 0;
 
-
     void set_start(const Pose3D& _start) {start = _start; recompute();}
     Pose3D get_start() const {return start;}
 

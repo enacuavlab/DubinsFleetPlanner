@@ -65,6 +65,15 @@ double LSL_last_distance(double alpha, double beta, double d)
     return q_lsl;
 }
 
+[[gnu::const]]
+std::pair<double,double> LSL_possible_d(double alpha, double beta)
+{
+    // Limitations may come from the sqrt in the `LSL_middle_distance`,
+    // but one can show it is always well-defined. Still, distance must be positive.
+
+    return std::pair(0.,INFINITY);
+}
+
 double LSL_small_d_approx(double alpha, double beta, [[maybe_unused]] double d)
 {
     double delta_cos = std::cos(beta)-std::cos(alpha);
@@ -111,6 +120,15 @@ double RSR_last_distance(double alpha, double beta, double d)
     return mod_2pi(- beta + std::atan2(-delta_cos,(d+delta_sin)));
 }
 
+[[gnu::const]]
+std::pair<double,double> RSR_possible_d(double alpha, double beta)
+{
+    // Limitations may come from the sqrt in the `RSR_middle_distance`,
+    // but one can show it is always well-defined. Still, distance must be positive.
+
+    return std::pair(0.,INFINITY);
+}
+
 double RSR_small_d_approx(double alpha, double beta, [[maybe_unused]] double d)
 {
     double delta_cos = std::cos(beta)-std::cos(alpha);
@@ -155,6 +173,21 @@ double RSL_last_distance(double alpha, double beta, double d)
     double sum_cos = std::cos(alpha)+std::cos(beta);
     double sum_sin = std::sin(alpha)+std::sin(beta);
     return mod_2pi(beta - std::atan2(sum_cos,(d-sum_sin)) + std::atan2(2,RSL_middle_distance(alpha,beta,d)));
+}
+
+[[gnu::const]]
+std::pair<double,double> RSL_possible_d(double alpha, double beta)
+{
+    // Limitations may come from the sqrt in the `RSL_middle_distance`
+    double sum_sin = std::sin(alpha)+std::sin(beta);
+    // One can show that the discriminant is always positive, and roots have different signs
+    // Hence we only focus on the largest to get a lower bound on d
+    double delta_r = sum_sin*sum_sin - 2*(std::cos(alpha-beta)-1);
+    
+    double d_min = sum_sin + std::sqrt(delta_r);
+    d_min = std::max(0.,d_min);
+
+    return std::pair(d_min,INFINITY);
 }
 
 double RSL_small_d_approx(double alpha, double beta, [[maybe_unused]] double d)
@@ -204,6 +237,20 @@ double LSR_last_distance(double alpha, double beta, double d)
     return mod_2pi(-beta + std::atan2(-sum_cos,(d+sum_sin))-std::atan2(-2,LSR_middle_distance(alpha,beta,d)));
 }
 
+[[gnu::const]]
+std::pair<double,double> LSR_possible_d(double alpha, double beta)
+{
+    // Limitations may come from the sqrt in the `LSR_middle_distance`
+    double sum_sin = std::sin(alpha)+std::sin(beta);
+    // One can show that the discriminant is always positive, and roots have different signs
+    // Hence we only focus on the largest to get a lower bound on d
+    double delta_r = sum_sin*sum_sin - 2*(std::cos(alpha-beta)-1);
+    
+    double d_min = - sum_sin + std::sqrt(delta_r);
+    d_min = std::max(0.,d_min);
+
+    return std::pair(d_min,INFINITY);
+}
 
 double LSR_small_d_approx(double alpha, double beta, [[maybe_unused]] double d)
 {
@@ -248,6 +295,23 @@ double RLR_middle_distance(double alpha, double beta, double d)
 double RLR_last_distance(double alpha, double beta, double d)
 {
     return mod_2pi(alpha-beta-RLR_first_distance(alpha,beta,d)+RLR_middle_distance(alpha,beta,d));
+}
+
+[[gnu::const]]
+std::pair<double,double> RLR_possible_d(double alpha, double beta)
+{
+    // Limitations may come from the acos in the `RLR_middle_distance`
+    double delta_sin = std::sin(beta)-std::sin(alpha);
+    // One can show that the polynomial is always less than 1
+
+    // One can show that the discriminant is always positive, and roots have different signs
+    // Hence we only focus on the largest to get a lower bound on d
+    double delta_r = delta_sin*delta_sin + (2*std::cos(alpha-beta)+14);
+    
+    double d_min_p = std::max(0.,- delta_sin + std::sqrt(delta_r));
+    double d_min_m = std::max(0.,- delta_sin - std::sqrt(delta_r));
+
+    return std::pair(d_min_m, d_min_p);
 }
 
 double RLR_small_d_approx(double alpha, double beta, [[maybe_unused]] double d)
@@ -296,6 +360,23 @@ double LRL_last_distance(double alpha, double beta, double d)
     return mod_2pi(beta-alpha+LRL_middle_distance(alpha,beta,d) - LRL_first_distance(alpha,beta,d));
 }
 
+[[gnu::const]]
+std::pair<double,double> LRL_possible_d(double alpha, double beta)
+{
+    // Limitations may come from the acos in the `RLR_middle_distance`
+    double delta_sin = std::sin(beta)-std::sin(alpha);
+    // One can show that the polynomial is always less than 1
+
+    // One can show that the discriminant is always positive, and roots have different signs
+    // Hence we only focus on the largest to get a lower bound on d
+    double delta_r = delta_sin*delta_sin + (2*std::cos(alpha-beta)+14);
+    
+    double d_min_p = std::max(0.,delta_sin + std::sqrt(delta_r));
+    double d_min_m = std::max(0.,delta_sin - std::sqrt(delta_r));
+
+    return std::pair(d_min_m, d_min_p);
+}
+
 double LRL_small_d_approx(double alpha, double beta, [[maybe_unused]] double d)
 {
     double delta_cos = std::cos(beta)-std::cos(alpha);
@@ -325,7 +406,7 @@ double LRL_total_distance(double alpha, double beta, double d)
 double SRS_first_distance(double alpha, double beta, double d)
 {
     // We don't care about the special case where alpha=beta=0 because then the solution
-    // is a straight line, which will overlap with LSL
+    // is a straight line, which will overlap with RSR
     double da = central_angle(alpha-beta);
     if (std::abs(da) - M_PI == 0)
     {
@@ -357,6 +438,26 @@ double SRS_last_distance(double alpha, double beta, double d)
 
     double output = ec - 1/std::tan((M_PI-da)/2);
     return (output >= 0) ? output : NAN;
+}
+
+[[gnu::const]]
+std::pair<double,double> SRS_possible_d(double alpha, double beta)
+{
+    double da = central_angle(alpha-beta);
+    // Case with nothing possible
+    if (std::abs(da) - M_PI == 0)
+    {
+        return std::pair(INFINITY,-INFINITY);
+    }
+    double sC = std::abs(std::sin(beta)/std::sin(da));
+    double eC = std::abs(std::sin(alpha)/std::sin(da));
+
+    double A = 1/std::tan((M_PI-da)/2);
+
+    double d_min = std::max(A/sC, A/eC);
+    d_min = std::max(d_min, 0.);
+
+    return std::pair(d_min,INFINITY);
 }
 
 
@@ -409,6 +510,26 @@ double SLS_last_distance(double alpha, double beta, double d)
     return (output >= 0) ? output : NAN;
 }
 
+[[gnu::const]]
+std::pair<double,double> SLS_possible_d(double alpha, double beta)
+{
+    double da = central_angle(alpha-beta);
+    // Case with nothing possible
+    if (std::abs(da) - M_PI == 0)
+    {
+        return std::pair(INFINITY,-INFINITY);
+    }
+    double sC = std::abs(std::sin(beta)/std::sin(da));
+    double eC = std::abs(std::sin(alpha)/std::sin(da));
+
+    double A = 1/std::tan((M_PI-da)/2);
+
+    double d_min = std::max(A/sC, A/eC);
+    d_min = std::max(d_min, 0.);
+
+    return std::pair(d_min,INFINITY);
+}
+
 
 [[gnu::const]]
 double SLS_total_distance(double alpha, double beta, double d)
@@ -422,40 +543,40 @@ double SLS_total_distance(double alpha, double beta, double d)
 /******************** Template specialization for Dubins moves ********************/
 
 template<>
-void follow_dubins<STRAIGHT>(Pose3D* pose, double duration, double speed, double climb_rate, [[maybe_unused]] double turn_radius)
+void update_dubins<STRAIGHT>(Pose3D* pose, double duration, double speed, double climb_rate, [[maybe_unused]] double turn_radius)
 {
     move_straight(pose,duration,speed,climb_rate);
 }
 
 template<>
 [[gnu::pure]]
-Pose3D update_dubins<STRAIGHT>(const Pose3D& pose, double duration, double speed, double climb_rate, [[maybe_unused]] double turn_radius)
+Pose3D follow_dubins<STRAIGHT>(const Pose3D& pose, double duration, double speed, double climb_rate, [[maybe_unused]] double turn_radius)
 {
     return move_straight(pose,duration,speed,climb_rate);
 }
 
 template<>
-void follow_dubins<RIGHT>(Pose3D* pose, double duration, double speed, double climb_rate, double turn_radius)
+void update_dubins<RIGHT>(Pose3D* pose, double duration, double speed, double climb_rate, double turn_radius)
 {
     turn_right(pose,duration,speed,climb_rate,turn_radius);
 }
 
 template<>
 [[gnu::pure]]
-Pose3D update_dubins<RIGHT>(const Pose3D& pose, double duration, double speed, double climb_rate, double turn_radius)
+Pose3D follow_dubins<RIGHT>(const Pose3D& pose, double duration, double speed, double climb_rate, double turn_radius)
 {
     return turn_right(pose,duration,speed,climb_rate,turn_radius);
 }
 
 template<>
-void follow_dubins<LEFT>(Pose3D* pose, double duration, double speed, double climb_rate, double turn_radius)
+void update_dubins<LEFT>(Pose3D* pose, double duration, double speed, double climb_rate, double turn_radius)
 {
     turn_left(pose,duration,speed,climb_rate,turn_radius);
 }
 
 template<>
 [[gnu::pure]]
-Pose3D update_dubins<LEFT>(const Pose3D& pose, double duration, double speed, double climb_rate, double turn_radius)
+Pose3D follow_dubins<LEFT>(const Pose3D& pose, double duration, double speed, double climb_rate, double turn_radius)
 {
     return turn_left(pose,duration,speed,climb_rate,turn_radius);
 }

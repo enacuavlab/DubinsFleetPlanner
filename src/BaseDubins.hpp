@@ -75,8 +75,8 @@ private:
     {
         normalize();
         compute_length();
-        intermediate_pose_1 = update_dubins<fst>(start,fst_length,1.,climb,turn_radius);
-        intermediate_pose_2 = update_dubins<snd>(intermediate_pose_1,snd_length,1.,climb,turn_radius);
+        intermediate_pose_1 = follow_dubins<fst>(start,fst_length,1.,climb,turn_radius);
+        intermediate_pose_2 = follow_dubins<snd>(intermediate_pose_1,snd_length,1.,climb,turn_radius);
     }
 
 public:
@@ -109,6 +109,11 @@ public:
     //     return class_name;
     // }
 
+    static const std::tuple<DubinsMove,DubinsMove,DubinsMove> class_id()
+    {
+        return std::make_tuple(fst,snd,trd);
+    }
+
     constexpr const std::string& get_type_abbr() const
     {
         return class_abbr_name;
@@ -123,20 +128,20 @@ public:
 
         if (len < fst_length)
         {
-            return update_dubins<fst>(start,len,1.,climb,turn_radius);
+            return follow_dubins<fst>(start,len,1.,climb,turn_radius);
         }
         else
         {
             len -= fst_length;
             if (len < snd_length)
             {
-                return update_dubins<snd>(intermediate_pose_1,len,1.,climb,turn_radius);
+                return follow_dubins<snd>(intermediate_pose_1,len,1.,climb,turn_radius);
             }
             else
             {
                 len -= snd_length;
                 len = std::min(len,trd_length);
-                return update_dubins<trd>(intermediate_pose_2,len,1.,climb,turn_radius);
+                return follow_dubins<trd>(intermediate_pose_2,len,1.,climb,turn_radius);
             }
         }
     }
@@ -195,3 +200,5 @@ typedef std::tuple<
 
 
 AllBaseDubins list_possible_baseDubins(double _climb, double _turn_radius, const Pose3D& _start, const Pose3D& _end);
+AllBaseDubins fit_possible_baseDubins(double _climb, double _turn_radius, const Pose3D& _start, const Pose3D& _end,
+    double target_len, double tol);

@@ -50,6 +50,7 @@ double LSL_middle_distance(double alpha, double beta, double d);
 double LSL_last_distance(double alpha, double beta, double d);
 
 double LSL_total_distance(double alpha, double beta, double d);
+std::pair<double,double> LSL_possible_d(double alpha, double beta);
 
 
 double RSR_first_distance(double alpha, double beta, double d);
@@ -57,6 +58,7 @@ double RSR_middle_distance(double alpha, double beta, double d);
 double RSR_last_distance(double alpha, double beta, double d);
 
 double RSR_total_distance(double alpha, double beta, double d);
+std::pair<double,double> RSR_possible_d(double alpha, double beta);
 
 
 double RSL_first_distance(double alpha, double beta, double d);
@@ -64,6 +66,7 @@ double RSL_middle_distance(double alpha, double beta, double d);
 double RSL_last_distance(double alpha, double beta, double d);
 
 double RSL_total_distance(double alpha, double beta, double d);
+std::pair<double,double> RSL_possible_d(double alpha, double beta);
 
 
 double LSR_first_distance(double alpha, double beta, double d);
@@ -71,6 +74,7 @@ double LSR_middle_distance(double alpha, double beta, double d);
 double LSR_last_distance(double alpha, double beta, double d);
 
 double LSR_total_distance(double alpha, double beta, double d);
+std::pair<double,double> LSR_possible_d(double alpha, double beta);
 
 
 double RLR_first_distance(double alpha, double beta, double d);
@@ -78,6 +82,7 @@ double RLR_middle_distance(double alpha, double beta, double d);
 double RLR_last_distance(double alpha, double beta, double d);
 
 double RLR_total_distance(double alpha, double beta, double d);
+std::pair<double,double> RLR_possible_d(double alpha, double beta);
 
 
 double LRL_first_distance(double alpha, double beta, double d);
@@ -85,6 +90,7 @@ double LRL_middle_distance(double alpha, double beta, double d);
 double LRL_last_distance(double alpha, double beta, double d);
 
 double LRL_total_distance(double alpha, double beta, double d);
+std::pair<double,double> LRL_possible_d(double alpha, double beta);
 
 
 double SRS_first_distance(double alpha, double beta, double d);
@@ -92,6 +98,7 @@ double SRS_middle_distance(double alpha, double beta, double d);
 double SRS_last_distance(double alpha, double beta, double d);
 
 double SRS_total_distance(double alpha, double beta, double d);
+std::pair<double,double> SRS_possible_d(double alpha, double beta);
 
 
 double SLS_first_distance(double alpha, double beta, double d);
@@ -99,6 +106,7 @@ double SLS_middle_distance(double alpha, double beta, double d);
 double SLS_last_distance(double alpha, double beta, double d);
 
 double SLS_total_distance(double alpha, double beta, double d);
+std::pair<double,double> SLS_possible_d(double alpha, double beta);
 
 
 /********************  General templates for Dubins functions  ********************/
@@ -130,7 +138,7 @@ constexpr const std::array<std::string,3> DubinsMoveNames{
  * @param turn_radius   Vehicle XY turn radius (m)
  */
 template<DubinsMove m>
-void follow_dubins(Pose3D* pose, double duration, double speed, double climb_rate, double turn_radius);
+void update_dubins(Pose3D* pose, double duration, double speed, double climb_rate, double turn_radius);
 
 /**
  * @brief Follow a Dubins move for a given duration
@@ -144,7 +152,7 @@ void follow_dubins(Pose3D* pose, double duration, double speed, double climb_rat
  * @return Pose3d       Resulting pose
  */
 template<DubinsMove m>
-Pose3D update_dubins(const Pose3D& pose, double duration, double speed, double climb_rate, double turn_radius);
+Pose3D follow_dubins(const Pose3D& pose, double duration, double speed, double climb_rate, double turn_radius);
 
 /********************  Recover path shape from two points and a hint  ********************/
 

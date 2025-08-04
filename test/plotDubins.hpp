@@ -22,12 +22,37 @@
 
 #include <tuple>
 #include <valarray>
+#include <map>
 
 #include "utils.hpp"
 #include "Dubins.hpp"
+#include "BaseDubins.hpp"
+
+
+// Colormap from https://tsitsul.in/blog/coloropt/
+// xgfs_normal12 = [(235, 172, 35), (184, 0, 88), (0, 140, 249), (0, 110, 0), (0, 187, 173), (209, 99, 230), (178, 69, 2), (255, 146, 135), (89, 84, 214), (0, 198, 248), (135, 133, 0), (0, 167, 108), (189, 189, 189)]
+// xgfs_normal12_hex = {#ebac23,#b80058,#008cf9,#006e00,#00bbad,#d163e6,#b24502,#ff9287,#5954d6,#00c6f8,#878500,#00a76c,#bdbdbd}
 
 namespace Visualisation
 {
+
+    const std::vector<std::string> colorlist{
+        "#EBAC23",
+        "#B80058",
+        "#008CF9",
+        "#006E00",
+        "#00BBAD",
+        "#D163E6",
+        "#B24502",
+        "#FF9287",
+        "#5954d6",
+        "#00c6f8",
+        "#878500",
+        "#00a76c",
+        "#bdbdbd"
+    };
+
+
     using namespace sciplot;
 
     DrawSpecs& plot_pose(Plot2D& plot, const Pose3D& pose)

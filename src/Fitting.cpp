@@ -20,30 +20,27 @@
 using namespace boost::math::tools;
 
 template<typename F>
-double generic_fit(F f, double min_rho, double target_l, double tol=1e-6)
+double generic_fit(F f, double min_rho, double max_rho, double tol=1e-6)
 {
 
 #if DubinsFleetPlanner_ASSERTIONS > 0
-        assert(target_l > 0);
         assert(tol > 0);
 #endif
 
-    bool increasing;
-    double left_val = f(min_rho);
-    if (left_val < target_l)
-    {
-        increasing = true;
-    }
-    else
-    {
-        increasing = false;
-    }
-
-    std::uintmax_t inter_count = 0;
+    std::uintmax_t inter_count = 1000;
 
     auto tol_func = eps_tolerance<double>(-std::log2(tol));
 
-    std::pair<double,double> bracket = bracket_and_solve_root(f,min_rho,2.,increasing,tol_func,inter_count);
+    double fa = f(min_rho);
+    double fb = f(max_rho);
+
+    // No root in bracket
+    if (boost::math::sign(fa) * boost::math::sign(fb) > 0)
+    {
+        return NAN;
+    }
+
+    std::pair<double,double> bracket = toms748_solve(f,min_rho,max_rho,fa,fb,tol_func,inter_count);
 
     bool valid_bracket  = boost::math::sign(f(bracket.first))*boost::math::sign(f(bracket.second)) <= 0;
     bool precise_enough = tol_func(bracket.first,bracket.second);
@@ -61,48 +58,79 @@ double generic_fit(F f, double min_rho, double target_l, double tol=1e-6)
 
 double fit_LSL(double alpha, double beta, double d, double min_rho, double target_l, double tol)
 {
-    auto target_fun = [=](double rho){return LSL_total_distance(alpha,beta,d/rho)*rho;};
-    return generic_fit(target_fun,min_rho,target_l,tol);
+    std::pair<double,double> d_bracket = LSL_possible_d(alpha,beta);
+    double rmin = std::max(min_rho,d/d_bracket.second);
+    double rmax = std::min(d/d_bracket.first,100*min_rho);
+    auto target_fun = [=](double rho){return LSL_total_distance(alpha,beta,d/rho)*rho-target_l;};
+
+    return generic_fit(target_fun,rmin,rmax,tol);
 }
 
 double fit_RSR(double alpha, double beta, double d, double min_rho, double target_l, double tol)
 {
-    auto target_fun = [=](double rho){return RSR_total_distance(alpha,beta,d/rho)*rho;};
-    return generic_fit(target_fun,min_rho,target_l,tol);
+    std::pair<double,double> d_bracket = RSR_possible_d(alpha,beta);
+    double rmin = std::max(min_rho,d/d_bracket.second);
+    double rmax = std::min(d/d_bracket.first,100*min_rho);
+    auto target_fun = [=](double rho){return RSR_total_distance(alpha,beta,d/rho)*rho-target_l;};
+
+    return generic_fit(target_fun,rmin,rmax,tol);
 }
 
 double fit_RSL(double alpha, double beta, double d, double min_rho, double target_l, double tol)
 {
-    auto target_fun = [=](double rho){return RSL_total_distance(alpha,beta,d/rho)*rho;};
-    return generic_fit(target_fun,min_rho,target_l,tol);
+    std::pair<double,double> d_bracket = RSL_possible_d(alpha,beta);
+    double rmin = std::max(min_rho,d/d_bracket.second);
+    double rmax = std::min(d/d_bracket.first,100*min_rho);
+    auto target_fun = [=](double rho){return RSL_total_distance(alpha,beta,d/rho)*rho-target_l;};
+
+    return generic_fit(target_fun,rmin,rmax,tol);
 }
 
 double fit_LSR(double alpha, double beta, double d, double min_rho, double target_l, double tol)
 {
-    auto target_fun = [=](double rho){return LSR_total_distance(alpha,beta,d/rho)*rho;};
-    return generic_fit(target_fun,min_rho,target_l,tol);
+    std::pair<double,double> d_bracket = LSR_possible_d(alpha,beta);
+    double rmin = std::max(min_rho,d/d_bracket.second);
+    double rmax = std::min(d/d_bracket.first,100*min_rho);
+    auto target_fun = [=](double rho){return LSR_total_distance(alpha,beta,d/rho)*rho-target_l;};
+    return generic_fit(target_fun,rmin,rmax,tol);
 }
 
 double fit_RLR(double alpha, double beta, double d, double min_rho, double target_l, double tol)
 {
-    auto target_fun = [=](double rho){return RLR_total_distance(alpha,beta,d/rho)*rho;};
-    return generic_fit(target_fun,min_rho,target_l,tol);
+    std::pair<double,double> d_bracket = RLR_possible_d(alpha,beta);
+    double rmin = std::max(min_rho,d/d_bracket.second);
+    double rmax = std::min(d/d_bracket.first,100*min_rho);
+    auto target_fun = [=](double rho){return RLR_total_distance(alpha,beta,d/rho)*rho-target_l;};
+
+    return generic_fit(target_fun,rmin,rmax,tol);
 }
 
 double fit_LRL(double alpha, double beta, double d, double min_rho, double target_l, double tol)
 {
-    auto target_fun = [=](double rho){return LRL_total_distance(alpha,beta,d/rho)*rho;};
-    return generic_fit(target_fun,min_rho,target_l,tol);
+    std::pair<double,double> d_bracket = LRL_possible_d(alpha,beta);
+    double rmin = std::max(min_rho,d/d_bracket.second);
+    double rmax = std::min(d/d_bracket.first,100*min_rho);
+    auto target_fun = [=](double rho){return LRL_total_distance(alpha,beta,d/rho)*rho-target_l;};
+
+    return generic_fit(target_fun,rmin,rmax,tol);
 }
 
 double fit_SRS(double alpha, double beta, double d, double min_rho, double target_l, double tol)
 {
-    auto target_fun = [=](double rho){return SRS_total_distance(alpha,beta,d/rho)*rho;};
-    return generic_fit(target_fun,min_rho,target_l,tol);
+    std::pair<double,double> d_bracket = SRS_possible_d(alpha,beta);
+    double rmin = std::max(min_rho,d/d_bracket.second);
+    double rmax = std::min(d/d_bracket.first,100*min_rho);
+    auto target_fun = [=](double rho){return SRS_total_distance(alpha,beta,d/rho)*rho-target_l;};
+
+    return generic_fit(target_fun,rmin,rmax,tol);
 }
 
 double fit_SLS(double alpha, double beta, double d, double min_rho, double target_l, double tol)
 {
-    auto target_fun = [=](double rho){return SLS_total_distance(alpha,beta,d/rho)*rho;};
-    return generic_fit(target_fun,min_rho,target_l,tol);
+    std::pair<double,double> d_bracket = SLS_possible_d(alpha,beta);
+    double rmin = std::max(min_rho,d/d_bracket.second);
+    double rmax = std::min(d/d_bracket.first,100*min_rho);
+    auto target_fun = [=](double rho){return SLS_total_distance(alpha,beta,d/rho)*rho-target_l;};
+
+    return generic_fit(target_fun,rmin,rmax,tol);
 }

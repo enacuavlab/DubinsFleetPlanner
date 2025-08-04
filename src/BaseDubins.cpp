@@ -357,3 +357,20 @@ AllBaseDubins list_possible_baseDubins(double _climb, double _turn_radius, const
 
     return candidates;
 }
+
+AllBaseDubins fit_possible_baseDubins(double _climb, double _turn_radius, const Pose3D& _start, const Pose3D& _end,
+    double target_len, double tol)
+{
+    AllBaseDubins candidates = std::make_tuple(
+        BaseDubinsLSL(_climb, _turn_radius, _start, _end, target_len, tol),
+        BaseDubinsLSR(_climb, _turn_radius, _start, _end, target_len, tol),
+        BaseDubinsRSR(_climb, _turn_radius, _start, _end, target_len, tol),
+        BaseDubinsRSL(_climb, _turn_radius, _start, _end, target_len, tol),
+        BaseDubinsRLR(_climb, _turn_radius, _start, _end, target_len, tol),
+        BaseDubinsLRL(_climb, _turn_radius, _start, _end, target_len, tol),
+        BaseDubinsSRS(_climb, _turn_radius, _start, _end, target_len, tol),
+        BaseDubinsSLS(_climb, _turn_radius, _start, _end, target_len, tol)
+    );
+
+    return candidates;
+}
