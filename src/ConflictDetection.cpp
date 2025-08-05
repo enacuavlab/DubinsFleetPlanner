@@ -557,3 +557,14 @@ double geometric_Z_dist(const PathShape<m1> &s1, const PathShape<m2> &s2, double
 
     return min_dist;
 }
+
+
+
+template<DubinsMove m1, DubinsMove m2>
+double temporal_3D_dist(const PathShape<m1> &s1, const PathShape<m2> &s2, double duration);
+
+template<DubinsMove m1, DubinsMove m2>
+double temporal_XY_dist(const PathShape<m1> &s1, const PathShape<m2> &s2, double duration);
+
+template<DubinsMove m1, DubinsMove m2>
+double temporal_Z_dist(const PathShape<m1> &s1, const PathShape<m2> &s2, double duration);

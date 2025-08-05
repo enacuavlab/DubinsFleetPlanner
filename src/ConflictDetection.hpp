@@ -28,12 +28,12 @@
 // ==================== Geometric distance ==================== //
 
 /**
- * @brief Given two shapes, compute their XY geometric separation 
+ * @brief Given two shapes described by paths, compute their XY geometric separation 
  * 
  * This amount to the minimal euclidean distance between the two shapes, *ignoring* the vertical component.
  * 
- * @tparam m1 First shape type (STRAIGHT or an turn, RIGHT or LEFT)
- * @tparam m2 Second shape type (STRAIGHT or an turn, RIGHT or LEFT)
+ * @tparam m1 First shape type (STRAIGHT or a turn, RIGHT or LEFT)
+ * @tparam m2 Second shape type (STRAIGHT or a turn, RIGHT or LEFT)
  * @param s1 First shape parameters
  * @param s2 Second shape parameters
  * @param duration Duration (in s) for which the shape are followed, defining segment and circle arcs
@@ -43,12 +43,12 @@ template<DubinsMove m1, DubinsMove m2>
 double geometric_XY_dist(const PathShape<m1> &s1, const PathShape<m2> &s2, double duration);
 
 /**
- * @brief Given two shapes, compute their vertical (Z) geometric separation
+ * @brief Given two shapes described by paths, compute their vertical (Z) geometric separation
  * 
  * Since all shapes consider linear climbs, the exact type does not change a thing to the computations
  * 
- * @tparam m1 First shape type (STRAIGHT or an turn, RIGHT or LEFT)
- * @tparam m2 Second shape type (STRAIGHT or an turn, RIGHT or LEFT)
+ * @tparam m1 First shape type (STRAIGHT or a turn, RIGHT or LEFT)
+ * @tparam m2 Second shape type (STRAIGHT or a turn, RIGHT or LEFT)
  * @param s1 First shape parameters
  * @param s2 Second shape parameters
  * @param duration Duration (in s) for which the shape are followed, defining the segment
@@ -58,12 +58,47 @@ template<DubinsMove m1, DubinsMove m2>
 double geometric_Z_dist(const PathShape<m1> &s1, const PathShape<m2> &s2, double duration);
 
 // ==================== Temporal distance ==================== //
-//TODO 
+
+
+/**
+ * @brief Given two base trajectories, find the minimal 3D euclidean distance between them on the given time interval
+ * 
+ * @tparam m1 First trajectory type (STRAIGHT or a turn, RIGHT or LEFT)
+ * @tparam m2 Second trajectory type (STRAIGHT or a turn, RIGHT or LEFT)
+ * @param s1 First trajectory parameters
+ * @param s2 Second trajectory parameters
+ * @param duration Duration (in s) of the trajectories
+ * @return double Minimal euclidean distance in the given duration
+ */
 template<DubinsMove m1, DubinsMove m2>
 double temporal_3D_dist(const PathShape<m1> &s1, const PathShape<m2> &s2, double duration);
 
+/**
+ * @brief Given two base trajectories, find the minimal XY euclidean distance between them on the given time interval
+ * 
+ * This amount to the minimal planar euclidean distance between the two trajectories, *ignoring* the vertical component.
+ * 
+ * @tparam m1 First trajectory type (STRAIGHT or a turn, RIGHT or LEFT)
+ * @tparam m2 Second trajectory type (STRAIGHT or a turn, RIGHT or LEFT)
+ * @param s1 First trajectory parameters
+ * @param s2 Second trajectory parameters
+ * @param duration Duration (in s) of the trajectories
+ * @return double Minimal euclidean distance in the given duration
+ */
 template<DubinsMove m1, DubinsMove m2>
 double temporal_XY_dist(const PathShape<m1> &s1, const PathShape<m2> &s2, double duration);
 
+/**
+ * @brief Given two base trajectories, find the minimal Z euclidean distance between them on the given time interval
+ * 
+ * Since all trajectories use linear climbs, the exact type does not change a thing to the computations
+ *  
+ * @tparam m1 First trajectory type (STRAIGHT or a turn, RIGHT or LEFT)
+ * @tparam m2 Second trajectory type (STRAIGHT or a turn, RIGHT or LEFT)
+ * @param s1 First trajectory parameters
+ * @param s2 Second trajectory parameters
+ * @param duration Duration (in s) of the trajectories
+ * @return double Minimal vertical distance in the given duration
+ */
 template<DubinsMove m1, DubinsMove m2>
 double temporal_Z_dist(const PathShape<m1> &s1, const PathShape<m2> &s2, double duration);
