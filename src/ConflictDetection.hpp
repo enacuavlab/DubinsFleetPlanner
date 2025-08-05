@@ -16,3 +16,54 @@
 // along with DubinsFleetPlanner.  If not, see <https://www.gnu.org/licenses/>.
 
 #pragma once
+
+#include <tuple>
+#include <limits>
+#include <Eigen/Dense>
+
+#include "utils.hpp"
+#include "Dubins.hpp"
+#include "Primitives.hpp"
+
+// ==================== Geometric distance ==================== //
+
+/**
+ * @brief Given two shapes, compute their XY geometric separation 
+ * 
+ * This amount to the minimal euclidean distance between the two shapes, *ignoring* the vertical component.
+ * 
+ * @tparam m1 First shape type (STRAIGHT or an turn, RIGHT or LEFT)
+ * @tparam m2 Second shape type (STRAIGHT or an turn, RIGHT or LEFT)
+ * @param s1 First shape parameters
+ * @param s2 Second shape parameters
+ * @param duration Duration (in s) for which the shape are followed, defining segment and circle arcs
+ * @return double The minimal XY separation distance
+ */
+template<DubinsMove m1, DubinsMove m2>
+double geometric_XY_dist(const PathShape<m1> &s1, const PathShape<m2> &s2, double duration);
+
+/**
+ * @brief Given two shapes, compute their vertical (Z) geometric separation
+ * 
+ * Since all shapes consider linear climbs, the exact type does not change a thing to the computations
+ * 
+ * @tparam m1 First shape type (STRAIGHT or an turn, RIGHT or LEFT)
+ * @tparam m2 Second shape type (STRAIGHT or an turn, RIGHT or LEFT)
+ * @param s1 First shape parameters
+ * @param s2 Second shape parameters
+ * @param duration Duration (in s) for which the shape are followed, defining the segment
+ * @return double The minimal Z separation distance
+ */
+template<DubinsMove m1, DubinsMove m2>
+double geometric_Z_dist(const PathShape<m1> &s1, const PathShape<m2> &s2, double duration);
+
+// ==================== Temporal distance ==================== //
+//TODO 
+template<DubinsMove m1, DubinsMove m2>
+double temporal_3D_dist(const PathShape<m1> &s1, const PathShape<m2> &s2, double duration);
+
+template<DubinsMove m1, DubinsMove m2>
+double temporal_XY_dist(const PathShape<m1> &s1, const PathShape<m2> &s2, double duration);
+
+template<DubinsMove m1, DubinsMove m2>
+double temporal_Z_dist(const PathShape<m1> &s1, const PathShape<m2> &s2, double duration);

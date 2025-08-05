@@ -157,17 +157,19 @@ Pose3D follow_dubins(const Pose3D& pose, double duration, double speed, double c
 /********************  Recover path shape from two points and a hint  ********************/
 
 /**
- * @brief Structure to hold parameters describing a simple path
+ * @brief Structure to hold the parameters describing a shape, either a STRAIGHT or an arc circle (LEFT or RIGHT)
  * 
+ * @tparam m DubinsMove describing the shape. Notethat LEFT and RIGHT can be handled similarly since the angular speed is signed
+ * (LEFT has positive speed, RIGHT has negative speed)
  */
 template<DubinsMove m>
 struct PathShape
 {
-    double x,y,z;   // A reference point (typically starting point)
-    double p1;  // For a Straight: horizontal x speed | For a circle: turn_radius
-    double p2;  // For a Straight: horizontal y speed | For a circle: angular speed
-    double p3;  // Vertical speed
-    double p4;  // For a Straight: unused | For a circle: initial angle
+    double x,y,z;   ///< A reference point (typically starting point)
+    double p1;  ///< For a Straight: horizontal x speed | For a circle: turn_radius
+    double p2;  ///< For a Straight: horizontal y speed | For a circle: signed angular speed
+    double p3;  ///< Vertical speed
+    double p4;  ///< For a Straight: unused | For a circle: initial angle
 };
 
 /**
@@ -177,7 +179,7 @@ struct PathShape
  * @param start     First pose sampled
  * @param end       Second pose sampled
  * @param h_speed   XY vehicle speed
- * @param turn_radius   Turn radius for turns
+ * @param turn_radius   Turn radius
  * @param v_speed   Z vehicle speed
  * @return PathShape    Computed parameters
  */
