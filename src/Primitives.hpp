@@ -172,6 +172,21 @@ struct PathShape
     double p4;  ///< For a Straight: unused | For a circle: initial angle
 };
 
+template<DubinsMove m>
+inline double path_planar_speed(const PathShape<m>& s);
+
+template<>
+inline double path_planar_speed(const PathShape<STRAIGHT>& s)
+{
+    return std::sqrt(s.p1*s.p1+s.p2*s.p2);
+}
+
+template<DubinsMove m>
+inline double path_planar_speed(const PathShape<m>& s)
+{
+    return std::abs(s.p2*s.p1);
+}
+
 /**
  * @brief Given a shape and two points on this shape, compute the parameters for its parametric equation
  * 

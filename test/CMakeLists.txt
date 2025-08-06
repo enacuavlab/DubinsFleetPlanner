@@ -20,7 +20,7 @@
 
 ########## Visual tests ##########
 
-# if(VISUALISATON)
+if(VISUALISATON)
     include(FetchContent)
 
     FetchContent_Declare(
@@ -35,7 +35,7 @@
     add_executable(PlotDubins plotDubins.cpp)
     target_link_libraries(PlotDubins PUBLIC sciplot DubinsFleetPlanner)
     target_include_directories(PlotDubins PUBLIC "${PROJECT_SOURCE_DIR}/src")
-# endif()
+endif()
 
 ########## Procedural tests ##########
 
@@ -43,7 +43,7 @@ include(GoogleTest)
 
 macro(make_DubinsPathPlanning_test testName testFile)
     add_executable(${testName} ${testFile})
-    target_link_libraries(${testName} PUBLIC IntervalSolver BrentSolver GTest::gtest_main)
+    target_link_libraries(${testName} PUBLIC DubinsFleetPlanner GTest::gtest_main)
 
     target_compile_options(${testName} PUBLIC
         "$<${gcc_like_cxx}:$<BUILD_INTERFACE:-Wall;-Wextra;-Wshadow;-Wformat=2;-Wunused;-Wsuggest-attribute=pure>>"
@@ -57,3 +57,7 @@ macro(make_DubinsPathPlanning_test testName testFile)
 
     gtest_discover_tests(${testName})
 endmacro()
+
+
+
+
