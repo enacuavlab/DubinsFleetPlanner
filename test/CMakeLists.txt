@@ -46,8 +46,8 @@ macro(make_DubinsPathPlanning_test testName testFile)
     target_link_libraries(${testName} PUBLIC DubinsFleetPlanner GTest::gtest_main)
 
     target_compile_options(${testName} PUBLIC
-        "$<${gcc_like_cxx}:$<BUILD_INTERFACE:-Wall;-Wextra;-Wshadow;-Wformat=2;-Wunused;-Wsuggest-attribute=pure>>"
-        "$<${msvc_cxx}:$<BUILD_INTERFACE:-W3>>"
+        "$<${gcc_like_cxx}:-Wall;-Wextra;-Wshadow;-Wformat=2;-Wunused;-Wsuggest-attribute=pure>"
+        "$<${msvc_cxx}:-W3>"
         )
 
     target_include_directories(${testName} PUBLIC 
@@ -57,6 +57,8 @@ macro(make_DubinsPathPlanning_test testName testFile)
 
     gtest_discover_tests(${testName})
 endmacro()
+
+make_DubinsPathPlanning_test(TestGeometricDistance testGeometricDistance.cpp)
 
 
 

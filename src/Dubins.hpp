@@ -70,7 +70,7 @@ public:
     /****** Constructors ******/
 
     Dubins(double _climb, double _turn_radius, const Pose3D& _start, const Pose3D& _end)
-    : climb(_climb), turn_radius(_turn_radius), start(_start), end(_end) {}
+    : start(_start), end(_end), climb(_climb), turn_radius(_turn_radius) {}
 
     /****** Setters and getters ******/
 

@@ -172,6 +172,13 @@ struct PathShape
     double p4;  ///< For a Straight: unused | For a circle: initial angle
 };
 
+/**
+ * @brief Get the XY speed absolute value for the given structure 
+ * 
+ * @tparam m Structure type (either STRAIGHT or a turn, LEFT or RIGHT)
+ * @param s Path structure
+ * @return double XY absolute speed
+ */
 template<DubinsMove m>
 inline double path_planar_speed(const PathShape<m>& s);
 
@@ -186,6 +193,31 @@ inline double path_planar_speed(const PathShape<m>& s)
 {
     return std::abs(s.p2*s.p1);
 }
+
+/**
+ * @brief Set the speed for the path. Warning! If the speed is negative, the path should be followed backward 
+ * 
+ * @tparam m Structure type (either STRAIGHT or a turn, LEFT or RIGHT)
+ * @param s Path structure
+ * @param speed XY Speed value
+ */
+template<DubinsMove m>
+inline void path_set_planar_speed(PathShape<m>& s, double speed);
+
+template<>
+inline void path_set_planar_speed(PathShape<STRAIGHT>& s, double speed)
+{
+    double curr_speed = path_planar_speed(s);
+    s.p1 *= speed/curr_speed;
+    s.p2 *= speed/curr_speed;
+}
+
+template<DubinsMove m>
+inline void path_set_planar_speed(PathShape<m>& s, double speed)
+{
+    s.p2 = ((m == LEFT) ? 1. : -1.) * speed/s.p1;
+}
+
 
 /**
  * @brief Given a shape and two points on this shape, compute the parameters for its parametric equation

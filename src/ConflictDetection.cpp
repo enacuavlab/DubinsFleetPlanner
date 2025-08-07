@@ -43,7 +43,7 @@ inline bool angle_in_arc(double start_angle, double stop_angle, double candidate
 }
 
 [[gnu::const]]
-inline constexpr Eigen::Vector2d angle_vector(double angle)
+inline Eigen::Vector2d angle_vector(double angle)
 {
     return Eigen::Vector2d(std::cos(angle),std::sin(angle));
 }
@@ -219,18 +219,18 @@ double geometric_XY_dist(const PathShape<STRAIGHT> &s1, const PathShape<STRAIGHT
 template<DubinsMove m1, DubinsMove m2> [[gnu::pure]]
 double geometric_XY_dist(const PathShape<m1> &s1, const PathShape<m2> &s2, double duration)
 {
-    static_assert(!(std::is_same_v<m1,STRAIGHT> && std::is_same_v<m2,STRAIGHT>));
+    static_assert(!(m1==STRAIGHT && m2==STRAIGHT));
 
-    if (std::is_same_v<m2,STRAIGHT>)
+    if (m2==STRAIGHT)
     {
-        return geometric_XY_dist(s2,s1,double);
+        return geometric_XY_dist(s2,s1,duration);
     }
 
     // Function to check if a parameter is in the allowed range
     auto valid_param = [=](double t) -> bool {return (0. <= t) && (t <= duration);};
     double min_dist = INFINITY;
 
-    if (std::is_same_v<m1,STRAIGHT>)
+    if (m1==STRAIGHT)
     {
         // ---- Line-Circ case ---- //
 
@@ -250,9 +250,9 @@ double geometric_XY_dist(const PathShape<m1> &s1, const PathShape<m2> &s2, doubl
         // We solve te problem in the circle referential (shift by -other.center)
         
         // Line represented as ax + by + c = 0
-        double a = -self.direction[1];
-        double b = self.direction[0];
-        double c = -(self.point-other.center).dot(np.asarray([a,b]));
+        double a = -v1[1];
+        double b = v1[0];
+        double c = -(p1_s-c2).dot(Eigen::Vector2d(a,b));
 
         double ab2   = a*a + b*b;
         double discr = ab2*r*r - c*c;
@@ -379,7 +379,7 @@ double geometric_XY_dist(const PathShape<m1> &s1, const PathShape<m2> &s2, doubl
         double delta_r2 = r1*r1 - r2*r2;
         double sum_r2 = r1*r1 + r2*r2;
             
-        double discr = -delta_r2*delta_r2 - d2*d2 + 2*sum_r2*d2;
+        double discr = -delta_r2*delta_r2 - dist2*dist2 + 2*sum_r2*dist2;
             
         if (discr >= 0)
         {            
@@ -387,8 +387,8 @@ double geometric_XY_dist(const PathShape<m1> &s1, const PathShape<m2> &s2, doubl
             double x_2 = dC.x();
             double y_2 = dC.y();
             
-            double sol1x = 1/2*(x_2**3 + x_2*y_2**2 + delta_r2*x_2 - sqrt_discr*y_2)/d2;
-            double sol1y = 1/2*(y_2**3 + x_2**2*y_2 + delta_r2*y_2 + sqrt_discr*x_2)/d2;
+            double sol1x = 1/2*(x_2*x_2*x_2 + x_2*y_2*y_2 + delta_r2*x_2 - sqrt_discr*y_2)/dist2;
+            double sol1y = 1/2*(y_2*y_2*y_2 + x_2*x_2*y_2 + delta_r2*y_2 + sqrt_discr*x_2)/dist2;
                 
             double t1 = std::atan2(sol1y,sol1x);
             double t2 = std::atan2(sol1y-y_2,sol1x-x_2);
@@ -397,11 +397,11 @@ double geometric_XY_dist(const PathShape<m1> &s1, const PathShape<m2> &s2, doubl
                 return 0;
             }
             
-            double sol2x = 1/2*(x_2**3 + x_2*y_2**2 + delta_r2*x_2 + sqrt_discr*y_2)/d2;
-            double sol2y = 1/2*(y_2**3 + x_2**2*y_2 + delta_r2*y_2 - sqrt_discr*x_2)/d2;
+            double sol2x = 1/2*(x_2*x_2*x_2 + x_2*y_2*x_2 + delta_r2*x_2 + sqrt_discr*y_2)/dist2;
+            double sol2y = 1/2*(y_2*y_2*y_2 + x_2*y_2*y_2 + delta_r2*y_2 - sqrt_discr*x_2)/dist2;
             
-            t1 = arctan2(sol2y,sol2x);
-            t2 = arctan2(sol2y-y_2,sol2x-x_2);
+            t1 = std::atan2(sol2y,sol2x);
+            t2 = std::atan2(sol2y-y_2,sol2x-x_2);
             if (angle_in_arc(phi1,end_phi1,t1) && angle_in_arc(phi2,end_phi2,t2))
             {
                 return 0;
@@ -482,6 +482,17 @@ double geometric_XY_dist(const PathShape<m1> &s1, const PathShape<m2> &s2, doubl
     }
 }
 
+// Explicitely declare all possible specializations
+template double geometric_XY_dist<STRAIGHT,STRAIGHT>(const PathShape<STRAIGHT>& , const PathShape<STRAIGHT>&, double);
+template double geometric_XY_dist<STRAIGHT,LEFT>    (const PathShape<STRAIGHT>& , const PathShape<LEFT>&    , double);
+template double geometric_XY_dist<STRAIGHT,RIGHT>   (const PathShape<STRAIGHT>& , const PathShape<RIGHT>&   , double);
+template double geometric_XY_dist<LEFT,STRAIGHT>    (const PathShape<LEFT>&     , const PathShape<STRAIGHT>&, double);
+template double geometric_XY_dist<RIGHT,STRAIGHT>   (const PathShape<RIGHT>&    , const PathShape<STRAIGHT>&, double);
+template double geometric_XY_dist<LEFT,LEFT>        (const PathShape<LEFT>&     , const PathShape<LEFT>&    , double);
+template double geometric_XY_dist<RIGHT,LEFT>       (const PathShape<RIGHT>&    , const PathShape<LEFT>&    , double);
+template double geometric_XY_dist<LEFT,RIGHT>       (const PathShape<LEFT>&     , const PathShape<RIGHT>&   , double);
+template double geometric_XY_dist<RIGHT,RIGHT>      (const PathShape<RIGHT>&    , const PathShape<RIGHT>&   , double);
+
 // ----- Z distances ----- //
 
 template<DubinsMove m1, DubinsMove m2> [[gnu::pure]]
@@ -500,7 +511,7 @@ double geometric_Z_dist(const PathShape<m1> &s1, const PathShape<m2> &s2, double
     double dz = z2_s - z1_s;
 
     // Function to check if a parameter is in the allowed range
-    auto valid_param = [=](double t) -> bool {return (0. <= t) && (t <= duration)};
+    auto valid_param = [=](double t) -> bool {return (0. <= t) && (t <= duration);};
 
     // -- Line-line optimum
     // This matrix is symmetric positive semidefinite (one can show it is equivalent to a distance function)

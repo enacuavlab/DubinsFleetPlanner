@@ -23,11 +23,19 @@ set(CMAKE_POLICY_VERSION_MINIMUM 3.30)
 
 set(CMAKE_VERBOSE_MAKEFILE ON)
 
+
+
 # -------------------- Project declaration -------------------- #
 project(DubinsFleetPlanner VERSION 0.1.0 LANGUAGES C CXX)
 
+# -------------------- Compilers -------------------- #
+
+set(gcc_like_cxx "$<COMPILE_LANG_AND_ID:CXX,ARMClang,AppleClang,Clang,GNU,LCC>")
+set(msvc_cxx "$<COMPILE_LANG_AND_ID:CXX,MSVC>")
+
 # -------------------- Required packages -------------------- #
 add_subdirectory(libs)
+set(libs_dir "${PROJECT_SOURCE_DIR}/libs")
 
 ### Boost ###
 set(Boost_USE_STATIC_LIBS OFF) 
@@ -53,4 +61,6 @@ option(VISUALISATION "Include visualisation in the solver (for debug/demo purpos
 
 # -------------------- Testing -------------------- #
 
+include(CTest)
+enable_testing()
 add_subdirectory(test)
