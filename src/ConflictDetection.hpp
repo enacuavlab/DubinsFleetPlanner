@@ -20,10 +20,21 @@
 #include <tuple>
 #include <limits>
 #include <Eigen/Dense>
+#include <ScalarMin/IntervalSolver.hpp>
+#include <ScalarMin/RoundingPolicies.hpp>
 
 #include "utils.hpp"
 #include "Dubins.hpp"
 #include "Primitives.hpp"
+#include "ProjectHeader.h"
+
+#include "ConflictTrajectories/circleCircle.hpp"
+#include "ConflictTrajectories/lineCircle.hpp"
+
+#ifndef DubinsFleetPlanner_PRECISION
+#define DubinsFleetPlanner_PRECISION 1e-6
+#endif
+
 
 // ==================== Geometric distance ==================== //
 
@@ -68,10 +79,10 @@ double geometric_Z_dist(const PathShape<m1> &s1, const PathShape<m2> &s2, double
  * @param s1 First trajectory parameters
  * @param s2 Second trajectory parameters
  * @param duration Duration (in s) of the trajectories
- * @return double Minimal euclidean distance in the given duration
+ * @return std::pair<double,double> Location and value of the minimal euclidean distance in the given duration
  */
 template<DubinsMove m1, DubinsMove m2>
-double temporal_3D_dist(const PathShape<m1> &s1, const PathShape<m2> &s2, double duration);
+std::pair<double,double> temporal_3D_dist(const PathShape<m1> &s1, const PathShape<m2> &s2, double duration);
 
 /**
  * @brief Given two base trajectories, find the minimal XY euclidean distance between them on the given time interval
@@ -80,13 +91,14 @@ double temporal_3D_dist(const PathShape<m1> &s1, const PathShape<m2> &s2, double
  * 
  * @tparam m1 First trajectory type (STRAIGHT or a turn, RIGHT or LEFT)
  * @tparam m2 Second trajectory type (STRAIGHT or a turn, RIGHT or LEFT)
+ * @tparam use_derivatives Set if the solver should use the derivatives for computations of not (may improve speed)
  * @param s1 First trajectory parameters
  * @param s2 Second trajectory parameters
  * @param duration Duration (in s) of the trajectories
- * @return double Minimal euclidean distance in the given duration
+ * @return std::pair<double,double> Location and value of the minimal 2D euclidean distance in the given duration
  */
-template<DubinsMove m1, DubinsMove m2>
-double temporal_XY_dist(const PathShape<m1> &s1, const PathShape<m2> &s2, double duration);
+template<DubinsMove m1, DubinsMove m2, bool use_derivatives=DubinsFleetPlanner_SOLVE_WITH_DERIVATIVES>
+std::pair<double,double> temporal_XY_dist(const PathShape<m1> &s1, const PathShape<m2> &s2, double duration);
 
 /**
  * @brief Given two base trajectories, find the minimal Z euclidean distance between them on the given time interval
@@ -98,7 +110,7 @@ double temporal_XY_dist(const PathShape<m1> &s1, const PathShape<m2> &s2, double
  * @param s1 First trajectory parameters
  * @param s2 Second trajectory parameters
  * @param duration Duration (in s) of the trajectories
- * @return double Minimal vertical distance in the given duration
+ * @return std::pair<double,double> Location and value of the minimal vertical distance in the given duration
  */
 template<DubinsMove m1, DubinsMove m2>
-double temporal_Z_dist(const PathShape<m1> &s1, const PathShape<m2> &s2, double duration);
+std::pair<double,double> temporal_Z_dist(const PathShape<m1> &s1, const PathShape<m2> &s2, double duration);

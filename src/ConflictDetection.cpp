@@ -569,13 +569,216 @@ double geometric_Z_dist(const PathShape<m1> &s1, const PathShape<m2> &s2, double
     return min_dist;
 }
 
+// -------------------- 3D Euclidean distance -------------------- //
+
+template<DubinsMove m1, DubinsMove m2>
+std::pair<double,double> temporal_3D_dist(const PathShape<m1> &s1, const PathShape<m2> &s2, double duration);
+
+
+template<bool use_derivatives>
+std::pair<double,double> temporal_XY_dist(const PathShape<STRAIGHT> &s1, const PathShape<STRAIGHT> &s2, double duration)
+{
+    Eigen::Vector2d dp(s1.x - s2.x, s1.y - s2.y);
+    Eigen::Vector2d v1(s1.p1, s1.p2);
+    Eigen::Vector2d v2(s2.p1, s2.p2);
+    double v1v2 = v1.dot(v2);
+
+    Eigen::Vector2d dv = v1 - v2;
+    double nv2 = dv.dot(dv);
+
+    double min_loc = 0.;
+    double min_dist = dp.norm();
+    
+    double dist = (dp + duration*dv).norm();
+    if (dist < min_dist)
+    {
+        min_dist = dist;
+        min_loc  = duration;
+    }
+
+    if (nv2 > DubinsFleetPlanner_PRECISION)
+    {
+        double tmin = (v1v2)/nv2;
+        if ((0 <= tmin) && (tmin <= duration))
+        {
+            dist = std::sqrt(dp.squaredNorm()-v1v2*v1v2/nv2);
+            if (dist < min_dist)
+            {
+                min_dist = dist;
+                min_loc  = tmin;
+            }
+        }
+    }
+
+    return {min_loc,min_dist};
+}
+
+template<DubinsMove m, bool use_derivatives> requires (m != STRAIGHT)
+std::pair<double,double> temporal_XY_dist(const PathShape<STRAIGHT> &s1, const PathShape<m> &s2, double duration)
+{
+    typedef OptimizationRounding::fast_rounding<double> Policies;
+
+    LineCircle problem(s1,s2);
+
+    auto fbind = [problem](double x){return problem.f(x);};
+    auto Fbind = [problem](const IntervalSolver::interval<double,Policies> &I){return problem.F(I);};
+
+    double min_loc;
+
+    if (use_derivatives)
+    {
+        auto f_dbind = [problem](double x){return problem.f_d(x);};
+        auto F_dbind = [problem](const IntervalSolver::interval<double,Policies> &I){return problem.F_d(I);};
+        auto f_ddbind = [problem](double x){return problem.f_dd(x);};
+        auto F_ddbind = [problem](const IntervalSolver::interval<double,Policies> &I){return problem.F_dd(I);};
+
+        min_loc = IntervalSolver::minimize_interval_method<double,Policies>(
+            0.,duration,
+            fbind,Fbind,
+            f_dbind,F_dbind,
+            f_ddbind,F_ddbind,
+            DubinsFleetPlanner_PRECISION, 0.
+        );
+    }
+    else
+    {
+        min_loc = IntervalSolver::minimize_interval_method<double,Policies>(
+            0.,duration,
+            fbind,Fbind,
+            DubinsFleetPlanner_PRECISION, 0.
+        );
+    }
+
+    double min_val = std::sqrt(problem.f(min_loc));
+
+    return {min_loc,min_val};
+}
+
+template<DubinsMove m, bool use_derivatives> requires (m != STRAIGHT)
+std::pair<double,double> temporal_XY_dist(const PathShape<m> &s1, const PathShape<STRAIGHT> &s2, double duration)
+{
+    return temporal_XY_dist<m,use_derivatives>(s2,s1,duration);
+}
+
+
+template<DubinsMove m1, DubinsMove m2, bool use_derivatives> requires ((m1!=STRAIGHT) && (m2!=STRAIGHT))
+std::pair<double,double> temporal_XY_dist(const PathShape<m1> &s1, const PathShape<m2> &s2, double duration)
+{
+    typedef OptimizationRounding::fast_rounding<double> Policies;
+
+    CircleCircle problem(s1,s2);
+
+    auto fbind = [problem](double x){return problem.f(x);};
+    auto Fbind = [problem](const IntervalSolver::interval<double,Policies> &I){return problem.F(I);};
+    double min_loc;
+
+    if (use_derivatives)
+    {
+        auto f_dbind = [problem](double x){return problem.f_d(x);};
+        auto F_dbind = [problem](const IntervalSolver::interval<double,Policies> &I){return problem.F_d(I);};
+        auto f_ddbind = [problem](double x){return problem.f_dd(x);};
+        auto F_ddbind = [problem](const IntervalSolver::interval<double,Policies> &I){return problem.F_dd(I);};
+
+        min_loc = IntervalSolver::minimize_interval_method<double,Policies>(
+            0.,duration,
+            fbind,Fbind,
+            f_dbind,F_dbind,
+            f_ddbind,F_ddbind,
+            DubinsFleetPlanner_PRECISION, 0.
+        );
+    }
+    else
+    {
+        min_loc = IntervalSolver::minimize_interval_method<double,Policies>(
+            0.,duration,
+            fbind,Fbind,
+            DubinsFleetPlanner_PRECISION, 0.
+        );
+    }
+
+
+    double min_val = std::sqrt(problem.f(min_loc));
+
+    return {min_loc,min_val};
+}
+
+// Explicitely declare all possible specializations
+template<> std::pair<double,double> temporal_XY_dist<STRAIGHT,LEFT,true>     (const PathShape<STRAIGHT>& s1, const PathShape<LEFT>& s2   , double d)
+{
+    return temporal_XY_dist<LEFT,true>(s1,s2,d);
+}
+template<> std::pair<double,double> temporal_XY_dist<STRAIGHT,LEFT,false>    (const PathShape<STRAIGHT>& s1, const PathShape<LEFT>& s2   , double d)
+{
+    return temporal_XY_dist<LEFT,false>(s1,s2,d);
+}
+template<> std::pair<double,double> temporal_XY_dist<STRAIGHT,RIGHT,true>    (const PathShape<STRAIGHT>& s1, const PathShape<RIGHT>& s2  , double d)
+{
+    return temporal_XY_dist<RIGHT,true>(s1,s2,d);
+}
+template<> std::pair<double,double> temporal_XY_dist<STRAIGHT,RIGHT,false>   (const PathShape<STRAIGHT>& s1, const PathShape<RIGHT>& s2  , double d)
+{
+    return temporal_XY_dist<RIGHT,false>(s1,s2,d);
+}
+template<> std::pair<double,double> temporal_XY_dist<LEFT,STRAIGHT,true>     (const PathShape<LEFT>& s1    , const PathShape<STRAIGHT>& s2, double d)
+{
+    return temporal_XY_dist<LEFT,true>(s1,s2,d);
+}
+template<> std::pair<double,double> temporal_XY_dist<LEFT,STRAIGHT,false>    (const PathShape<LEFT>& s1    , const PathShape<STRAIGHT>& s2, double d)
+{
+    return temporal_XY_dist<LEFT,false>(s1,s2,d);
+}
+template<> std::pair<double,double> temporal_XY_dist<RIGHT,STRAIGHT,true>    (const PathShape<RIGHT>& s1   , const PathShape<STRAIGHT>& s2, double d)
+{
+    return temporal_XY_dist<RIGHT,true>(s1,s2,d);
+}
+template<> std::pair<double,double> temporal_XY_dist<RIGHT,STRAIGHT,false>   (const PathShape<RIGHT>& s1   , const PathShape<STRAIGHT>& s2, double d)
+{
+    return temporal_XY_dist<RIGHT,false>(s1,s2,d);
+}
+
+
+template std::pair<double,double> temporal_XY_dist<LEFT,LEFT,true>         (const PathShape<LEFT>&     , const PathShape<LEFT>&    , double);
+template std::pair<double,double> temporal_XY_dist<LEFT,LEFT,false>        (const PathShape<LEFT>&     , const PathShape<LEFT>&    , double);
+template std::pair<double,double> temporal_XY_dist<RIGHT,LEFT,true>        (const PathShape<RIGHT>&    , const PathShape<LEFT>&    , double);
+template std::pair<double,double> temporal_XY_dist<RIGHT,LEFT,false>       (const PathShape<RIGHT>&    , const PathShape<LEFT>&    , double);
+template std::pair<double,double> temporal_XY_dist<LEFT,RIGHT,true>        (const PathShape<LEFT>&     , const PathShape<RIGHT>&   , double);
+template std::pair<double,double> temporal_XY_dist<LEFT,RIGHT,false>       (const PathShape<LEFT>&     , const PathShape<RIGHT>&   , double);
+template std::pair<double,double> temporal_XY_dist<RIGHT,RIGHT,true>       (const PathShape<RIGHT>&    , const PathShape<RIGHT>&   , double);
+template std::pair<double,double> temporal_XY_dist<RIGHT,RIGHT,false>      (const PathShape<RIGHT>&    , const PathShape<RIGHT>&   , double);
 
 
 template<DubinsMove m1, DubinsMove m2>
-double temporal_3D_dist(const PathShape<m1> &s1, const PathShape<m2> &s2, double duration);
+std::pair<double,double> temporal_Z_dist(const PathShape<m1> &s1, const PathShape<m2> &s2, double duration)
+{
+    double dz = s1.z - s2.z;
+    double v1 = s1.p3;
+    double v2 = s2.p3;
+    double dv = v1 - v2;
+    double dv2 = dv*dv;
 
-template<DubinsMove m1, DubinsMove m2>
-double temporal_XY_dist(const PathShape<m1> &s1, const PathShape<m2> &s2, double duration);
+    double min_loc = 0.;
+    double min_dist = std::abs(dz);
+    
+    if (std::abs(dz + duration*dv) < min_dist)
+    {
+        min_dist    = std::abs(dz + duration*dv);
+        min_loc     = duration;
+    }
 
-template<DubinsMove m1, DubinsMove m2>
-double temporal_Z_dist(const PathShape<m1> &s1, const PathShape<m2> &s2, double duration);
+    if (abs(dv) > DubinsFleetPlanner_PRECISION)
+    {
+        double tmin = (v1*v2)/dv2;
+        if ((0 <= tmin) && (tmin <= duration))
+        {
+            double dist = std::sqrt(dz*dz-v1*v1*v2*v2/dv2); 
+            if (dist < min_dist)
+            {
+                min_dist = dist;
+                min_loc  = tmin;
+            }
+        }
+    }
+
+    return {min_loc,min_dist};
+
+}
