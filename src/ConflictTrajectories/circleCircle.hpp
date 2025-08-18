@@ -22,7 +22,7 @@ class CircleCircle
         const double Dx,Dy;
         const double r1,r2;
         const double w1,w2;
-        const double Dphi;
+        const double phi1,phi2;
 
     public:
         void print_params()
@@ -34,25 +34,26 @@ class CircleCircle
                         << "w1   : " << w1      << std::endl
                         << "r2   : " << r2      << std::endl
                         << "w2   : " << w2      << std::endl
-                        << "Dphi : " << Dphi    << std::endl; 
+                        << "phi1 : " << phi1    << std::endl
+                        << "phi2 : " << phi2    << std::endl; 
             
         }
 
-        CircleCircle(double _Dx, double _Dy, double _r1, double _r2, double _w1, double _w2, double _Dphi)
-        : Dx(_Dx), Dy(_Dy), r1(_r1), r2(_r2), w1(_w1), w2(_w2), Dphi(_Dphi) {}
+        CircleCircle(double _Dx, double _Dy, double _r1, double _r2, double _w1, double _w2, double _phi1, double _phi2)
+        : Dx(_Dx), Dy(_Dy), r1(_r1), r2(_r2), w1(_w1), w2(_w2), phi1(_phi1), phi2(_phi2) {}
 
         template<DubinsMove m1, DubinsMove m2> requires ((m1!=STRAIGHT) && (m2!=STRAIGHT))
         CircleCircle(const PathShape<m1> &s, const PathShape<m2> &t)
-        :   Dx((s.x - t.x)*std::cos(s.p4) - (s.y - t.y)*std::sin(s.p4)), 
-            Dy((s.x - t.x)*std::sin(s.p4) + (s.y - t.y)*std::cos(s.p4)), 
+        :   Dx(s.x - t.x), 
+            Dy(s.y - t.y), 
             r1(s.p1), r2(t.p1), 
             w1(s.p2), w2(t.p2), 
-            Dphi(s.p4 - t.p4) {}
+            phi1(s.p4), phi2(t.p4) {}
 
         [[gnu::pure]] double f(double t) const
         {
-            double x = Dx + r1*std::cos(w1*t) - r2*std::cos(w2*t+Dphi);
-            double y = Dy + r1*std::sin(w1*t) - r2*std::sin(w2*t+Dphi);
+            double x = Dx + r1*std::cos(w1*t+phi1) - r2*std::cos(w2*t+phi2);
+            double y = Dy + r1*std::sin(w1*t+phi1) - r2*std::sin(w2*t+phi2);
             return x*x + y*y;
         } 
 
@@ -60,18 +61,18 @@ class CircleCircle
         {
             using namespace boost::numeric;
 
-            interval<double,Policies> x_I = Dx + r1*cos(w1*I) - r2*cos(w2*I+Dphi);
-            interval<double,Policies> y_I = Dy + r1*sin(w1*I) - r2*sin(w2*I+Dphi);
+            interval<double,Policies> x_I = Dx + r1*cos(w1*I+phi1) - r2*cos(w2*I+phi2);
+            interval<double,Policies> y_I = Dy + r1*sin(w1*I+phi1) - r2*sin(w2*I+phi2);
             return square(x_I) + square(y_I);
         }
 
         [[gnu::pure]] double f_d(double t) const
         {
-            double c1 = std::cos(w1*t);
-            double s1 = std::sin(w1*t);
+            double c1 = std::cos(w1*t+phi1);
+            double s1 = std::sin(w1*t+phi1);
 
-            double c2 = std::cos(w2*t+Dphi);
-            double s2 = std::sin(w2*t+Dphi);
+            double c2 = std::cos(w2*t+phi2);
+            double s2 = std::sin(w2*t+phi2);
 
             double x = Dx + r1*c1 - r2*c2;
             double y = Dy + r1*s1 - r2*s2;
@@ -86,11 +87,11 @@ class CircleCircle
         {
             using namespace boost::numeric;
 
-            interval<double,Policies> c1 = cos(w1*I);
-            interval<double,Policies> s1 = sin(w1*I);
+            interval<double,Policies> c1 = cos(w1*I+phi1);
+            interval<double,Policies> s1 = sin(w1*I+phi1);
 
-            interval<double,Policies> c2 = cos(w2*I+Dphi);
-            interval<double,Policies> s2 = sin(w2*I+Dphi);
+            interval<double,Policies> c2 = cos(w2*I+phi2);
+            interval<double,Policies> s2 = sin(w2*I+phi2);
 
             interval<double,Policies> x_I = Dx + r1*c1 - r2*c2;
             interval<double,Policies> y_I = Dy + r1*s1 - r2*s2;
@@ -102,11 +103,11 @@ class CircleCircle
 
         [[gnu::pure]] double f_dd(double t) const
         {
-            double c1 = std::cos(w1*t);
-            double s1 = std::sin(w1*t);
+            double c1 = std::cos(w1*t+phi1);
+            double s1 = std::sin(w1*t+phi1);
 
-            double c2 = std::cos(w2*t+Dphi);
-            double s2 = std::sin(w2*t+Dphi);
+            double c2 = std::cos(w2*t+phi2);
+            double s2 = std::sin(w2*t+phi2);
 
             double x = Dx + r1*c1 - r2*c2;
             double y = Dy + r1*s1 - r2*s2;
@@ -124,11 +125,11 @@ class CircleCircle
         {
             using namespace boost::numeric;
 
-            interval<double,Policies> c1 = cos(w1*I);
-            interval<double,Policies> s1 = sin(w1*I);
+            interval<double,Policies> c1 = cos(w1*I+phi1);
+            interval<double,Policies> s1 = sin(w1*I+phi1);
 
-            interval<double,Policies> c2 = cos(w2*I+Dphi);
-            interval<double,Policies> s2 = sin(w2*I+Dphi);
+            interval<double,Policies> c2 = cos(w2*I+phi2);
+            interval<double,Policies> s2 = sin(w2*I+phi2);
 
             interval<double,Policies> x_I = Dx + r1*c1 - r2*c2;
             interval<double,Policies> y_I = Dy + r1*s1 - r2*s2;

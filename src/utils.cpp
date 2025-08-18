@@ -129,3 +129,20 @@ std::tuple<double,double,double,double> normalize_poses(const Pose3D& start, con
 
     return {alpha,beta,d,theta};
 }
+
+[[gnu::pure]]
+double pose_dist(const Pose3D& p1, const Pose3D& p2)
+{
+    double dx = p1.x - p2.x;
+    double dy = p1.y - p2.y;
+    double dz = p1.z - p2.z;
+    return std::sqrt(dx*dx+dy*dy+dz*dz);
+}
+
+[[gnu::pure]]
+double pose_dist_XY(const Pose3D& p1, const Pose3D& p2)
+{
+    double dx = p1.x - p2.x;
+    double dy = p1.y - p2.y;
+    return std::sqrt(dx*dx+dy*dy);
+}

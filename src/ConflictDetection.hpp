@@ -68,8 +68,9 @@ double geometric_XY_dist(const PathShape<m1> &s1, const PathShape<m2> &s2, doubl
 template<DubinsMove m1, DubinsMove m2>
 double geometric_Z_dist(const PathShape<m1> &s1, const PathShape<m2> &s2, double duration);
 
-// ==================== Temporal distance ==================== //
 
+
+// ==================== Temporal distance ==================== //
 
 /**
  * @brief Given two base trajectories, find the minimal 3D euclidean distance between them on the given time interval

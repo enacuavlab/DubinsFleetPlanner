@@ -25,6 +25,7 @@
 #include <map>
 
 #include "utils.hpp"
+#include "Primitives.hpp"
 #include "Dubins.hpp"
 #include "BaseDubins.hpp"
 
@@ -67,6 +68,8 @@ namespace Visualisation
     template<unsigned samples>
     DrawSpecs& plot_path(Plot2D& plot, Dubins& path)
     {
+        static_assert(samples > 1);
+        
         std::valarray<double> xs(samples),ys(samples);
         double len = path.get_length();
         auto lens = linspace(0,len,samples);
@@ -77,6 +80,23 @@ namespace Visualisation
         {
             xs[i] = poses[i].x;
             ys[i] = poses[i].y;
+        }
+
+        return plot.drawCurve(xs,ys);
+    }
+
+    template<unsigned samples, DubinsMove m>
+    DrawSpecs& plot_path(Plot2D& plot, const PathShape<m>& path, double duration)
+    {
+        static_assert(samples > 1);
+
+        std::valarray<double> xs(samples),ys(samples);
+
+        for(unsigned i = 0; i < samples; i++)
+        {
+            Pose3D pose = follow_dubins(path,i*duration/(samples-1));
+            xs[i] = pose.x;
+            ys[i] = pose.y;
         }
 
         return plot.drawCurve(xs,ys);

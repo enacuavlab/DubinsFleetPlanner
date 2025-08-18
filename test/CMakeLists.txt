@@ -20,7 +20,7 @@
 
 ########## Visual tests ##########
 
-if(VISUALISATON)
+# if(VISUALISATON)
     include(FetchContent)
 
     FetchContent_Declare(
@@ -35,7 +35,11 @@ if(VISUALISATON)
     add_executable(PlotDubins plotDubins.cpp)
     target_link_libraries(PlotDubins PUBLIC sciplot DubinsFleetPlanner)
     target_include_directories(PlotDubins PUBLIC "${PROJECT_SOURCE_DIR}/src")
-endif()
+
+    add_executable(PlotDubinsDist plotDubinsDist.cpp)
+    target_link_libraries(PlotDubinsDist PUBLIC sciplot DubinsFleetPlanner)
+    target_include_directories(PlotDubinsDist PUBLIC "${PROJECT_SOURCE_DIR}/src")
+# endif()
 
 ########## Procedural tests ##########
 

@@ -44,7 +44,7 @@ class LineCircle
 
         template<DubinsMove m> requires (m!=STRAIGHT)
         LineCircle(const PathShape<STRAIGHT> &s, const PathShape<m> &t)
-        : Dx(s.x - t.x), Dy(s.y - t.y), r(t.p1), w(t.p2), phi(t.p4), vx(s.p1), vy(s.p2) {}
+        : Dx(t.x - s.x), Dy(t.y - s.y), r(t.p1), w(t.p2), phi(t.p4), vx(s.p1), vy(s.p2) {}
 
         [[gnu::pure]] double f(double t) const
         {

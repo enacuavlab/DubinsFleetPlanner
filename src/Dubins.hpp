@@ -90,6 +90,7 @@ public:
     double get_turn_radius() const {return turn_radius;}
 
     double get_length() const {return length;}
+    double get_duration(double speed) const {return length/speed;}
     bool is_valid() const {return valid;}
 
     virtual Pose3D get_position(double len) const = 0;
@@ -150,4 +151,21 @@ public:
     virtual std::vector<Pose3D> get_junction_points() const = 0;
 
     virtual DubinsMove get_section_type(double loc) const = 0;
+
+    /**
+     * @brief Check whether `this` and `other` are horitzontaly separated
+     * 
+     * 
+     * @tparam geometric_filtering Whether or not to use geometric pre-filtering to avoid temporal optimization. Default to true
+     * @param other A second Dubins path
+     * @param this_speed    XY Speed along `this` path (in [L]/s)
+     * @param other_speed   XY Speed along `other` path (in [L]/s)
+     * @param duration Duration for which to look for conflicts (in s)
+     * @param min_dist The minimal distance required for ensuring separation (in [L])
+     * @return true  The two trajectories are well separated
+     * @return false The two trajectories are not separated
+     */
+    template<bool geometric_filtering=true>
+    bool is_XY_separated_from(const Dubins& other, double this_speed, double other_speed, 
+        double duration, double min_dist);
 };

@@ -23,6 +23,8 @@
 #include <tuple>
 
 #include "ConflictDetection.hpp"
+#include "randomPathShape.hpp"
+
 
 #ifndef TEST_NUM
 #define TEST_NUM 5
@@ -40,40 +42,3 @@
 #define TEST_PATH_DURATION 2
 #endif
 
-template<DubinsMove m>
-PathShape<m> generate_random_shape(int seed, double range, double max_speed)
-{
-    std::default_random_engine gen(seed); // Some seeded RNG 
-
-    range = std::abs(range);
-    max_speed = std::abs(max_speed);
-
-    std::uniform_real_distribution<double> dis_pos(-range, range);
-    std::uniform_real_distribution<double> dis_speedn(max_speed/1e-3, max_speed);
-    std::uniform_real_distribution<double> dis_angle(-M_PI,M_PI);
-
-    PathShape<m> output;
-    output.x = dis_pos(gen);
-    output.y = dis_pos(gen);
-    output.z = dis_pos(gen);
-
-    output.p3 = dis_speedn(gen)/10 * (dis_pos(gen) > 0 ? 1 : -1);
-
-    double speed_n = dis_speedn(gen);
-
-    double angle = dis_angle(gen);
-
-    if (m == STRAIGHT)
-    {
-        output.p1 = speed_n * std::cos(angle);
-        output.p2 = speed_n * std::sin(angle);
-    }
-    else
-    {
-        output.p1 = dis_speedn(gen);
-        output.p2 = speed_n/output.p1 * ((m == LEFT) ? 1 : -1);
-        output.p4 = angle;
-    }
-
-    return output;
-}

@@ -154,6 +154,7 @@ void update_dubins(Pose3D* pose, double duration, double speed, double climb_rat
 template<DubinsMove m>
 Pose3D follow_dubins(const Pose3D& pose, double duration, double speed, double climb_rate, double turn_radius);
 
+
 /********************  Recover path shape from two points and a hint  ********************/
 
 /**
@@ -218,6 +219,27 @@ inline void path_set_planar_speed(PathShape<m>& s, double speed)
     s.p2 = ((m == LEFT) ? 1. : -1.) * speed/s.p1;
 }
 
+/**
+ * @brief Compute the initial XY direction of the given shape
+ * 
+ * @tparam m Structure type (either STRAIGHT or a turn, LEFT or RIGHT)
+ * @param s Path structure
+ * @return double Initial direction, in radian
+ */
+template<DubinsMove m>
+inline double path_initial_direction(const PathShape<m>& s);
+
+template<>
+inline double path_initial_direction(const PathShape<STRAIGHT>& s)
+{
+    return std::atan2(s.p2,s.p1);
+}
+
+template<DubinsMove m>
+inline double path_initial_direction(const PathShape<m>& s)
+{
+    return s.p4 + M_PI_2*((m==LEFT) ? (1) : (-1));
+}
 
 /**
  * @brief Given a shape and two points on this shape, compute the parameters for its parametric equation
@@ -232,3 +254,28 @@ inline void path_set_planar_speed(PathShape<m>& s, double speed)
  */
 template<DubinsMove m>
 PathShape<m> compute_params(const Pose3D& start, const Pose3D& end, double h_speed, double turn_radius, double v_speed);
+
+
+/**
+ * @brief Follow a Dubins move for a given duration (adapted for PathShape shorthand)
+ * 
+ * @tparam m        Type of move (Straight, Left turn, Right turn)
+ * @param s         Structure describing the shape to follow (including speed and starting point)
+ * @param duration  Move duration (s)
+ * @return Pose3d   Resulting pose
+ */
+template<DubinsMove m>
+Pose3D follow_dubins(const PathShape<m>& s, double duration);
+
+/**
+ * @brief Compute the initial pose for a PathShape
+ * 
+ * @tparam m        Type of move (Straight, Left turn, Right turn)
+ * @param s         Structure describing the shape to follow (including speed and starting point)
+ * @return Pose3d   Starting pose
+ */
+template<DubinsMove m>
+Pose3D initial_pose(const PathShape<m>& s)
+{
+    return follow_dubins(s,0.);
+}

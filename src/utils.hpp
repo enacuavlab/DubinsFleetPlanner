@@ -140,3 +140,21 @@ Pose3D turn_right(const Pose3D& pose, double duration, double speed, double clim
  * to align the `end` on the X axis
  */
 std::tuple<double,double,double,double> normalize_poses(const Pose3D& start, const Pose3D& end);
+
+/**
+ * @brief Compute the 3D Euclidean distance between two poses
+ * 
+ * @param p1 First pose
+ * @param p2 Second pose
+ * @return double 3D Euclidean distance between the points
+ */
+double pose_dist(const Pose3D& p1, const Pose3D& p2);
+
+/**
+ * @brief Compute the 2D Euclidean distance between two poses, using the XY components
+ * 
+ * @param p1 First pose
+ * @param p2 Second pose
+ * @return double 2D Euclidean distance between the XY projected points
+ */
+double pose_dist_XY(const Pose3D& p1, const Pose3D& p2);

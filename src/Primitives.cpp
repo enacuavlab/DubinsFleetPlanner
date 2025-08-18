@@ -582,6 +582,41 @@ Pose3D follow_dubins<LEFT>(const Pose3D& pose, double duration, double speed, do
 }
 
 
+template<DubinsMove m>
+Pose3D follow_dubins(const PathShape<m>& s, double duration)
+{
+    Pose3D start;
+    double speed = path_planar_speed(s);
+    double climb_rate = s.p3;
+
+    if (m == STRAIGHT)
+    {
+        start.x = s.x;
+        start.y = s.y;
+        start.z = s.z;
+        start.theta = atan2(s.p2,s.p1);
+
+        return follow_dubins<m>(start,duration,speed,climb_rate,0.);
+    }
+    else
+    {
+        start.z = s.z;
+
+        double start_angle = s.p4;
+        double turn_radius = s.p1;
+
+        start.x = s.x + turn_radius* cos(start_angle);
+        start.y = s.y + turn_radius* sin(start_angle);
+        start.theta = start_angle + M_PI_2 * ((m==LEFT) ? (1) : (-1));
+
+        return follow_dubins<m>(start,duration,speed,climb_rate,turn_radius);
+    }
+}
+
+template Pose3D follow_dubins(const PathShape<STRAIGHT>&    s, double duration);
+template Pose3D follow_dubins(const PathShape<RIGHT>&       s, double duration);
+template Pose3D follow_dubins(const PathShape<LEFT>&        s, double duration);
+
 /********************  Recover path shape from two points and a hint  ********************/
 
 template<>

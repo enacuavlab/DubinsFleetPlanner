@@ -17,64 +17,63 @@
 
 #include "testTemporalDistance.hpp"
 
-[[gnu::const]]
-inline Eigen::Vector2d angle_vector(double angle)
+TEST(TemporalDistance,SolverDistanceDoubleCheckNoDerivatives)
 {
-    return Eigen::Vector2d(std::cos(angle),std::sin(angle));
-}
-
-template <DubinsMove m>
-inline auto samples_generator(const PathShape<m>& s);
-
-template <>
-[[gnu::pure]]
-inline auto samples_generator(const PathShape<STRAIGHT>& s)
-{
-    Eigen::Vector2d p0(s.x,s.y);
-    Eigen::Vector2d v(s.p1,s.p2);
-    auto f_bind = [=](double t) {return p0 + t*v;};
-    return f_bind;
-}
-
-template <DubinsMove m>
-[[gnu::pure]]
-inline auto samples_generator(const PathShape<m>& s)
-{
-    Eigen::Vector2d p0(s.x,s.y);
-
-    double r        = s.p1;
-    double omega    = s.p2;
-    double phi0     = s.p4;
-    auto f_bind = [=](double t) {return p0 + r*angle_vector(t*omega+phi0);};
-    return f_bind;
-    
-}
-
-template<DubinsMove m1, DubinsMove m2, size_t samples>
-std::pair<double,double> sample_temporal_XY_dist(const PathShape<m1>& s1, const PathShape<m2>& s2, double duration)
-{
-    static_assert(samples > 1);
-
-    auto f1 = samples_generator(s1);
-    auto f2 = samples_generator(s2);
-    double t = 0.;
-    double min_dist = (f1(t) - f2(t)).norm();
-    double min_loc = 0.;
-    
-    for(size_t i = 1; i < samples; i++)
+    for(int i = 0; i < TEST_NUM; i++)
     {
-        t = i*duration/(samples-1);
-        double dist = (f1(t) - f2(t)).norm();
-        if (dist < min_dist)
-        {
-            min_dist = dist;
-            min_loc = t;
-        }
-    }
+        PathShape<STRAIGHT> s = generate_random_shape<STRAIGHT> (3*i  , TEST_POS_RANGE, TEST_SPEED_RANGE);
+        PathShape<LEFT>     l = generate_random_shape<LEFT>     (3*i+1, TEST_POS_RANGE, TEST_SPEED_RANGE);
+        PathShape<RIGHT>    r = generate_random_shape<RIGHT>    (3*i+2, TEST_POS_RANGE, TEST_SPEED_RANGE);
+        std::cout << "Random shapes generation n°" << i << " done" << std::endl;
 
-    return {min_loc,min_dist};
+        std::pair<double,double> test_sl_no_der = temporal_XY_dist<STRAIGHT,LEFT,false>  (s,l,TEST_PATH_DURATION);
+        std::pair<double,double> test_sr_no_der = temporal_XY_dist<STRAIGHT,RIGHT,false> (s,r,TEST_PATH_DURATION);
+        std::pair<double,double> test_lr_no_der = temporal_XY_dist<LEFT,RIGHT,false>     (l,r,TEST_PATH_DURATION);
+
+        Pose3D sl_p1 = follow_dubins(s,test_sl_no_der.first);
+        Pose3D sl_p2 = follow_dubins(l,test_sl_no_der.first);
+
+        Pose3D sr_p1 = follow_dubins(s,test_sr_no_der.first);
+        Pose3D sr_p2 = follow_dubins(r,test_sr_no_der.first);
+
+        Pose3D lr_p1 = follow_dubins(l,test_lr_no_der.first);
+        Pose3D lr_p2 = follow_dubins(r,test_lr_no_der.first);
+
+
+        EXPECT_NEAR(pose_dist_XY(sl_p1,sl_p2),test_sl_no_der.second,DubinsFleetPlanner_PRECISION) << "STRAIGHT-LEFT val error (sampled vs no derivative)";
+        EXPECT_NEAR(pose_dist_XY(sr_p1,sr_p2),test_sr_no_der.second,DubinsFleetPlanner_PRECISION) << "STRAIGHT-RIGHT val error (sampled vs no derivative)";
+        EXPECT_NEAR(pose_dist_XY(lr_p1,lr_p2),test_lr_no_der.second,DubinsFleetPlanner_PRECISION) << "LEFT-RIGHT val error (sampled vs no derivative)";
+    }
 }
 
+TEST(TemporalDistance,SolverDistanceDoubleCheckWithDerivatives)
+{
+    for(int i = 0; i < TEST_NUM; i++)
+    {
+        PathShape<STRAIGHT> s = generate_random_shape<STRAIGHT> (3*i  , TEST_POS_RANGE, TEST_SPEED_RANGE);
+        PathShape<LEFT>     l = generate_random_shape<LEFT>     (3*i+1, TEST_POS_RANGE, TEST_SPEED_RANGE);
+        PathShape<RIGHT>    r = generate_random_shape<RIGHT>    (3*i+2, TEST_POS_RANGE, TEST_SPEED_RANGE);
+        std::cout << "Random shapes generation n°" << i << " done" << std::endl;
+
+        std::pair<double,double> test_sl_with_der = temporal_XY_dist<STRAIGHT,LEFT,true>  (s,l,TEST_PATH_DURATION);
+        std::pair<double,double> test_sr_with_der = temporal_XY_dist<STRAIGHT,RIGHT,true> (s,r,TEST_PATH_DURATION);
+        std::pair<double,double> test_lr_with_der = temporal_XY_dist<LEFT,RIGHT,true>     (l,r,TEST_PATH_DURATION);
+
+        Pose3D sl_p1 = follow_dubins(s,test_sl_with_der.first);
+        Pose3D sl_p2 = follow_dubins(l,test_sl_with_der.first);
+
+        Pose3D sr_p1 = follow_dubins(s,test_sr_with_der.first);
+        Pose3D sr_p2 = follow_dubins(r,test_sr_with_der.first);
+
+        Pose3D lr_p1 = follow_dubins(l,test_lr_with_der.first);
+        Pose3D lr_p2 = follow_dubins(r,test_lr_with_der.first);
+
+
+        EXPECT_NEAR(pose_dist_XY(sl_p1,sl_p2),test_sl_with_der.second,DubinsFleetPlanner_PRECISION) << "STRAIGHT-LEFT val error (sampled vs with derivative)";
+        EXPECT_NEAR(pose_dist_XY(sr_p1,sr_p2),test_sr_with_der.second,DubinsFleetPlanner_PRECISION) << "STRAIGHT-RIGHT val error (sampled vs with derivative)";
+        EXPECT_NEAR(pose_dist_XY(lr_p1,lr_p2),test_lr_with_der.second,DubinsFleetPlanner_PRECISION) << "LEFT-RIGHT val error (sampled vs with derivative)";
+    }
+}
 
 TEST(TemporalDistance,Random2DCasesNoDerivatives)
 {
