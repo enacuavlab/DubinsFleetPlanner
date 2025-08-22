@@ -127,6 +127,11 @@ constexpr const std::array<std::string,3> DubinsMoveNames{
     std::string("RIGHT")
 };
 
+inline constexpr const std::string get_DubinsMove_name(DubinsMove m)
+{
+    return DubinsMoveNames[m];
+}
+
 /**
  * @brief Follow a Dubins move for a given duration
  * 
@@ -167,7 +172,7 @@ template<DubinsMove m>
 struct PathShape
 {
     double x,y,z;   ///< A reference point (typically starting point)
-    double p1;  ///< For a Straight: horizontal x speed | For a circle: turn_radius
+    double p1;  ///< For a Straight: horizontal x speed | For a circle: Radius
     double p2;  ///< For a Straight: horizontal y speed | For a circle: signed angular speed
     double p3;  ///< Vertical speed
     double p4;  ///< For a Straight: unused | For a circle: initial angle

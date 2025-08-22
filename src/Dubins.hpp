@@ -36,7 +36,7 @@ protected:
     Pose3D start;   // Start pose (x,y,z, XY orientation)
     Pose3D end;     // End pose (x,y,z, XY orientation)
 
-    double climb;       // Z Climb rate, in [alt]/s
+    double climb;       // Z Climb rate, in [alt]/m on the ground
     double turn_radius; // XY Turn radius, in m
     double length;      // Path length, in m. Is NAN if the path is not possible.
 
@@ -56,16 +56,38 @@ protected:
 
 public:
     /**
+     * @brief Ensure that the path ends where it is supposed to
+     * 
+     * This updates the 'valid' attribute, setting it to false if the end is not correct 
+     * 
+     * @return true The path ends correctly
+     * @return false Either the path is already invalid, or it does not ends correctly
+     */
+    bool check_valid_end()
+    {
+        bool out = false;
+        if (valid)
+        {
+            Pose3D end_check = get_position(length);
+            out = pose_dist(end,end_check) < DubinsFleetPlanner_PRECISION;
+            valid &= out;
+        }
+        return out;
+    }
+
+    /**
      * @brief Same as `_compute_length`, but also set the `length` and `valid` attributes
      * 
      * @return double 
      */
     double compute_length()
     {
-        length  = _compute_length();
+        length  = _compute_length(); 
         valid   = (std::isfinite(length)) && (length >= 0);
         return length;
     }
+
+    
 
     /****** Constructors ******/
 
@@ -167,5 +189,5 @@ public:
      */
     template<bool geometric_filtering=true>
     bool is_XY_separated_from(const Dubins& other, double this_speed, double other_speed, 
-        double duration, double min_dist);
+        double duration, double min_dist) const;
 };

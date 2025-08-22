@@ -32,8 +32,8 @@ int main()
 
     AircraftStats stats{1.,1.,1.};
 
-    // auto candidates = list_possible_baseDubins(stats.climb,stats.turn_radius,start,end);
-    auto candidates = fit_possible_baseDubins(stats.climb,stats.turn_radius,start,end, 15.,1e-6);
+    // auto candidates = list_all_baseDubins(stats.climb,stats.turn_radius,start,end);
+    auto candidates = fit_all_baseDubins(stats.climb,stats.turn_radius,start,end, 15.,1e-6);
     auto it = Visualisation::colorlist.begin();
 
     auto f = [&](Dubins &d)

@@ -17,6 +17,7 @@
 
 #pragma once
 
+#include <memory>
 #include <tuple>
 
 #include "Dubins.hpp"
@@ -75,8 +76,10 @@ private:
     {
         normalize();
         compute_length();
+        climb = (end.z - start.z)/length; // TODO: Properly handle the vertical axis
         intermediate_pose_1 = follow_dubins<fst>(start,fst_length,1.,climb,turn_radius);
         intermediate_pose_2 = follow_dubins<snd>(intermediate_pose_1,snd_length,1.,climb,turn_radius);
+        check_valid_end();
     }
 
 public:
@@ -98,8 +101,19 @@ public:
         snd_length = compute_snd_length(alpha,beta,d/turn_radius)*turn_radius;
         trd_length = compute_trd_length(alpha,beta,d/turn_radius)*turn_radius;
 
+#if defined(DubinsFleetPlanner_ASSERTIONS) && DubinsFleetPlanner_ASSERTIONS > 0
+        if(valid)
+        {
+            assert(std::abs(fst_length+snd_length+trd_length-length) < DubinsFleetPlanner_PRECISION);
+        }
+#endif
+
+        climb = (end.z - start.z)/length; // TODO: Properly handle the vertical axis
+
         intermediate_pose_1 = follow_dubins<fst>(start,fst_length,1.,climb,turn_radius);
         intermediate_pose_2 = follow_dubins<snd>(intermediate_pose_1,snd_length,1.,climb,turn_radius);
+
+        check_valid_end();
     }
 
     /****** Getters ******/
@@ -199,6 +213,10 @@ typedef std::tuple<
         AllBaseDubins;
 
 
-AllBaseDubins list_possible_baseDubins(double _climb, double _turn_radius, const Pose3D& _start, const Pose3D& _end);
-AllBaseDubins fit_possible_baseDubins(double _climb, double _turn_radius, const Pose3D& _start, const Pose3D& _end,
+AllBaseDubins list_all_baseDubins(double _climb, double _turn_radius, const Pose3D& _start, const Pose3D& _end);
+AllBaseDubins fit_all_baseDubins(double _climb, double _turn_radius, const Pose3D& _start, const Pose3D& _end,
+    double target_len, double tol);
+
+std::vector<std::unique_ptr<Dubins>> list_possible_baseDubins(double _climb, double _turn_radius, const Pose3D& _start, const Pose3D& _end);
+std::vector<std::unique_ptr<Dubins>> fit_possible_baseDubins(double _climb, double _turn_radius, const Pose3D& _start, const Pose3D& _end,
     double target_len, double tol);

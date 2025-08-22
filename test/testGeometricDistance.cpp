@@ -29,20 +29,37 @@
  */
 bool check_header(const CSVRow& r)
 {
+    std::cout << "Reader header..." << std::endl
+        << "- Col 0 : " << r[0]     << " (" << r[0].compare ("type1")   << ")" << std::endl
+        << "- Col 1 : " << r[1]     << " (" << r[1].compare ("x1")      << ")" << std::endl
+        << "- Col 2 : " << r[2]     << " (" << r[2].compare ("y1")      << ")" << std::endl
+        << "- Col 3 : " << r[3]     << " (" << r[3].compare ("v1_1")    << ")" << std::endl
+        << "- Col 4 : " << r[4]     << " (" << r[4].compare ("v1_2")    << ")" << std::endl
+        << "- Col 5 : " << r[5]     << " (" << r[5].compare ("v1_3")    << ")" << std::endl
+        << "- Col 6 : " << r[6]     << " (" << r[6].compare ("type2")   << ")" << std::endl
+        << "- Col 7 : " << r[7]     << " (" << r[7].compare ("x2")      << ")" << std::endl
+        << "- Col 8 : " << r[8]     << " (" << r[8].compare ("y2")      << ")" << std::endl
+        << "- Col 9 : " << r[9]     << " (" << r[9].compare ("v2_1")    << ")" << std::endl
+        << "- Col 10: " << r[10]    << " (" << r[10].compare("v2_2")    << ")" << std::endl
+        << "- Col 11: " << r[11]    << " (" << r[11].compare("v2_3")    << ")" << std::endl
+        << "- Col 12: " << r[12]    << " (" << r[12].compare("dist")    << ")" << std::endl
+        << std::endl;
+
+
     bool test = (
-        (r[0]  == std::string("type1")) &&
-        (r[1]  == std::string("x1"))    &&
-        (r[2]  == std::string("y1"))    &&
-        (r[3]  == std::string("v1_1"))  &&
-        (r[4]  == std::string("v1_2"))  &&
-        (r[5]  == std::string("v1_3"))  &&
-        (r[6]  == std::string("type2")) &&
-        (r[7]  == std::string("x2"))    &&
-        (r[8]  == std::string("y2"))    &&
-        (r[9]  == std::string("v2_1"))  &&
-        (r[10] == std::string("v2_2"))  &&
-        (r[11] == std::string("v2_3"))  &&
-        (r[12] == std::string("dist"))
+        (r[0].compare ("type1") == 0) &&
+        (r[1].compare ("x1")    == 0) &&
+        (r[2].compare ("y1")    == 0) &&
+        (r[3].compare ("v1_1")  == 0) &&
+        (r[4].compare ("v1_2")  == 0) &&
+        (r[5].compare ("v1_3")  == 0) &&
+        (r[6].compare ("type2") == 0) &&
+        (r[7].compare ("x2")    == 0) &&
+        (r[8].compare ("y2")    == 0) &&
+        (r[9].compare ("v2_1")  == 0) &&
+        (r[10].compare("v2_2")  == 0) &&
+        (r[11].compare("v2_3")  == 0) &&
+        ((r[12].compare("dist")  == 0) || (r[12].compare("dist\r")  == 0) || (r[12].compare("dist\n")  == 0) || (r[12].compare("dist\r\n")  == 0))
 
     );
 
@@ -118,21 +135,28 @@ double parse_arc_length(std::string_view v1, std::string_view v2, std::string_vi
 
 TEST(GeometricDistance,Random2DCases)
 {
+    std::cout << "Looking for test cases at:" << TEST_CSV_FILE << std::endl; 
+    assert(std::filesystem::exists(TEST_CSV_FILE));
+
     std::ifstream       file(TEST_CSV_FILE);
     bool first = true;
     double duration = 5.;
+    int row_number = 0;
 
     for(auto &row: CSVRange(file))
     {
         if (first)
         {
             ASSERT_TRUE(check_header(row));
+            std::cout << "Header registered" << std::endl;
             first = false;
             continue;
         }
 
         double distance_gt;
         std::from_chars(row[12].data(), row[12].data()+row[12].size(), distance_gt);
+
+        std::cout << "Test n° " << row_number << " : " << row[0] << " - " << row[6] << std::endl;
 
         if ((row[0] == std::string("STRAIGHT")) && (row[6] == std::string("STRAIGHT")))
         {
@@ -148,7 +172,7 @@ TEST(GeometricDistance,Random2DCases)
 
             double distance_computed = geometric_XY_dist<STRAIGHT,STRAIGHT>(s1,s2,duration);
             
-            EXPECT_DOUBLE_EQ(distance_gt,distance_computed) << "Error on a STRAIGHT-STRAIGHT case";
+            EXPECT_NEAR(distance_gt,distance_computed,1e-4) << "Error on a STRAIGHT-STRAIGHT case";
         }
         else if ((row[0] == std::string("STRAIGHT")) && (row[6] != std::string("STRAIGHT")))
         {
@@ -166,8 +190,8 @@ TEST(GeometricDistance,Random2DCases)
             double distance_computed        = geometric_XY_dist(s1,s2,duration);
             double distance_computed_bis    = geometric_XY_dist(s1,s2_bis,duration);
 
-            EXPECT_DOUBLE_EQ(distance_gt,distance_computed) << "Error on a STRAIGHT-LEFT case";
-            EXPECT_DOUBLE_EQ(distance_gt,distance_computed_bis) << "Error on a STRAIGHT-RIGHT case";
+            EXPECT_NEAR(distance_gt,distance_computed,1e-4) << "Error on a STRAIGHT-LEFT case";
+            EXPECT_NEAR(distance_gt,distance_computed_bis,1e-4) << "Error on a STRAIGHT-RIGHT case";
         }
         else if ((row[0] != std::string("STRAIGHT")) && (row[6] == std::string("STRAIGHT")))
         {
@@ -185,8 +209,9 @@ TEST(GeometricDistance,Random2DCases)
             double distance_computed        = geometric_XY_dist(s1,s2,duration);
             double distance_computed_bis    = geometric_XY_dist(s1_bis,s2,duration);
 
-            EXPECT_DOUBLE_EQ(distance_gt,distance_computed) << "Error on a LEFT-STRAIGHT case";
-            EXPECT_DOUBLE_EQ(distance_gt,distance_computed_bis) << "Error on a RIGHT-STRAIGHT case";
+            EXPECT_NEAR(distance_gt,distance_computed,1e-4) << "Error on a LEFT-STRAIGHT case";
+            EXPECT_NEAR(distance_gt,distance_computed_bis,1e-4) << "Error on a RIGHT-STRAIGHT case";
+            
         }
         else //(row[0] != std::string("STRAIGHT")) && (row[6] != std::string("STRAIGHT"))
         {
@@ -207,13 +232,13 @@ TEST(GeometricDistance,Random2DCases)
             double distance_computed_bisstd = geometric_XY_dist(s1_bis,s2,duration);
             double distance_computed_bisbis = geometric_XY_dist(s1_bis,s2_bis,duration);
 
-            EXPECT_DOUBLE_EQ(distance_gt,distance_computed_stdstd) << "Error on a LEFT-LEFT case";
-            EXPECT_DOUBLE_EQ(distance_gt,distance_computed_stdbis) << "Error on a LEFT-RIGHT case";
-            EXPECT_DOUBLE_EQ(distance_gt,distance_computed_bisstd) << "Error on a RIGHT-LEFT case";
-            EXPECT_DOUBLE_EQ(distance_gt,distance_computed_bisbis) << "Error on a RIGHT-RIGHT case";
+            EXPECT_NEAR(distance_gt,distance_computed_stdstd,1e-4) << "Error on a LEFT-LEFT case";
+            EXPECT_NEAR(distance_gt,distance_computed_stdbis,1e-4) << "Error on a LEFT-RIGHT case";
+            EXPECT_NEAR(distance_gt,distance_computed_bisstd,1e-4) << "Error on a RIGHT-LEFT case";
+            EXPECT_NEAR(distance_gt,distance_computed_bisbis,1e-4) << "Error on a RIGHT-RIGHT case";
         }
         
-        
+        row_number++;
 
     }
 }

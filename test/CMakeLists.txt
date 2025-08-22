@@ -36,6 +36,14 @@
     target_link_libraries(PlotDubins PUBLIC sciplot DubinsFleetPlanner)
     target_include_directories(PlotDubins PUBLIC "${PROJECT_SOURCE_DIR}/src")
 
+    add_executable(PlotGeometries plotGeometries.cpp)
+    target_link_libraries(PlotGeometries PUBLIC sciplot DubinsFleetPlanner)
+    target_include_directories(PlotGeometries PUBLIC "${PROJECT_SOURCE_DIR}/src")
+
+    add_executable(PlotDubinsMoveDist plotDubinsMoveDist.cpp)
+    target_link_libraries(PlotDubinsMoveDist PUBLIC sciplot DubinsFleetPlanner)
+    target_include_directories(PlotDubinsMoveDist PUBLIC "${PROJECT_SOURCE_DIR}/src")
+
     add_executable(PlotDubinsDist plotDubinsDist.cpp)
     target_link_libraries(PlotDubinsDist PUBLIC sciplot DubinsFleetPlanner)
     target_include_directories(PlotDubinsDist PUBLIC "${PROJECT_SOURCE_DIR}/src")
@@ -64,6 +72,7 @@ endmacro()
 
 make_DubinsPathPlanning_test(TestGeometricDistance testGeometricDistance.cpp)
 make_DubinsPathPlanning_test(TestTemporalDistance testTemporalDistance.cpp)
+make_DubinsPathPlanning_test(TestDubinsSeparation testDubinsSeparation.cpp)
 
 
 

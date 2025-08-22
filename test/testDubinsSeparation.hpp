@@ -15,20 +15,39 @@
 // You should have received a copy of the GNU General Public License
 // along with DubinsFleetPlanner.  If not, see <https://www.gnu.org/licenses/>.
 
-#pragma once
-
-#include <charconv>
-#include <filesystem>
 #include <gtest/gtest.h>
+#include <random>
+
+#include "BaseDubins.hpp"
+#include "plotDubins.hpp"
 #include "ConflictDetection.hpp"
-#include "csv_reader.hpp"
 
-#include "ProjectHeader.h"
+#include "randomPathShape.hpp"
 
-#ifndef TEST_PRECISION
-#define TEST_PRECISION 1e-3
+#ifndef TEST_NUM
+#define TEST_NUM 50
 #endif
 
-#ifndef TEST_CSV_FILE
-#define TEST_CSV_FILE DubinsFleetPlanner_LOCATION "/test/GeometricDistanceTestfile.csv"
+#ifndef TEST_POS_RANGE
+#define TEST_POS_RANGE 5
+#endif
+
+#ifndef TEST_SPEED_RANGE
+#define TEST_SPEED_RANGE 3
+#endif
+
+#ifndef TEST_PATH_DURATION
+#define TEST_PATH_DURATION 2
+#endif
+
+#ifndef TEST_MIN_TURN_RADIUS
+#define TEST_MIN_TURN_RADIUS 0.6
+#endif
+
+#ifndef TEST_MIN_SEPARATION
+#define TEST_MIN_SEPARATION 1
+#endif
+
+#ifndef TEST_SAMPLES_COUNT
+#define TEST_SAMPLES_COUNT 500
 #endif

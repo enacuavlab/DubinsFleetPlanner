@@ -89,7 +89,6 @@ inline auto samples_generator(const PathShape<m>& s)
     double phi0     = s.p4;
     auto f_bind = [=](double t) {return p0 + r*angle_vector(t*omega+phi0);};
     return f_bind;
-    
 }
 
 template<DubinsMove m1, DubinsMove m2, size_t samples>
@@ -127,4 +126,69 @@ std::pair<double,double> sample_temporal_XY_dist(const PathShape<m1>& s1, const 
     }
 
     return {min_loc,sqrt(min_dist)};
+}
+
+template<size_t samples>
+std::pair<double,double> sample_temporal_XY_dist(const Dubins& s1, const Dubins& s2,
+    double v1, double v2, double duration)
+{
+    static_assert(samples > 1);
+    Pose3D p1,p2;
+
+    p1 = s1.get_start();
+    p2 = s2.get_start();
+
+    double dx = p1.x - p2.x;
+    double dy = p1.y - p2.y;
+
+    double min_dist = dx*dx + dy*dy;
+    double min_loc = 0.;
+
+    std::vector<double> timestamps;
+    
+    for(size_t i = 0; i < samples; i++)
+    {
+        timestamps.push_back(i*duration/(samples-1));
+    }
+
+    auto s1_samples = s1.get_positions(timestamps,v1,true);
+    auto s2_samples = s2.get_positions(timestamps,v2,true);
+
+    for(size_t i = 0; i < samples; i++)
+    {
+        p1 = s1_samples[i];
+        p2 = s2_samples[i];
+
+        dx = p1.x - p2.x;
+        dy = p1.y - p2.y;
+
+        double dist = dx*dx + dy*dy;
+        if (dist < min_dist)
+        {
+            min_dist = dist;
+            min_loc = i*duration/(samples-1);
+        }
+    }
+
+    return {min_loc,sqrt(min_dist)};
+}
+
+Pose3D generate_pose(int seed, double xy_limit, double z_limit)
+{
+    std::default_random_engine gen(seed); // Some seeded RNG 
+
+    xy_limit    = std::abs(xy_limit);
+    z_limit     = std::abs(z_limit);
+
+    std::uniform_real_distribution<double> dis_pos(-xy_limit, xy_limit);
+    std::uniform_real_distribution<double> dis_alt(-z_limit, z_limit);
+    std::uniform_real_distribution<double> dis_angle(-M_PI,M_PI);
+
+    Pose3D output;
+    output.x = dis_pos(gen);
+    output.y = dis_pos(gen);
+    output.z = dis_alt(gen);
+    output.theta = dis_angle(gen);
+
+    return output;
 }

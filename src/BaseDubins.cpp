@@ -54,6 +54,7 @@ double BaseDubins<DubinsMove::LEFT,DubinsMove::STRAIGHT,DubinsMove::LEFT>::adjus
     turn_radius = radius;
     length = valid ? target_length : NAN;
 
+
     return radius;
 }
 
@@ -89,8 +90,15 @@ double BaseDubins<DubinsMove::RIGHT,DubinsMove::STRAIGHT,DubinsMove::RIGHT>::adj
 {
     double radius = fit_RSR(alpha,beta,d,turn_radius,target_length,tol);
     valid = !std::isnan(radius);
+#if defined(DubinsFleetPlanner_ASSERTIONS) && DubinsFleetPlanner_ASSERTIONS > 0
+    if (valid)
+    {
+        assert(std::abs(RSR_total_distance(alpha,beta,d/radius)*radius - target_length) < DubinsFleetPlanner_PRECISION);
+    }
+#endif
     turn_radius = radius;
     length = valid ? target_length : NAN;
+
 
     return radius;
 }
@@ -130,6 +138,7 @@ double BaseDubins<DubinsMove::RIGHT,DubinsMove::STRAIGHT,DubinsMove::LEFT>::adju
     turn_radius = radius;
     length = valid ? target_length : NAN;
 
+
     return radius;
 }
 
@@ -167,6 +176,7 @@ double BaseDubins<DubinsMove::LEFT,DubinsMove::STRAIGHT,DubinsMove::RIGHT>::adju
     valid = !std::isnan(radius);
     turn_radius = radius;
     length = valid ? target_length : NAN;
+
 
     return radius;
 }
@@ -206,6 +216,7 @@ double BaseDubins<DubinsMove::RIGHT,DubinsMove::LEFT,DubinsMove::RIGHT>::adjust_
     turn_radius = radius;
     length = valid ? target_length : NAN;
 
+
     return radius;
 }
 
@@ -243,6 +254,7 @@ double BaseDubins<DubinsMove::LEFT,DubinsMove::RIGHT,DubinsMove::LEFT>::adjust_l
     valid = !std::isnan(radius);
     turn_radius = radius;
     length = valid ? target_length : NAN;
+
 
     return radius;
 }
@@ -282,6 +294,7 @@ double BaseDubins<DubinsMove::STRAIGHT,DubinsMove::RIGHT,DubinsMove::STRAIGHT>::
     turn_radius = radius;
     length = valid ? target_length : NAN;
 
+
     return radius;
 }
 
@@ -320,6 +333,7 @@ double BaseDubins<DubinsMove::STRAIGHT,DubinsMove::LEFT,DubinsMove::STRAIGHT>::a
     turn_radius = radius;
     length = valid ? target_length : NAN;
 
+
     return radius;
 }
 
@@ -342,7 +356,7 @@ double BaseDubins<fst,snd,trd>::adjust_length([[maybe_unused]] double target_len
     return NAN;
 }
 
-AllBaseDubins list_possible_baseDubins(double _climb, double _turn_radius, const Pose3D& _start, const Pose3D& _end)
+AllBaseDubins list_all_baseDubins(double _climb, double _turn_radius, const Pose3D& _start, const Pose3D& _end)
 {
     AllBaseDubins candidates = std::make_tuple(
         BaseDubinsLSL(_climb, _turn_radius,_start,_end),
@@ -358,7 +372,7 @@ AllBaseDubins list_possible_baseDubins(double _climb, double _turn_radius, const
     return candidates;
 }
 
-AllBaseDubins fit_possible_baseDubins(double _climb, double _turn_radius, const Pose3D& _start, const Pose3D& _end,
+AllBaseDubins fit_all_baseDubins(double _climb, double _turn_radius, const Pose3D& _start, const Pose3D& _end,
     double target_len, double tol)
 {
     AllBaseDubins candidates = std::make_tuple(
@@ -373,4 +387,70 @@ AllBaseDubins fit_possible_baseDubins(double _climb, double _turn_radius, const 
     );
 
     return candidates;
+}
+
+std::vector<std::unique_ptr<Dubins>> list_possible_baseDubins(double _climb, double _turn_radius, const Pose3D& _start, const Pose3D& _end)
+{
+    std::vector<std::unique_ptr<Dubins>> output;
+
+    auto LSL_ptr = std::make_unique<BaseDubinsLSL>(_climb, _turn_radius, _start, _end);
+    auto LSR_ptr = std::make_unique<BaseDubinsLSR>(_climb, _turn_radius, _start, _end);
+    auto RSR_ptr = std::make_unique<BaseDubinsRSR>(_climb, _turn_radius, _start, _end);
+    auto RSL_ptr = std::make_unique<BaseDubinsRSL>(_climb, _turn_radius, _start, _end);
+    auto RLR_ptr = std::make_unique<BaseDubinsRLR>(_climb, _turn_radius, _start, _end);
+    auto LRL_ptr = std::make_unique<BaseDubinsLRL>(_climb, _turn_radius, _start, _end);
+    auto SRS_ptr = std::make_unique<BaseDubinsSRS>(_climb, _turn_radius, _start, _end);
+    auto SLS_ptr = std::make_unique<BaseDubinsSLS>(_climb, _turn_radius, _start, _end);
+
+    auto transfer = [&](auto& ptr)
+    {
+        if (ptr->is_valid())
+        {
+            output.push_back(std::move(ptr));
+        }
+    };
+
+    transfer(LSL_ptr);
+    transfer(LSR_ptr);
+    transfer(RSR_ptr);
+    transfer(RSL_ptr);
+    transfer(RLR_ptr);
+    transfer(LRL_ptr);
+    transfer(SRS_ptr);
+    transfer(SLS_ptr);
+    return output;
+}
+
+
+std::vector<std::unique_ptr<Dubins>> fit_possible_baseDubins(double _climb, double _turn_radius, const Pose3D& _start, const Pose3D& _end,
+    double target_len, double tol)
+{
+    std::vector<std::unique_ptr<Dubins>> output;
+
+    auto LSL_ptr = std::make_unique<BaseDubinsLSL>(_climb, _turn_radius, _start, _end, target_len, tol);
+    auto LSR_ptr = std::make_unique<BaseDubinsLSR>(_climb, _turn_radius, _start, _end, target_len, tol);
+    auto RSR_ptr = std::make_unique<BaseDubinsRSR>(_climb, _turn_radius, _start, _end, target_len, tol);
+    auto RSL_ptr = std::make_unique<BaseDubinsRSL>(_climb, _turn_radius, _start, _end, target_len, tol);
+    auto RLR_ptr = std::make_unique<BaseDubinsRLR>(_climb, _turn_radius, _start, _end, target_len, tol);
+    auto LRL_ptr = std::make_unique<BaseDubinsLRL>(_climb, _turn_radius, _start, _end, target_len, tol);
+    auto SRS_ptr = std::make_unique<BaseDubinsSRS>(_climb, _turn_radius, _start, _end, target_len, tol);
+    auto SLS_ptr = std::make_unique<BaseDubinsSLS>(_climb, _turn_radius, _start, _end, target_len, tol);
+
+    auto transfer = [&](auto& ptr)
+    {
+        if (ptr->is_valid())
+        {
+            output.push_back(std::move(ptr));
+        }
+    };
+
+    transfer(LSL_ptr);
+    transfer(LSR_ptr);
+    transfer(RSR_ptr);
+    transfer(RSL_ptr);
+    transfer(RLR_ptr);
+    transfer(LRL_ptr);
+    transfer(SRS_ptr);
+    transfer(SLS_ptr);
+    return output;
 }

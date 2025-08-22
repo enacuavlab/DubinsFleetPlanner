@@ -19,9 +19,55 @@
 
 #include "ConflictDetection.hpp"
 
-template<bool geometric_filtering=true>
+// ---------- Local template for computing separation between shapes ---------- //
+
+template<DubinsMove m1, DubinsMove m2, bool geometric_filtering>
+static bool check_XY_separation(const PathShape<m1>& p1, const PathShape<m2>& p2, double duration, double min_sep)
+{
+    if ((m1 == STRAIGHT) && (m2 == STRAIGHT))
+    {
+        auto loc_val_dist = temporal_XY_dist(p1,p2,duration);
+        if (loc_val_dist.second < min_sep)
+        {
+            return false;
+        }
+        else
+        {
+            return true;
+        }
+    }
+    else
+    {
+        if (geometric_filtering)
+        {
+            double geo_dist = geometric_XY_dist(p1,p2,duration);
+            if (geo_dist < min_sep)
+            {
+                auto loc_val_dist = temporal_XY_dist(p1,p2,duration);
+                if (loc_val_dist.second < min_sep)
+                {
+                    return false;
+                }
+            }
+        }
+        else
+        {
+            auto loc_val_dist = temporal_XY_dist(p1,p2,duration);
+            if (loc_val_dist.second < min_sep)
+            {
+                return false;
+            }
+        }
+        return true;
+    }
+    
+}
+
+// ---------- Separation between Dubins ---------- //
+
+template<bool geometric_filtering>
 bool Dubins::is_XY_separated_from(const Dubins& other, double this_speed, double other_speed, 
-        double duration, double min_dist)
+        double duration, double min_dist) const
 {
 #if defined(DubinsFleetPlanner_ASSERTIONS) && DubinsFleetPlanner_ASSERTIONS > 0
     assert((this_speed > 0) && (other_speed > 0));
@@ -90,34 +136,131 @@ bool Dubins::is_XY_separated_from(const Dubins& other, double this_speed, double
 
         double section_duration = timepoints[i+1]-timepoints[i];
 
-        if ((this_type == STRAIGHT) && (other_type == STRAIGHT))
+        switch (this_type)
         {
-            PathShape<STRAIGHT> p1 = compute_params(this_start,this_end,this_speed,this_turn_radius,this_vspeed);
-            PathShape<STRAIGHT> p2 = compute_params(other_start,other_end,other_speed,other_turn_radius,other_vspeed);
-
-            auto loc_val_dist = temporal_XY_dist(p1,p2,section_duration);
-            if (loc_val_dist.second < min_dist)
+        case STRAIGHT:
+            switch (other_type)
             {
-                return false;
-            }
-        }
-        else
-        {
-            PathShape<this_type> p1 = compute_params(this_start,this_end,this_speed,this_turn_radius,this_vspeed);
-            PathShape<other_type> p2 = compute_params(other_start,other_end,other_speed,other_turn_radius,other_vspeed);
-
-            double geo_dist = geometric_XY_dist(p1,p2,section_duration);
-            if (geo_dist < min_dist)
-            {
-                auto loc_val_dist = temporal_XY_dist(p1,p2,section_duration);
-                if (loc_val_dist.second < min_dist)
+            case STRAIGHT:
+                if (!check_XY_separation<STRAIGHT,STRAIGHT,geometric_filtering>(
+                    compute_params<STRAIGHT>(this_start,this_end,this_speed,this_turn_radius,this_vspeed),
+                    compute_params<STRAIGHT>(other_start,other_end,other_speed,other_turn_radius,other_vspeed),
+                    section_duration,min_dist))
                 {
                     return false;
                 }
+                break;
+            
+            case LEFT:
+                if (!check_XY_separation<STRAIGHT,LEFT,geometric_filtering>(
+                    compute_params<STRAIGHT>(this_start,this_end,this_speed,this_turn_radius,this_vspeed),
+                    compute_params<LEFT>(other_start,other_end,other_speed,other_turn_radius,other_vspeed),
+                    section_duration,min_dist))
+                {
+                    return false;
+                }
+                break;
+
+            case RIGHT:
+                if (!check_XY_separation<STRAIGHT,RIGHT,geometric_filtering>(
+                    compute_params<STRAIGHT>(this_start,this_end,this_speed,this_turn_radius,this_vspeed),
+                    compute_params<RIGHT>(other_start,other_end,other_speed,other_turn_radius,other_vspeed),
+                    section_duration,min_dist))
+                {
+                    return false;
+                }
+                break;
+
+            default:
+                exit(EXIT_FAILURE);
             }
-        }
+            break;
         
+        case LEFT:
+            switch (other_type)
+            {
+            case STRAIGHT:
+                if (!check_XY_separation<LEFT,STRAIGHT,geometric_filtering>(
+                    compute_params<LEFT>(this_start,this_end,this_speed,this_turn_radius,this_vspeed),
+                    compute_params<STRAIGHT>(other_start,other_end,other_speed,other_turn_radius,other_vspeed),
+                    section_duration,min_dist))
+                {
+                    return false;
+                }
+                break;
+            
+            case LEFT:
+                if (!check_XY_separation<LEFT,LEFT,geometric_filtering>(
+                    compute_params<LEFT>(this_start,this_end,this_speed,this_turn_radius,this_vspeed),
+                    compute_params<LEFT>(other_start,other_end,other_speed,other_turn_radius,other_vspeed),
+                    section_duration,min_dist))
+                {
+                    return false;
+                }
+                break;
+
+            case RIGHT:
+                if (!check_XY_separation<LEFT,RIGHT,geometric_filtering>(
+                    compute_params<LEFT>(this_start,this_end,this_speed,this_turn_radius,this_vspeed),
+                    compute_params<RIGHT>(other_start,other_end,other_speed,other_turn_radius,other_vspeed),
+                    section_duration,min_dist))
+                {
+                    return false;
+                }
+                break;
+
+            default:
+                exit(EXIT_FAILURE);
+            }
+            break;
+
+        case RIGHT:
+            switch (other_type)
+            {
+            case STRAIGHT:
+                if (!check_XY_separation<RIGHT,STRAIGHT,geometric_filtering>(
+                    compute_params<RIGHT>(this_start,this_end,this_speed,this_turn_radius,this_vspeed),
+                    compute_params<STRAIGHT>(other_start,other_end,other_speed,other_turn_radius,other_vspeed),
+                    section_duration,min_dist))
+                {
+                    return false;
+                }
+                break;
+            
+            case LEFT:
+                if (!check_XY_separation<RIGHT,LEFT,geometric_filtering>(
+                    compute_params<RIGHT>(this_start,this_end,this_speed,this_turn_radius,this_vspeed),
+                    compute_params<LEFT>(other_start,other_end,other_speed,other_turn_radius,other_vspeed),
+                    section_duration,min_dist))
+                {
+                    return false;
+                }
+                break;
+
+            case RIGHT:
+                if (!check_XY_separation<RIGHT,RIGHT,geometric_filtering>(
+                    compute_params<RIGHT>(this_start,this_end,this_speed,this_turn_radius,this_vspeed),
+                    compute_params<RIGHT>(other_start,other_end,other_speed,other_turn_radius,other_vspeed),
+                    section_duration,min_dist))
+                {
+                    return false;
+                }
+                break;
+
+            default:
+                exit(EXIT_FAILURE);
+            }
+            break;
+
+        default:
+            exit(EXIT_FAILURE);
+        }
     }
 
     return true;
 }
+
+template bool Dubins::is_XY_separated_from<true>(const Dubins& other, double this_speed, double other_speed, 
+        double duration, double min_dist) const;
+template bool Dubins::is_XY_separated_from<false>(const Dubins& other, double this_speed, double other_speed, 
+        double duration, double min_dist) const;

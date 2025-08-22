@@ -15,6 +15,7 @@
 // You should have received a copy of the GNU General Public License
 // along with DubinsFleetPlanner.  If not, see <https://www.gnu.org/licenses/>.
 
+#include <set>
 
 #include "BaseDubins.hpp"
 #include "plotDubins.hpp"
@@ -40,6 +41,10 @@
 #define TEST_PATH_DURATION 5.5
 #endif
 
+#ifndef TEST_MIN_TURN_RADIUS
+#define TEST_MIN_TURN_RADIUS 0.6
+#endif
+
 
 int main()
 {
@@ -47,143 +52,118 @@ int main()
 
     // -------------------- Generate test cases -------------------- //
 
-    PathShape<STRAIGHT> s = generate_random_shape<STRAIGHT> (0, TEST_POS_RANGE, TEST_SPEED_RANGE);
-    PathShape<LEFT>     l = generate_random_shape<LEFT>     (1, TEST_POS_RANGE, TEST_SPEED_RANGE);
-    PathShape<RIGHT>    r = generate_random_shape<RIGHT>    (2, TEST_POS_RANGE, TEST_SPEED_RANGE);
-    std::cout << "Random shapes generation done" << std::endl;
+    uint i = 10;
 
-    std::cout << "Path s speed: " << path_planar_speed(s) << std::endl; 
-    std::cout << "Path l speed: " << path_planar_speed(l) << std::endl; 
-    std::cout << "Path r speed: " << path_planar_speed(r) << std::endl; 
+    Pose3D p1_start = generate_pose(5*i+1, TEST_POS_RANGE, 0.1);
+    Pose3D p1_end   = generate_pose(5*i+2, TEST_POS_RANGE, 0.1);
+
+    Pose3D p2_start = generate_pose(5*i+3, TEST_POS_RANGE, 0.1);
+    Pose3D p2_end   = generate_pose(5*i+4, TEST_POS_RANGE, 0.1);
+
+    double target_duration = 3*TEST_POS_RANGE;
+    double p1_speed = 1.6;
+    double p2_speed = 1.6;
+    double target_length_1 = target_duration*p1_speed;
+    double target_length_2 = target_duration*p2_speed;
+    double min_separation = 1.;
+
+    std::vector<std::unique_ptr<Dubins>> p1_possibilities = fit_possible_baseDubins(1.,TEST_MIN_TURN_RADIUS,
+        p1_start,p1_end,target_length_1,DubinsFleetPlanner_PRECISION);
+        
+    std::vector<std::unique_ptr<Dubins>> p2_possibilities = fit_possible_baseDubins(1.,TEST_MIN_TURN_RADIUS,
+        p2_start,p2_end,target_length_2,DubinsFleetPlanner_PRECISION);
+
+    if (p1_possibilities.size() == 0)
+    {
+        std::cout << "No path found for path 1. Aborting..." << std::endl;
+        exit(1);
+    }
+
+    if (p2_possibilities.size() == 0)
+    {
+        std::cout << "No path found for path 2. Aborting..." << std::endl;
+        exit(2);
+    }
+
+    std::cout << "Random paths generation done" << std::endl;
 
     // -------------------- Compute groundtruth by sampling -------------------- //
 
-    std::pair<double,double> sampled_sl = sample_temporal_XY_dist<STRAIGHT,LEFT,samples>  (s,l,TEST_PATH_DURATION);
-    std::cout << "Sampling SL done" << std::endl;
-    Pose3D sampled_sl_pose1 = follow_dubins(s,sampled_sl.first);
-    Pose3D sampled_sl_pose2 = follow_dubins(l,sampled_sl.first);
+    std::set<std::pair<size_t,size_t>> valid_pairs;
 
-    std::pair<double,double> sampled_sr = sample_temporal_XY_dist<STRAIGHT,RIGHT,samples> (s,r,TEST_PATH_DURATION);
-    std::cout << "Sampling SR done" << std::endl;
-    Pose3D sampled_sr_pose1 = follow_dubins(s,sampled_sr.first);
-    Pose3D sampled_sr_pose2 = follow_dubins(r,sampled_sr.first);
+    for(size_t i1 = 0; i1 < p1_possibilities.size(); i1++)
+    {
+        auto& d1 = p1_possibilities[i1];
+        for(size_t i2 = 0; i2 < p2_possibilities.size(); i2++)
+        {
+            auto& d2 = p2_possibilities[i2];
+            std::cout << "Checking for pair " << d1->get_type_abbr() << " " << d2->get_type_abbr() << "...";
+            if (d1->is_XY_separated_from(*d2,p1_speed,p2_speed,target_duration,min_separation))
+            {
+                std::cout << " Valid!" << std::endl
+                    << "  Checking by sampling...";
 
-    std::pair<double,double> sampled_lr = sample_temporal_XY_dist<LEFT,RIGHT,samples>     (l,r,TEST_PATH_DURATION);
-    std::cout << "Sampling LR done" << std::endl;
-    Pose3D sampled_lr_pose1 = follow_dubins(l,sampled_lr.first);
-    Pose3D sampled_lr_pose2 = follow_dubins(r,sampled_lr.first);
+                std::pair<double,double> sampled = sample_temporal_XY_dist<samples>(*d1,*d2,p1_speed,p2_speed,target_duration);
 
-
-    // -------------------- Test solver -------------------- //
-
-    std::pair<double,double> test_sl_no_der = temporal_XY_dist<STRAIGHT,LEFT,false>  (s,l,TEST_PATH_DURATION);
-    Pose3D test_sl_no_der_pose1 = follow_dubins(s,test_sl_no_der.first);
-    Pose3D test_sl_no_der_pose2 = follow_dubins(l,test_sl_no_der.first);
-
-    std::pair<double,double> test_sr_no_der = temporal_XY_dist<STRAIGHT,RIGHT,false> (s,r,TEST_PATH_DURATION);
-    Pose3D test_sr_no_der_pose1 = follow_dubins(s,test_sr_no_der.first);
-    Pose3D test_sr_no_der_pose2 = follow_dubins(r,test_sr_no_der.first);
-
-    std::pair<double,double> test_lr_no_der = temporal_XY_dist<LEFT,RIGHT,false>     (l,r,TEST_PATH_DURATION);
-    Pose3D test_lr_no_der_pose1 = follow_dubins(l,test_lr_no_der.first);
-    Pose3D test_lr_no_der_pose2 = follow_dubins(r,test_lr_no_der.first);
-
-    std::cout   << "STRAIGHT-LEFT case    :\nLocations (sampled VS test): " 
-                << sampled_sl.first << "  VS  "
-                << test_sl_no_der.first << std::endl
-                << "Distances: "
-                << sampled_sl.second << "  VS  "
-                << test_sl_no_der.second << std::endl << std::endl;
-
-    std::cout   << "STRAIGHT-RIGHT case   :\nLocations (sampled VS test): " 
-                << sampled_sr.first << "  VS  "
-                << test_sr_no_der.first << std::endl
-                << "Distances: "
-                << sampled_sr.second << "  VS  "
-                << test_sr_no_der.second << std::endl << std::endl;
-
-    std::cout   << "LEFT-RIGHT case       :\nLocations (sampled VS test): " 
-                << sampled_lr.first << "  VS  "
-                << test_lr_no_der.first << std::endl
-                << "Distances: "
-                << sampled_lr.second << "  VS  "
-                << test_lr_no_der.second << std::endl << std::endl;
+                if (sampled.second > min_separation)
+                {
+                    std::cout << " Valid! -> Saving the pair" << std::endl;
+                    valid_pairs.insert(std::make_pair(i1,i2));
+                }
+                else
+                {
+                    std::cout << " ERROR: Found " << sampled.second << " at time " << sampled.first << std::endl
+                        << "-> Intersection of type "
+                        << get_DubinsMove_name(d1->get_section_type(sampled.first)) 
+                        << " - " << get_DubinsMove_name(d2->get_section_type(sampled.first)) << std::endl;
+                }
+            }
+            else
+            {
+                std::cout << " Conflict detected. Next" << std::endl;
+            }
+            std::cout << std::endl << std::endl;
+        }
+    }
 
 
-    // -------------------- Plotting --------------------
+    // -------------------- Plotting -------------------- //
 
     Visualisation::Plot2D plot = Visualisation::init_plot();
 
-    // ---------- Individual trajectories ---------- //
+    for(size_t i1 = 0; i1 < p1_possibilities.size(); i1++)
+    {
+        auto& d1 = p1_possibilities[i1];
+        Visualisation::plot_path<samples>(plot,*d1)
+            .label(std::string("1: ") + d1->get_type_abbr())
+            .lineColor("blue")
+            .dashType(i1);
+    }
 
-    Visualisation::plot_path<PLOTTING_SAMPLES,STRAIGHT>(plot,s,TEST_PATH_DURATION)
-        .label("STRAIGHT Path")
-        .lineColor(Visualisation::colorlist[0]);
-    Visualisation::plot_pose(plot,initial_pose(s))
-        .label("STRAIGHT Init")
-        .lineColor(Visualisation::colorlist[0]);
+    Visualisation::plot_pose(plot,p1_possibilities[0]->get_start())
+        .label("1: Init")
+        .lineColor("blue");
 
+    Visualisation::plot_pose(plot,p1_possibilities[0]->get_end())
+        .label("1: End")
+        .lineColor("blue");
 
-    Visualisation::plot_path<PLOTTING_SAMPLES,LEFT>(plot,l,TEST_PATH_DURATION)
-        .label("LEFT Path")
-        .lineColor(Visualisation::colorlist[1]);
-    Visualisation::plot_pose(plot,initial_pose(l))
-        .label("LEFT Init")
-        .lineColor(Visualisation::colorlist[1]);
+    for(size_t i2 = 0; i2 < p2_possibilities.size(); i2++)
+    {
+        auto& d2 = p2_possibilities[i2];
+        Visualisation::plot_path<samples>(plot,*d2)
+            .label(std::string("2: ") + d2->get_type_abbr())
+            .lineColor("red")
+            .dashType(i2);
+    }
 
+    Visualisation::plot_pose(plot,p2_possibilities[0]->get_start())
+        .label("2: Init")
+        .lineColor("red");
 
-    Visualisation::plot_path<PLOTTING_SAMPLES,RIGHT>(plot,r,TEST_PATH_DURATION)
-        .label("RIGHT Path")
-        .lineColor(Visualisation::colorlist[2]);
-    Visualisation::plot_pose(plot,initial_pose(r))
-        .label("RIGHT Init")
-        .lineColor(Visualisation::colorlist[2]);
-
-    // ---------- Minimal distance points ---------- //
-    
-    plot.drawCurve(
-        std::valarray{sampled_sl_pose1.x,sampled_sl_pose2.x},
-        std::valarray{sampled_sl_pose1.y,sampled_sl_pose2.y})
-        .label("STAIGHT-LEFT sampled points")
-        .lineColor("black")
-        .dashType(2);
-        
-    plot.drawCurve(
-        std::valarray{test_sl_no_der_pose1.x,test_sl_no_der_pose2.x},
-        std::valarray{test_sl_no_der_pose1.y,test_sl_no_der_pose2.y})
-        .label("STAIGHT-LEFT test points")
-        .lineColor("black")
-        .dashType(3);
-
-
-    plot.drawCurve(
-        std::valarray{sampled_sr_pose1.x,sampled_sr_pose2.x},
-        std::valarray{sampled_sr_pose1.y,sampled_sr_pose2.y})
-        .label("STRAIGHT-RIGHT sampled points")
-        .lineColor("grey")
-        .dashType(2);
-        
-    plot.drawCurve(
-        std::valarray{test_sr_no_der_pose1.x,test_sr_no_der_pose2.x},
-        std::valarray{test_sr_no_der_pose1.y,test_sr_no_der_pose2.y})
-        .label("STRAIGHT-RIGHT test points")
-        .lineColor("grey")
-        .dashType(3);
-
-
-    plot.drawCurve(
-        std::valarray{sampled_lr_pose1.x,sampled_lr_pose2.x},
-        std::valarray{sampled_lr_pose1.y,sampled_lr_pose2.y})
-        .label("LEFT-RIGHT sampled points")
-        .lineColor("blue")
-        .dashType(2);
-        
-    plot.drawCurve(
-        std::valarray{test_lr_no_der_pose1.x,test_lr_no_der_pose2.x},
-        std::valarray{test_lr_no_der_pose1.y,test_lr_no_der_pose2.y})
-        .label("LEFT-RIGHT test points")
-        .lineColor("blue")
-        .dashType(3);
+    Visualisation::plot_pose(plot,p2_possibilities[0]->get_end())
+        .label("2: End")
+        .lineColor("red");
 
     // ---------- Display ---------- //
 

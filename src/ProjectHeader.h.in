@@ -25,3 +25,5 @@
 #define DubinsFleetPlanner_PRECISION @PRECISION@
 
 #define DubinsFleetPlanner_SOLVE_WITH_DERIVATIVES @SOLVE_WITH_DERIVATIVES@
+
+#define DubinsFleetPlanner_LOCATION "@PROJECT_SOURCE_DIR@"

@@ -102,6 +102,33 @@ namespace Visualisation
         return plot.drawCurve(xs,ys);
     }
 
+    DrawSpecs& plot_line(Plot2D& plot, double ax, double ay, double bx, double by)
+    {
+        std::valarray<double> xs(2),ys(2);
+        xs[0] = ax;
+        xs[1] = bx;
+        ys[0] = ay;
+        ys[1] = by;
+
+        return plot.drawCurve(xs,ys);
+    }
+
+    void plot_arc(Plot2D& plot, double cx, double cy, double radius, double rad_init, double rad_end,
+        uint obj_id=0, std::string color="black")
+    {
+        double deg_init = rad_init*180/M_PI;
+        double deg_end  = rad_end*180/M_PI;
+
+        plot.gnuplot(std::string("set obj ") + std::to_string(obj_id) + std::string(" circle at ") + 
+            std::to_string(cx) + std::string(",") + std::to_string(cy) +
+            std::string(" size ") + std::to_string(radius) + std::string(" arc [") +
+            std::to_string(deg_init) + std::string(":") + std::to_string(deg_end) + std::string("] fc \"") +
+            color + std::string("\" nowedge"));
+
+        // set obj 2 circle at  4,60  size 3 arc [0:180] fc "web-green" nowedge
+
+    }
+
     DrawSpecs& plot_junctions(Plot2D& plot, Dubins& path)
     {
         std::vector<Pose3D> locs = path.get_junction_points();
