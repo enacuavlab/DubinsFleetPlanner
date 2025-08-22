@@ -19,7 +19,6 @@
 
 #include <charconv>
 #include <filesystem>
-#include <gtest/gtest.h>
 #include "ConflictDetection.hpp"
 #include "csv_reader.hpp"
 

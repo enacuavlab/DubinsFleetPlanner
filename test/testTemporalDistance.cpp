@@ -15,6 +15,7 @@
 // You should have received a copy of the GNU General Public License
 // along with DubinsFleetPlanner.  If not, see <https://www.gnu.org/licenses/>.
 
+#include <gtest/gtest.h>
 #include "testTemporalDistance.hpp"
 
 TEST(TemporalDistance,SolverDistanceDoubleCheckNoDerivatives)

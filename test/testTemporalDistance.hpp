@@ -17,7 +17,6 @@
 
 #pragma once
 
-#include <gtest/gtest.h>
 #include <Eigen/Dense>
 #include <random>
 #include <tuple>

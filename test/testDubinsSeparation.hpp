@@ -14,8 +14,8 @@
 // 
 // You should have received a copy of the GNU General Public License
 // along with DubinsFleetPlanner.  If not, see <https://www.gnu.org/licenses/>.
+#pragma once
 
-#include <gtest/gtest.h>
 #include <random>
 
 #include "BaseDubins.hpp"
