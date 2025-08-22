@@ -44,6 +44,10 @@
     target_link_libraries(PlotDubinsMoveDist PUBLIC sciplot DubinsFleetPlanner)
     target_include_directories(PlotDubinsMoveDist PUBLIC "${PROJECT_SOURCE_DIR}/src")
 
+    add_executable(PlotDubinsWithGeometries plotDubinsWithGeometries.cpp)
+    target_link_libraries(PlotDubinsWithGeometries PUBLIC sciplot DubinsFleetPlanner)
+    target_include_directories(PlotDubinsWithGeometries PUBLIC "${PROJECT_SOURCE_DIR}/src")
+
     add_executable(PlotDubinsDist plotDubinsDist.cpp)
     target_link_libraries(PlotDubinsDist PUBLIC sciplot DubinsFleetPlanner)
     target_include_directories(PlotDubinsDist PUBLIC "${PROJECT_SOURCE_DIR}/src")

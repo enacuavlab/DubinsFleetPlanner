@@ -637,10 +637,10 @@ std::pair<double,double> temporal_XY_dist(const PathShape<STRAIGHT> &s1, const P
     Eigen::Vector2d dp(s1.x - s2.x, s1.y - s2.y);
     Eigen::Vector2d v1(s1.p1, s1.p2);
     Eigen::Vector2d v2(s2.p1, s2.p2);
-    double v1v2 = v1.dot(v2);
 
     Eigen::Vector2d dv = v1 - v2;
-    double nv2 = dv.dot(dv);
+    double sc = dv.dot(dp);
+    double nv2 = dv.squaredNorm();
 
     double min_loc = 0.;
     double min_dist = dp.norm();
@@ -654,10 +654,10 @@ std::pair<double,double> temporal_XY_dist(const PathShape<STRAIGHT> &s1, const P
 
     if (nv2 > DubinsFleetPlanner_PRECISION)
     {
-        double tmin = (v1v2)/nv2;
+        double tmin = -sc/nv2;
         if ((0 <= tmin) && (tmin <= duration))
         {
-            dist = std::sqrt(dp.squaredNorm()-v1v2*v1v2/nv2);
+            dist = std::sqrt(dp.squaredNorm()-sc*sc/nv2);
             if (dist < min_dist)
             {
                 min_dist = dist;

@@ -22,6 +22,7 @@
 #include "ConflictDetection.hpp"
 
 #include "randomPathShape.hpp"
+#include "testDubinsSeparation.hpp"
 
 
 
@@ -29,21 +30,7 @@
 #define PLOTTING_SAMPLES 2000
 #endif
 
-#ifndef TEST_POS_RANGE
-#define TEST_POS_RANGE 5.
-#endif
 
-#ifndef TEST_SPEED_RANGE
-#define TEST_SPEED_RANGE 2.
-#endif
-
-#ifndef TEST_PATH_DURATION
-#define TEST_PATH_DURATION 5.5
-#endif
-
-#ifndef TEST_MIN_TURN_RADIUS
-#define TEST_MIN_TURN_RADIUS 0.6
-#endif
 
 
 int main()
@@ -60,18 +47,28 @@ int main()
     Pose3D p2_start = generate_pose(5*i+3, TEST_POS_RANGE, 0.1);
     Pose3D p2_end   = generate_pose(5*i+4, TEST_POS_RANGE, 0.1);
 
-    double target_duration = 3*TEST_POS_RANGE;
-    double p1_speed = 1.6;
-    double p2_speed = 1.6;
-    double target_length_1 = target_duration*p1_speed;
-    double target_length_2 = target_duration*p2_speed;
-    double min_separation = 1.;
+    std::default_random_engine gen(5*i); // Some seeded RNG 
+    std::uniform_real_distribution<double> dis_speedn(TEST_SPEED_RANGE/10, TEST_SPEED_RANGE);
 
-    std::vector<std::unique_ptr<Dubins>> p1_possibilities = fit_possible_baseDubins(1.,TEST_MIN_TURN_RADIUS,
-        p1_start,p1_end,target_length_1,DubinsFleetPlanner_PRECISION);
+    double p1_speed = dis_speedn(gen);
+    double p2_speed = dis_speedn(gen);
+    double min_separation = TEST_MIN_SEPARATION;
+
+    std::vector<std::unique_ptr<Dubins>> p1_possibilities = list_possible_baseDubins(1.,TEST_MIN_TURN_RADIUS,p1_start,p1_end);
+    std::vector<std::unique_ptr<Dubins>> p2_possibilities = list_possible_baseDubins(1.,TEST_MIN_TURN_RADIUS,p2_start,p2_end);
+
+    // double target_duration = 3*TEST_POS_RANGE;
+    // double p1_speed = 1.6;
+    // double p2_speed = 1.6;
+    // double target_length_1 = target_duration*p1_speed;
+    // double target_length_2 = target_duration*p2_speed;
+    // double min_separation = 1.;
+
+    // std::vector<std::unique_ptr<Dubins>> p1_possibilities = fit_possible_baseDubins(1.,TEST_MIN_TURN_RADIUS,
+    //     p1_start,p1_end,target_length_1,DubinsFleetPlanner_PRECISION);
         
-    std::vector<std::unique_ptr<Dubins>> p2_possibilities = fit_possible_baseDubins(1.,TEST_MIN_TURN_RADIUS,
-        p2_start,p2_end,target_length_2,DubinsFleetPlanner_PRECISION);
+    // std::vector<std::unique_ptr<Dubins>> p2_possibilities = fit_possible_baseDubins(1.,TEST_MIN_TURN_RADIUS,
+    //     p2_start,p2_end,target_length_2,DubinsFleetPlanner_PRECISION);
 
     if (p1_possibilities.size() == 0)
     {
@@ -97,13 +94,16 @@ int main()
         for(size_t i2 = 0; i2 < p2_possibilities.size(); i2++)
         {
             auto& d2 = p2_possibilities[i2];
+
+            double duration = std::min(d1->get_length()/p1_speed,d2->get_length()/p2_speed);
+
             std::cout << "Checking for pair " << d1->get_type_abbr() << " " << d2->get_type_abbr() << "...";
-            if (d1->is_XY_separated_from(*d2,p1_speed,p2_speed,target_duration,min_separation))
+            if (d1->is_XY_separated_from(*d2,p1_speed,p2_speed,duration,min_separation))
             {
                 std::cout << " Valid!" << std::endl
                     << "  Checking by sampling...";
 
-                std::pair<double,double> sampled = sample_temporal_XY_dist<samples>(*d1,*d2,p1_speed,p2_speed,target_duration);
+                std::pair<double,double> sampled = sample_temporal_XY_dist<samples>(*d1,*d2,p1_speed,p2_speed,duration);
 
                 if (sampled.second > min_separation)
                 {
