@@ -13,10 +13,11 @@ endif()
 
 set(PRECISION 1e-2)
 set(SOLVE_WITH_DERIVATIVES 0)
+set(DEBUG_MSG 1)
 
 configure_file(ProjectHeader.h.in ProjectHeader.h)
 
-add_library(DubinsFleetPlanner SHARED Aircraft.cpp BaseDubins.cpp ConflictDetection.cpp Dubins.cpp Fitting.cpp Primitives.cpp utils.cpp)
+add_library(DubinsFleetPlanner SHARED Aircraft.cpp BaseDubins.cpp ConflictDetection.cpp Dubins.cpp Fitting.cpp FleetPathPlanner.cpp Primitives.cpp utils.cpp)
 
 target_include_directories(DubinsFleetPlanner PUBLIC 
     ${CMAKE_CURRENT_BINARY_DIR} 

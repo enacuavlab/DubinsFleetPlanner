@@ -26,7 +26,7 @@
 
 
 #ifndef TEST_NUM
-#define TEST_NUM 5
+#define TEST_NUM 50
 #endif
 
 #ifndef TEST_POS_RANGE
@@ -34,10 +34,10 @@
 #endif
 
 #ifndef TEST_SPEED_RANGE
-#define TEST_SPEED_RANGE 1
+#define TEST_SPEED_RANGE 5
 #endif
 
 #ifndef TEST_PATH_DURATION
-#define TEST_PATH_DURATION 2
+#define TEST_PATH_DURATION 10
 #endif
 

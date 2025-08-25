@@ -52,6 +52,11 @@ namespace Visualisation
         "#bdbdbd"
     };
 
+    inline const std::string& get_color(uint i)
+    {
+        return colorlist[i % colorlist.size()];
+    }
+
 
     using namespace sciplot;
 
@@ -79,6 +84,26 @@ namespace Visualisation
         {
             xs[i] = poses[i].x;
             ys[i] = poses[i].y;
+        }
+
+        return plot.drawCurve(xs,ys);
+    }
+
+    template<unsigned samples>
+    DrawSpecs& plot_path(Plot2D& plot, Dubins& path,  double speed, double wind_x, double wind_y)
+    {
+        static_assert(samples > 1);
+        
+        std::valarray<double> xs(samples),ys(samples);
+        double len = path.get_length();
+        auto lens = linspace(0,len,samples);
+        std::vector<double> lens_vec{std::begin(lens),std::end(lens)};
+        std::vector<Pose3D> poses = path.get_positions(lens_vec,true);
+
+        for(unsigned i = 0; i < samples; i++)
+        {
+            xs[i] = poses[i].x + wind_x*lens_vec[i]/speed;
+            ys[i] = poses[i].y + wind_y*lens_vec[i]/speed;
         }
 
         return plot.drawCurve(xs,ys);

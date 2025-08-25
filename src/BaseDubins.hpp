@@ -212,11 +212,16 @@ typedef std::tuple<
     BaseDubinsSLS> 
         AllBaseDubins;
 
+constexpr size_t NumberOfBaseDubins = std::tuple_size_v<AllBaseDubins>;
 
-AllBaseDubins list_all_baseDubins(double _climb, double _turn_radius, const Pose3D& _start, const Pose3D& _end);
-AllBaseDubins fit_all_baseDubins(double _climb, double _turn_radius, const Pose3D& _start, const Pose3D& _end,
+typedef std::array<std::unique_ptr<Dubins>,std::tuple_size_v<AllBaseDubins>> ArrayOfBaseDubins;
+
+
+ArrayOfBaseDubins list_all_baseDubins(double _climb, double _turn_radius, const Pose3D& _start, const Pose3D& _end);
+ArrayOfBaseDubins fit_all_baseDubins(double _climb, double _turn_radius, const Pose3D& _start, const Pose3D& _end,
     double target_len, double tol);
 
 std::vector<std::unique_ptr<Dubins>> list_possible_baseDubins(double _climb, double _turn_radius, const Pose3D& _start, const Pose3D& _end);
+std::unique_ptr<Dubins> shortest_possible_baseDubins(double _climb, double _turn_radius, const Pose3D& _start, const Pose3D& _end);
 std::vector<std::unique_ptr<Dubins>> fit_possible_baseDubins(double _climb, double _turn_radius, const Pose3D& _start, const Pose3D& _end,
     double target_len, double tol);

@@ -15,17 +15,4 @@
 // You should have received a copy of the GNU General Public License
 // along with DubinsFleetPlanner.  If not, see <https://www.gnu.org/licenses/>.
 
-#define DubinsFleetPlanner_VERSION_MAJOR @DubinsFleetPlanner_VERSION_MAJOR@
-#define DubinsFleetPlanner_VERSION_MINOR @DubinsFleetPlanner_VERSION_MINOR@
-
-#define DubinsFleetPlanner_VERSION_STR "@DubinsFleetPlanner_VERSION_MAJOR@" "." "@DubinsFleetPlanner_VERSION_MINOR@"
-
-#define DubinsFleetPlanner_ASSERTIONS @ASSERTIONS@
-
-#define DubinsFleetPlanner_PRECISION @PRECISION@
-
-#define DubinsFleetPlanner_SOLVE_WITH_DERIVATIVES @SOLVE_WITH_DERIVATIVES@
-
-#define DubinsFleetPlanner_LOCATION "@PROJECT_SOURCE_DIR@"
-
-#define DubinsFleetPlanner_DEBUG_MSG @DEBUG_MSG@
+#include "FleetPathPlanner.hpp"

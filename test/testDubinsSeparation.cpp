@@ -35,7 +35,7 @@ void sample_test_dubins_separation(const Dubins& d1, const Dubins& d2,
 
 TEST(DubinsSeparation,RandomNoFit)
 {
-    for(int i = 10; i < TEST_NUM; i++)
+    for(int i = 0; i < TEST_NUM; i++)
     {
         Pose3D p1_start = generate_pose(5*i+1, TEST_POS_RANGE, 0.1);
         Pose3D p1_end   = generate_pose(5*i+2, TEST_POS_RANGE, 0.1);
@@ -64,6 +64,8 @@ TEST(DubinsSeparation,RandomNoFit)
             std::cout << "Case n° " << i << "  : No path found for path 2. Skipping..." << std::endl;
             continue;
         }
+
+        std::cout << "---  Generated test n° " << i << "  ---" << std::endl;
 
         for(size_t i1 = 0; i1 < p1_possibilities.size(); i1++)
         {
@@ -141,6 +143,20 @@ TEST(DubinsSeparation,RandomFitToLongest)
         p2_possibilities = fit_possible_baseDubins(1.,TEST_MIN_TURN_RADIUS,
             p2_start, p2_end, max_duration*p2_speed, DubinsFleetPlanner_PRECISION);
 
+        if (p1_possibilities.size() == 0)
+        {
+            std::cout << "Case n° " << i << "  : No fitted path found for path 1. Skipping..." << std::endl;
+            continue;
+        }
+
+        if (p2_possibilities.size() == 0)
+        {
+            std::cout << "Case n° " << i << "  : No fitted path found for path 2. Skipping..." << std::endl;
+            continue;
+        }
+
+        std::cout << "---  Generated test n° " << i << "  ---" << std::endl;
+            
         for(size_t i1 = 0; i1 < p1_possibilities.size(); i1++)
         {
             auto& d1 = p1_possibilities[i1];

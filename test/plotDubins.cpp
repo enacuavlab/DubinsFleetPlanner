@@ -34,27 +34,21 @@ int main()
 
     // auto candidates = list_all_baseDubins(stats.climb,stats.turn_radius,start,end);
     auto candidates = fit_all_baseDubins(stats.climb,stats.turn_radius,start,end, 15.,1e-6);
-    auto it = Visualisation::colorlist.begin();
 
-    auto f = [&](Dubins &d)
+    for(uint i = 0; i < candidates.size(); i++)
     {
-        if (d.is_valid())
+        auto color = Visualisation::colorlist[i];
+        auto& d = candidates[i];
+        if (d->is_valid())
         {
-            Visualisation::plot_path<PLOTTING_SAMPLES>(plot,d)
-                .label(d.get_type_abbr() + std::string(" ") + std::to_string(d.get_length()))
-                .lineColor(*it);
-            Visualisation::plot_junctions(plot,d)
-                .label(d.get_type_abbr())
-                .lineColor(*it);
-
-            it++;
-            return true;
+            Visualisation::plot_path<PLOTTING_SAMPLES>(plot,*d)
+                .label(d->get_type_abbr() + std::string(" ") + std::to_string(d->get_length()))
+                .lineColor(color);
+            Visualisation::plot_junctions(plot,*d)
+                .label(d->get_type_abbr())
+                .lineColor(color);
         }
-        return false;
-    };
-
-    std::apply([&](auto ...e){std::make_tuple(f(e)...);},candidates);
-
+    }
 
     Visualisation::plot_pose(plot,start).label("Start").lineColor("dark-grey");
     Visualisation::plot_pose(plot,end).label("End").lineColor("black");

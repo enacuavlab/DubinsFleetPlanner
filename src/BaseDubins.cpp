@@ -356,37 +356,37 @@ double BaseDubins<fst,snd,trd>::adjust_length([[maybe_unused]] double target_len
     return NAN;
 }
 
-AllBaseDubins list_all_baseDubins(double _climb, double _turn_radius, const Pose3D& _start, const Pose3D& _end)
+ArrayOfBaseDubins list_all_baseDubins(double _climb, double _turn_radius, const Pose3D& _start, const Pose3D& _end)
 {
-    AllBaseDubins candidates = std::make_tuple(
-        BaseDubinsLSL(_climb, _turn_radius,_start,_end),
-        BaseDubinsLSR(_climb, _turn_radius,_start,_end),
-        BaseDubinsRSR(_climb, _turn_radius,_start,_end),
-        BaseDubinsRSL(_climb, _turn_radius,_start,_end),
-        BaseDubinsRLR(_climb, _turn_radius,_start,_end),
-        BaseDubinsLRL(_climb, _turn_radius,_start,_end),
-        BaseDubinsSRS(_climb, _turn_radius,_start,_end),
-        BaseDubinsSLS(_climb, _turn_radius,_start,_end)
-    );
+    ArrayOfBaseDubins output = {
+        std::make_unique<BaseDubinsLSL>(_climb, _turn_radius, _start, _end),
+        std::make_unique<BaseDubinsLSR>(_climb, _turn_radius, _start, _end),
+        std::make_unique<BaseDubinsRSR>(_climb, _turn_radius, _start, _end),
+        std::make_unique<BaseDubinsRSL>(_climb, _turn_radius, _start, _end),
+        std::make_unique<BaseDubinsRLR>(_climb, _turn_radius, _start, _end),
+        std::make_unique<BaseDubinsLRL>(_climb, _turn_radius, _start, _end),
+        std::make_unique<BaseDubinsSRS>(_climb, _turn_radius, _start, _end),
+        std::make_unique<BaseDubinsSLS>(_climb, _turn_radius, _start, _end)
+    };
 
-    return candidates;
+    return output;
 }
 
-AllBaseDubins fit_all_baseDubins(double _climb, double _turn_radius, const Pose3D& _start, const Pose3D& _end,
+ArrayOfBaseDubins fit_all_baseDubins(double _climb, double _turn_radius, const Pose3D& _start, const Pose3D& _end,
     double target_len, double tol)
 {
-    AllBaseDubins candidates = std::make_tuple(
-        BaseDubinsLSL(_climb, _turn_radius, _start, _end, target_len, tol),
-        BaseDubinsLSR(_climb, _turn_radius, _start, _end, target_len, tol),
-        BaseDubinsRSR(_climb, _turn_radius, _start, _end, target_len, tol),
-        BaseDubinsRSL(_climb, _turn_radius, _start, _end, target_len, tol),
-        BaseDubinsRLR(_climb, _turn_radius, _start, _end, target_len, tol),
-        BaseDubinsLRL(_climb, _turn_radius, _start, _end, target_len, tol),
-        BaseDubinsSRS(_climb, _turn_radius, _start, _end, target_len, tol),
-        BaseDubinsSLS(_climb, _turn_radius, _start, _end, target_len, tol)
-    );
+    ArrayOfBaseDubins output = {
+        std::make_unique<BaseDubinsLSL>(_climb, _turn_radius, _start, _end, target_len, tol),
+        std::make_unique<BaseDubinsLSR>(_climb, _turn_radius, _start, _end, target_len, tol),
+        std::make_unique<BaseDubinsRSR>(_climb, _turn_radius, _start, _end, target_len, tol),
+        std::make_unique<BaseDubinsRSL>(_climb, _turn_radius, _start, _end, target_len, tol),
+        std::make_unique<BaseDubinsRLR>(_climb, _turn_radius, _start, _end, target_len, tol),
+        std::make_unique<BaseDubinsLRL>(_climb, _turn_radius, _start, _end, target_len, tol),
+        std::make_unique<BaseDubinsSRS>(_climb, _turn_radius, _start, _end, target_len, tol),
+        std::make_unique<BaseDubinsSLS>(_climb, _turn_radius, _start, _end, target_len, tol)
+    };
 
-    return candidates;
+    return output;
 }
 
 std::vector<std::unique_ptr<Dubins>> list_possible_baseDubins(double _climb, double _turn_radius, const Pose3D& _start, const Pose3D& _end)
@@ -419,6 +419,27 @@ std::vector<std::unique_ptr<Dubins>> list_possible_baseDubins(double _climb, dou
     transfer(SRS_ptr);
     transfer(SLS_ptr);
     return output;
+}
+
+std::unique_ptr<Dubins> shortest_possible_baseDubins(double _climb, double _turn_radius, const Pose3D& _start, const Pose3D& _end)
+{
+    std::vector<std::unique_ptr<Dubins>> all_dubins = list_possible_baseDubins(_climb,_turn_radius,_start,_end);
+
+    uint best_i;
+    double min_length = INFINITY;
+
+    for(uint i = 0; i < all_dubins.size(); i++)
+    {
+        double len = all_dubins[i]->get_length();
+        if (len < min_length)
+        {
+            min_length = len;
+            best_i = i;
+        }
+    }
+
+    return std::move(all_dubins[best_i]);
+    
 }
 
 

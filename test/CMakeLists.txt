@@ -51,6 +51,10 @@
     add_executable(PlotDubinsDist plotDubinsDist.cpp)
     target_link_libraries(PlotDubinsDist PUBLIC sciplot DubinsFleetPlanner)
     target_include_directories(PlotDubinsDist PUBLIC "${PROJECT_SOURCE_DIR}/src")
+
+    add_executable(PlotBasicDubinsFleet plotBasicDubinsFleet.cpp)
+    target_link_libraries(PlotBasicDubinsFleet PUBLIC sciplot DubinsFleetPlanner)
+    target_include_directories(PlotBasicDubinsFleet PUBLIC "${PROJECT_SOURCE_DIR}/src")
 # endif()
 
 ########## Procedural tests ##########
