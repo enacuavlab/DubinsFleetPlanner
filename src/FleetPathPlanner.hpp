@@ -37,6 +37,38 @@ namespace DubinsPP
     namespace BasicDubins
     {
         /**
+         * @brief Compute the individual shortest paths for all dubins, ignoring collisions
+         * 
+         * @tparam N Number of aircraft
+         * @param starts    Starting points
+         * @param ends      Ending points, ordered by rank of arrival
+         * @param stats     Aircraft characteristics (speed, climb rate, turn radius)
+         * @param wind_x    Wind, x component (default to 0 if unspecified)
+         * @param wind_y    Wind, y component (default to 0 if unspecified)
+         * @return std::array<std::unique_ptr<Dubins>,N> 
+         */
+        template<uint N>
+        std::array<std::unique_ptr<Dubins>,N> shortest_dubins(
+            const std::array<Pose3D,N>& starts, const std::array<Pose3D,N>& ends, const std::array<AircraftStats,N>& stats,
+            double wind_x = 0., double wind_y = 0.
+        );
+
+        /**
+         * @brief Compute the individual shortest paths for all dubins, ignoring collisions
+         * 
+         * @param starts    Starting points
+         * @param ends      Ending points, ordered by rank of arrival
+         * @param stats     Aircraft characteristics (speed, climb rate, turn radius)
+         * @param wind_x    Wind, x component (default to 0 if unspecified)
+         * @param wind_y    Wind, y component (default to 0 if unspecified)
+         * @return std::array<std::unique_ptr<Dubins>,N> 
+         */
+        std::vector<std::unique_ptr<Dubins>> shortest_dubins(
+            const std::vector<Pose3D>& starts, const std::vector<Pose3D>& ends, const std::vector<AircraftStats>& stats,
+            double wind_x = 0., double wind_y = 0.
+        );
+
+        /**
          * @brief Compute a synchronized path planning for a team of fixed-wing aircraft, ignoring collisions
          * 
          * Proceed by estimating a minimal travel time (using individual path planning), then try to compute a solution
@@ -58,7 +90,7 @@ namespace DubinsPP
          * @return std::array<std::unique_ptr<Dubins>,N> 
          */
         template<uint N>
-        std::array<std::unique_ptr<Dubins>,N> synchronised_no_checks(
+        std::optional<std::array<std::unique_ptr<Dubins>,N>> synchronised_no_checks(
             const std::array<Pose3D,N>& starts, const std::array<Pose3D,N>& ends, const std::array<AircraftStats,N>& stats,
              const std::array<double,N-1>& delta_t = {0.}, double wind_x = 0., double wind_y = 0.,
             double max_r_duration = 3., double t_tol = 1e-6,
@@ -85,7 +117,7 @@ namespace DubinsPP
          * @param max_iters Maximum number of iterations. Must be greater than 2. Default to 100
          * @return std::array<std::unique_ptr<Dubins>,N> 
          */
-        std::vector<std::unique_ptr<Dubins>> synchronised_no_checks(
+        std::optional<std::vector<std::unique_ptr<Dubins>>> synchronised_no_checks(
             const std::vector<Pose3D>& starts, const std::vector<Pose3D>& ends, const std::vector<AircraftStats>& stats,
             const std::vector<double>& delta_t,
             double wind_x = 0., double wind_y = 0.,
@@ -116,7 +148,7 @@ namespace DubinsPP
          * @return std::array<std::unique_ptr<Dubins>,N> 
          */
         template<uint N>
-        std::array<std::unique_ptr<Dubins>,N> synchronised_XY_checks(
+        std::optional<std::array<std::unique_ptr<Dubins>,N>> synchronised_XY_checks(
             const std::array<Pose3D,N>& starts, const std::array<Pose3D,N>& ends, const std::array<AircraftStats,N>& stats,
             double min_sep, const std::array<double,N-1>& delta_t = {0.}, double wind_x = 0., double wind_y = 0.,
             double max_r_duration = 3., double t_tol = 1e-6,
@@ -144,7 +176,7 @@ namespace DubinsPP
          * @param max_iters Maximum number of iterations. Must be greater than 2. Default to 100
          * @return std::array<std::unique_ptr<Dubins>,N> 
          */
-        std::vector<std::unique_ptr<Dubins>> synchronised_XY_checks(
+        std::optional<std::vector<std::unique_ptr<Dubins>>> synchronised_XY_checks(
             const std::vector<Pose3D>& starts, const std::vector<Pose3D>& ends, const std::vector<AircraftStats>& stats,
             const std::vector<double>& delta_t,
             double min_sep, double wind_x = 0., double wind_y = 0.,
@@ -157,12 +189,20 @@ namespace DubinsPP
     }
 }
 
-// ---------------------------------------- Templates implementations ---------------------------------------- //
+/*******************************************************************/
+/*                                                                 */
+/*                    Templates implementations                    */
+/*                                                                 */
+/*******************************************************************/
 
+// -------------------- Non-declared helper functions -------------------- //
+
+namespace 
+{
 // Type to save if two given configurations are in conflict, identified by <AC id 1, traj type 1, AC id 2, traj type 2>
 typedef std::tuple<uint,short uint,uint,short uint> conflict_case; 
 
-// -------------------- Util functions -------------------- //
+// ---------- Util functions ---------- //
 
 /**
  * @brief Given endpoints, characteristics and time differences for a team of aircraft, compute a lower bound on the reference travel time
@@ -174,17 +214,27 @@ typedef std::tuple<uint,short uint,uint,short uint> conflict_case;
  *  t_0 >= o_0
  *  For all i > 0, t_0 >= o_i - sum_{k=0}^{i-1} delta_t_{k}
  * 
- * @tparam N Number of aircraft
+ * @tparam endpoints_T  Container for endpoints (starts and ends)
+ * @tparam stats_T      Container for aircraft characteristics
+ * @tparam deltat_T     Container for arrival differences
  * @param starts Starting poses
  * @param ends  Ending poses
  * @param stats Characteristics
  * @param delta_t Time difference at arrival, such that t_i = t_{i-1} + delta_t_{i-1}
  * @return double Lower bound for the first aircraft travel time
  */
-template<uint N>
-double compute_max_of_mins_traveltime(const std::array<Pose3D,N>& starts, const std::array<Pose3D,N>& ends,
-    const std::array<AircraftStats,N>& stats, const std::array<double,N-1>& delta_t)
+template<class endpoints_T, class stats_T, class deltat_T>
+double abs_compute_max_of_mins_traveltime(const endpoints_T& starts, const endpoints_T& ends,
+    const stats_T& stats, const deltat_T& delta_t)
 {
+#if defined(DubinsFleetPlanner_ASSERTIONS) && DubinsFleetPlanner_ASSERTIONS > 0
+    assert(starts.size() == ends.size());
+    assert(starts.size() == stats.size());
+    assert(starts.size()-1 <= delta_t.size());
+#endif
+
+    uint N = starts.size();
+
     double min_travel_time;
     double delta_sum = 0.;
     for(uint i = 0; i < N; i++)
@@ -217,68 +267,196 @@ double compute_max_of_mins_traveltime(const std::array<Pose3D,N>& starts, const 
     return min_travel_time;
 }
 
-/**
- * @brief Given endpoints, characteristics and time differences for a team of aircraft, compute a lower bound on the reference travel time
- * (i.e. the one of the first aircraft)
- * 
- * We have that for each aircraft i, its travel time t_i must be at least larger than its individually minimal travel time o_i
- * Also, we have t_i = t_{i-1} + delta_t_{i-1}
- * Hence, if we take t_0 has a reference, we get:
- *  t_0 >= o_0
- *  For all i > 0, t_0 >= o_i - sum_{k=0}^{i-1} delta_t_{k}
- * 
- * @tparam N Number of aircraft
- * @param starts Starting poses
- * @param ends  Ending poses
- * @param stats Characteristics
- * @param delta_t Time difference at arrival, such that t_i = t_{i-1} + delta_t_{i-1}
- * @return double Lower bound for the first aircraft travel time
- */
-double compute_max_of_mins_lengths_vec(const std::vector<Pose3D>& starts, const std::vector<Pose3D>& ends,
-    const std::vector<AircraftStats>& stats, const std::vector<double>& delta_t)
+template<uint N>
+inline double compute_max_of_mins_traveltime(const std::array<Pose3D,N>& starts, const std::array<Pose3D,N>& ends,
+    const std::array<AircraftStats,N>& stats, const std::array<double,N-1>& delta_t)
 {
-#if defined(DubinsFleetPlanner_ASSERTIONS) && DubinsFleetPlanner_ASSERTIONS > 0
-    assert(starts.size() == ends.size());
-    assert(starts.size() == stats.size());
-    assert(starts.size() == delta_t.size() -1);
-#endif
-
-
-    uint N = starts.size();
-    double min_travel_time;
-    double delta_sum = 0.;
-    for(uint i = 0; i < N; i++)
-    {
-        const Pose3D& s        = starts[i];
-        const Pose3D& e        = ends[i];
-        const AircraftStats& p = stats[i];
-
-        std::unique_ptr<Dubins> dd = shortest_possible_baseDubins(
-            p.climb,
-            p.turn_radius,
-            s,e
-        );
-
-        if (i == 0)
-        {
-            min_travel_time = dd->get_length()/p.airspeed;
-        }
-        else
-        {
-            min_travel_time = std::max(
-                min_travel_time,
-                dd->get_length()/p.airspeed - delta_sum);
-        }
-        delta_sum += delta_t[i-1];
-    }
-
-    return min_travel_time;
+    return abs_compute_max_of_mins_traveltime(starts,ends,stats,delta_t);
 }
 
-// -------------------- No checks functions -------------------- //
+double compute_max_of_mins_traveltime_vec(const std::vector<Pose3D>& starts, const std::vector<Pose3D>& ends,
+    const std::vector<AircraftStats>& stats, const std::vector<double>& delta_t)
+{
+    return abs_compute_max_of_mins_traveltime(starts,ends,stats,delta_t);
+}
+
+
+
+// ---------- XY Separated helpers ---------- //
+
+/**
+ * @brief Recursively look for a valid combination of paths, conflicts being considered only on a XY basis
+ * 
+ * This is akin to a depth-first search in the tree of possible combinations, with 'naive' branch-and-bound (i.e. there no special heuristic
+ * for selecting better branches)
+ * 
+ * @tparam allpaths_T   Container for all possible paths
+ * @tparam stats_T      Container for aircraft characteristics
+ * @tparam choices_T    Container for currently selected paths
+ * @param all_paths List of all possible path for each agent
+ * @param stats     Statistics of each agent
+ * @param durations Trip duration for each aircraft
+ * @param min_sep   Minimal XY euclidean distance required
+ * @param current_index Index of the aircraft currently being studied
+ * @param choices   Array of selected paths; considered filled for i=0 to current_index (excluded)
+ * @param conflicts_memo Hashmap storing known conflict values
+ * @return true A valid combination has been found, as is stored in 'choices'
+ * @return false No valid combination found
+ */
+template<class allpaths_T, class stats_T, class choices_T>
+bool recursive_pathfinder_XY(const allpaths_T& all_paths, const stats_T& stats,
+    double min_sep, uint current_index, 
+    choices_T& choices, std::map<conflict_case,bool>& conflicts_memo)
+{
+#if defined(DubinsFleetPlanner_ASSERTIONS) && DubinsFleetPlanner_ASSERTIONS > 0
+    assert(all_paths.size() == choices.size());
+    assert(all_paths.size() == stats.size());
+#endif
+    uint N = all_paths.size();
+
+    // Edge case handling
+    if (current_index >= N)
+    {
+        return true;
+    }
+
+    double this_speed = stats[current_index].airspeed;
+
+    for(uint i = 0; i < all_paths[current_index].size(); i++)
+    {
+        // Take a possible path
+        auto& dubin = all_paths[current_index][i];
+        
+        // if it is not valid, skip it
+        if (!dubin->is_valid())
+        {
+            continue;
+        }
+        else // Otherwise, test distances against the ones already set
+        {
+            bool conflict_with_existing = false;
+
+            for(uint past_index = 0; past_index < current_index; past_index++)
+            {
+                // Check if there is a conflict with a set path
+                auto& other = all_paths[past_index][choices[past_index]];
+                double other_speed = stats[past_index].airspeed;
+
+                // Look first in the memo dictionnary
+                conflict_case ccase = std::make_tuple(current_index,i,past_index,choices[past_index]);
+                auto case_it = conflicts_memo.find(ccase);
+                if (case_it == conflicts_memo.end()) // If not found, compute and store
+                {
+                    double duration = std::min(
+                        dubin->get_length()/this_speed,
+                        other->get_length()/other_speed);
+
+                    conflict_with_existing = !dubin->is_XY_separated_from(*other,this_speed,other_speed,duration,min_sep);
+                    conflicts_memo.insert({ccase,conflict_with_existing});
+                }
+                else    // Otherwise, simply retrieve the value
+                {
+                    conflict_with_existing = case_it->second;
+                }
+
+                // If there is, stop trying with this path
+                if (conflict_with_existing)
+                {
+                    break;
+                }
+            }
+
+            // Found a conflict between set paths and current; try the next one
+            if (conflict_with_existing)
+            {
+                continue;
+            }
+            else // If not, set it and go down in recursion
+            {
+                choices[current_index] = i;
+                bool successful_attribution = recursive_pathfinder_XY<allpaths_T,stats_T,choices_T>(
+                    all_paths,stats,min_sep,current_index+1,choices,conflicts_memo);
+
+                // Early return
+                if (successful_attribution)
+                {
+                    return true;
+                }
+            }
+        }
+    }
+
+    return false;
+}
+
+template<class allpaths_T, class stats_T, class choices_T>
+std::optional<choices_T> pathfinder_XY_separation(const allpaths_T& all_paths, const stats_T& stats, double min_sep)
+{
+    uint current_index = 0;
+    choices_T choices;
+    std::map<conflict_case,bool> conflicts_memo;
+
+    bool succes = recursive_pathfinder_XY<allpaths_T,stats_T,choices_T>(all_paths,stats,min_sep,current_index,choices,conflicts_memo);
+    if (succes)
+    {
+        return choices;
+    }
+    else
+    {
+        return std::nullopt;
+    }
+
+}
+
+
+}
+
+
+// ---------- No checks functions ---------- //
+
+// template<uint N>
+// std::array<std::unique_ptr<Dubins>,N> shortest_dubins(
+//     const std::array<Pose3D,N>& starts, const std::array<Pose3D,N>& ends, const std::array<AircraftStats,N>& stats,
+//     double wind_x = 0., double wind_y = 0.)
+// {
+//     for(uint i = 0; i < N; i++)
+//     {
+//         const Pose3D& s        = starts[i];
+//         const Pose3D& e        = ends[i];
+//         const AircraftStats& p = stats[i];
+
+//         std::unique_ptr<Dubins> dd = shortest_possible_baseDubins(
+//             p.climb,
+//             p.turn_radius,
+//             s,e
+//         );
+
+//         if (i == 0)
+//         {
+//             min_travel_time = dd->get_length()/p.airspeed;
+//         }
+//         else
+//         {
+//             min_travel_time = std::max(
+//                 min_travel_time,
+//                 dd->get_length()/p.airspeed - delta_sum);
+            
+//             delta_sum += delta_t[i-1];
+//         }
+        
+//     }
+// }
+
+
+// std::vector<std::unique_ptr<Dubins>> shortest_dubins(
+//     const std::vector<Pose3D>& starts, const std::vector<Pose3D>& ends, const std::vector<AircraftStats>& stats,
+//     double wind_x = 0., double wind_y = 0.)
+// {
+
+// }
 
 template<uint N>
-std::array<std::unique_ptr<Dubins>,N> DubinsPP::BasicDubins::synchronised_no_checks(
+std::optional<std::array<std::unique_ptr<Dubins>,N>> DubinsPP::BasicDubins::synchronised_no_checks(
     const std::array<Pose3D,N>& starts, const std::array<Pose3D,N>& ends, const std::array<AircraftStats,N>& stats,
     const std::array<double,N-1>& delta_t, double wind_x, double wind_y,
     double max_r_length, double t_tol,
@@ -354,10 +532,10 @@ std::array<std::unique_ptr<Dubins>,N> DubinsPP::BasicDubins::synchronised_no_che
 
     }
     
-    return std::array<std::unique_ptr<Dubins>,N>{nullptr};
+    return std::nullopt;
 }
 
-std::vector<std::unique_ptr<Dubins>> DubinsPP::BasicDubins::synchronised_no_checks(
+std::optional<std::vector<std::unique_ptr<Dubins>>> DubinsPP::BasicDubins::synchronised_no_checks(
     const std::vector<Pose3D>& starts, const std::vector<Pose3D>& ends, const std::vector<AircraftStats>& stats,
     const std::vector<double>& delta_t, double wind_x, double wind_y,
     double max_r_length, double t_tol,
@@ -373,7 +551,7 @@ std::vector<std::unique_ptr<Dubins>> DubinsPP::BasicDubins::synchronised_no_chec
     assert(starts.size() == delta_t.size() -1);
 #endif
 
-    double min_travel_time = compute_max_of_mins_lengths_vec(starts,ends,stats,delta_t);
+    double min_travel_time = compute_max_of_mins_traveltime_vec(starts,ends,stats,delta_t);
 
     uint N = starts.size();
 
@@ -440,128 +618,15 @@ std::vector<std::unique_ptr<Dubins>> DubinsPP::BasicDubins::synchronised_no_chec
 
     }
     
-    return std::vector<std::unique_ptr<Dubins>>();
+    return std::nullopt;
     
 }
 
-// -------------------- XY checks functions -------------------- //
+// ---------- XY checks functions ---------- //
 
-/**
- * @brief Recursively look for a valid combination of paths, conflicts being considered only on a XY basis
- * 
- * This is akin to a depth-first search in the tree of possible combinations, with 'naive' branch-and-bound (i.e. there no special heuristic
- * for selecting better branches)
- * 
- * @tparam N Number of agents
- * @param all_paths List of all possible path for each agent
- * @param stats     Statistics of each agent
- * @param durations Trip duration for each aircraft
- * @param min_sep   Minimal XY euclidean distance required
- * @param current_index Index of the aircraft currently being studied
- * @param choices   Array of selected paths; considered filled for i=0 to current_index (excluded)
- * @param conflicts_memo Hashmap storing known conflict values
- * @return true A valid combination has been found, as is stored in 'choices'
- * @return false No valid combination found
- */
-template<uint N>
-bool recursive_pathfinder_XY(const std::array<ArrayOfBaseDubins,N>& all_paths, const std::array<AircraftStats,N>& stats,
-    double min_sep, uint current_index, 
-    std::array<uint,N>& choices, std::map<conflict_case,bool>& conflicts_memo)
-{
-    // Edge case handling
-    if (current_index >= N)
-    {
-        return true;
-    }
-
-    double this_speed = stats[current_index].airspeed;
-
-    for(uint i = 0; i < all_paths[current_index].size(); i++)
-    {
-        // Take a possible path
-        auto& dubin = all_paths[current_index][i];
-        
-        // if it is not valid, skip it
-        if (!dubin->is_valid())
-        {
-            continue;
-        }
-        else // Otherwise, test distances against the ones already set
-        {
-            bool conflict_with_existing = false;
-
-            for(uint past_index = 0; past_index < current_index; past_index++)
-            {
-                // Check if there is a conflict with a set path
-                auto& other = all_paths[past_index][choices[past_index]];
-                double other_speed = stats[past_index].airspeed;
-
-                // Look first in the memo dictionnary
-                conflict_case ccase = std::make_tuple(current_index,i,past_index,choices[past_index]);
-                auto case_it = conflicts_memo.find(ccase);
-                if (case_it == conflicts_memo.end()) // If not found, compute and store
-                {
-                    double duration = std::min(
-                        dubin->get_length()/this_speed,
-                        other->get_length()/other_speed);
-
-                    conflict_with_existing = !dubin->is_XY_separated_from(*other,this_speed,other_speed,duration,min_sep);
-                    conflicts_memo.insert({ccase,conflict_with_existing});
-                }
-                else    // Otherwise, simply retrieve the value
-                {
-                    conflict_with_existing = case_it->second;
-                }
-
-                // If there is, stop trying with this path
-                if (conflict_with_existing)
-                {
-                    break;
-                }
-            }
-
-            // Found a conflict between set paths and current; try the next one
-            if (conflict_with_existing)
-            {
-                continue;
-            }
-            else // If not, set it and go down in recursion
-            {
-                choices[current_index] = i;
-                bool successful_attribution = recursive_pathfinder_XY<N>(all_paths,stats,min_sep,current_index+1,choices,conflicts_memo);
-
-                // Early return
-                if (successful_attribution)
-                {
-                    return true;
-                }
-            }
-        }
-    }
-
-    return false;
-}
 
 template<uint N>
-std::optional<std::array<uint,N>> pathfinder_XY_separation(const std::array<ArrayOfBaseDubins,N>& all_paths, const std::array<AircraftStats,N>& stats, double min_sep)
-{
-    uint current_index = 0;
-    std::array<uint,N> choices;
-    std::map<conflict_case,bool> conflicts_memo;
-
-    bool succes = recursive_pathfinder_XY<N>(all_paths,stats,min_sep,current_index,choices,conflicts_memo);
-    if (succes)
-    {
-        return choices;
-    }
-    else
-    {
-        return std::nullopt;
-    }
-}
-
-template<uint N>
-std::array<std::unique_ptr<Dubins>,N> DubinsPP::BasicDubins::synchronised_XY_checks(
+std::optional<std::array<std::unique_ptr<Dubins>,N>> DubinsPP::BasicDubins::synchronised_XY_checks(
     const std::array<Pose3D,N>& starts, const std::array<Pose3D,N>& ends, const std::array<AircraftStats,N>& stats,
     double min_sep, const std::array<double,N-1>& delta_t, double wind_x, double wind_y,
     double max_r_length, double t_tol,
@@ -621,7 +686,10 @@ std::array<std::unique_ptr<Dubins>,N> DubinsPP::BasicDubins::synchronised_XY_che
         std::cout   << "  - Fitting done, starting search" << std::endl; 
 #endif
 
-        auto result = pathfinder_XY_separation<N>(list_of_choices,stats,min_sep);
+        std::optional<std::array<uint,N>> result = pathfinder_XY_separation
+            <std::array<ArrayOfBaseDubins,N>,std::array<AircraftStats,N>,std::array<uint,N>>
+            (list_of_choices,stats,min_sep);
+
         if (result.has_value())
         {
 
@@ -651,10 +719,7 @@ std::array<std::unique_ptr<Dubins>,N> DubinsPP::BasicDubins::synchronised_XY_che
 #if defined(DubinsFleetPlanner_DEBUG_MSG) && DubinsFleetPlanner_DEBUG_MSG > 0
         std::cout   << "-> No Solution found... Returning nullptrs" << std::endl << std::endl; 
 #endif
-    std::array<std::unique_ptr<Dubins>,N> output;
-    for(uint i = 0; i < N; i++)
-    {
-        output[i] = nullptr;
-    }
-    return output;
+    return std::nullopt;
 }
+
+

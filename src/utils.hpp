@@ -19,6 +19,10 @@
 
 #include <cmath>
 #include <tuple>
+#include <vector>
+#include <array>
+#include <concepts>
+#include <string>
 
 // -------------------- General maths -------------------- //
 
@@ -46,6 +50,8 @@ typedef struct {
     double z    ; // Z position
     double theta; // XY Orientation (in radiants, 0 is pure X, pi/2 is pure Y)
 } Pose3D;
+
+std::string pose_to_string(const Pose3D& p);
 
 /**
  * @brief Apply a straight (XY) movement to the Pose
@@ -141,6 +147,8 @@ Pose3D turn_right(const Pose3D& pose, double duration, double speed, double clim
  */
 std::tuple<double,double,double,double> normalize_poses(const Pose3D& start, const Pose3D& end);
 
+// ---------- Distance between two poses ---------- //
+
 /**
  * @brief Compute the 3D Euclidean distance between two poses
  * 
@@ -158,3 +166,81 @@ double pose_dist(const Pose3D& p1, const Pose3D& p2);
  * @return double 2D Euclidean distance between the XY projected points
  */
 double pose_dist_XY(const Pose3D& p1, const Pose3D& p2);
+
+// ---------- Minimal distance in set ---------- //
+
+/**
+ * @brief Generic function computing the minimal distance in a vector of points, given some distance function
+ * 
+ * @tparam F Distance function type between two Pose3D
+ * @param poses Vector of poses
+ * @return std::tuple<uint,uint,double> id0, id1, min_dist identifying the points and minimal distance in the given set 
+ */
+template<std::regular_invocable<Pose3D,Pose3D> F>
+std::tuple<uint,uint,double> min_vec_poses_dist(F f, const std::vector<Pose3D>& poses)
+{
+    uint N = poses.size();
+
+    double min_dist = INFINITY;
+    uint i0,j0;
+
+    for(uint i = 0; i < N; i++)
+    {
+        for(uint j = i+1; j < N; j++)
+        {
+            double dist = f(poses[i],poses[j]);
+            if (dist < min_dist)
+            {
+                min_dist = dist;
+                i0 = i;
+                j0 = j;
+            }
+        }
+    }
+
+    return {i0,j0,min_dist};
+}
+
+[[gnu::pure]]
+inline std::tuple<uint,uint,double> min_vec_poses_dist_XY(const std::vector<Pose3D>& poses)
+{
+    return min_vec_poses_dist(pose_dist_XY,poses);
+}
+
+/**
+ * @brief Generic function computing the minimal distance in an array of points, given some distance function
+ * 
+ * @tparam F Distance function between two Pose3D
+ * @tparam N Number of poses
+ * @param poses Array of poses
+ * @return std::tuple<uint,uint,double> id0, id1, min_dist identifying the points and minimal distance in the given set 
+ */
+template<std::regular_invocable<Pose3D,Pose3D> F, uint N>
+std::tuple<uint,uint,double> min_poses_dist(F f, const std::array<Pose3D,N>& poses)
+{
+    double min_dist = INFINITY;
+    uint i0,j0;
+
+    for(uint i = 0; i < N; i++)
+    {
+        for(uint j = i+1; j < N; j++)
+        {
+            double dist = f(poses[i],poses[j]);
+            if (dist < min_dist)
+            {
+                min_dist = dist;
+                i0 = i;
+                j0 = j;
+            }
+        }
+    }
+
+    return {i0,j0,min_dist};
+}
+
+template<uint N>
+[[gnu::pure]]
+inline std::tuple<uint,uint,double> min_poses_dist_XY(const std::array<Pose3D,N>& poses)
+{
+    return min_poses_dist(pose_dist_XY,poses);
+}

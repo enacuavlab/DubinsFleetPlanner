@@ -58,6 +58,15 @@ double central_angle(double x)
 
 // -------------------- Pose and mouvements -------------------- //
 
+[[gnu::pure]]
+std::string pose_to_string(const Pose3D& p)
+{
+    return "x    : " + std::to_string(p.x) + "\n"
+        +  "y    : " + std::to_string(p.y) + "\n"
+        +  "z    : " + std::to_string(p.z) + "\n"
+        +  "theta: " + std::to_string(p.theta) + "\n";
+}
+
 void move_straight(Pose3D* pose, double duration, double speed, double climb_rate)
 {
     double x_dir = std::cos(pose->theta);

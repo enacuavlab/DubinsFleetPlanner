@@ -41,11 +41,11 @@
 #endif
 
 #ifndef TEST_MIN_TURN_RADIUS
-#define TEST_MIN_TURN_RADIUS 0.6
+#define TEST_MIN_TURN_RADIUS 1.
 #endif
 
 #ifndef TEST_MIN_SEPARATION
-#define TEST_MIN_SEPARATION 1
+#define TEST_MIN_SEPARATION 1.
 #endif
 
 #ifndef TEST_SAMPLES_COUNT

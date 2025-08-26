@@ -27,6 +27,7 @@
 #include "Primitives.hpp"
 #include "Dubins.hpp"
 #include "BaseDubins.hpp"
+#include "FleetPathPlanner.hpp"
 
 
 // Colormap from https://tsitsul.in/blog/coloropt/
@@ -134,7 +135,7 @@ namespace Visualisation
         ys[0] = ay;
         ys[1] = by;
 
-        return plot.drawCurve(xs,ys);
+        return plot.drawCurveWithPoints(xs,ys);
     }
 
     void plot_arc(Plot2D& plot, double cx, double cy, double radius, double rad_init, double rad_end,
@@ -165,6 +166,86 @@ namespace Visualisation
         }
 
         return plot.drawPoints(xs,ys);
+    }
+
+    template<uint samples>
+    double plot_multiple_paths(Plot2D& plot, 
+        const std::vector<std::unique_ptr<Dubins>>& dubins, const std::vector<AircraftStats>& stats,
+        double wind_x, double wind_y)
+    {
+        static_assert(samples > 1);
+        assert(dubins.size() == stats.size());
+        uint N = dubins.size();
+
+        double max_time = 0.;
+
+        // Plot all paths
+        for(uint i = 0; i < N; i++)
+        {
+            auto& d = dubins[i];
+            max_time = std::max(max_time, d->get_length()/stats[i].airspeed);
+            Visualisation::plot_path<samples>(plot,*d, stats[i].airspeed, wind_x, wind_y)
+                .label(std::to_string(i) + std::string(": ") + d->get_type_abbr() + std::string(" ") + std::to_string(d->get_length()))
+                .lineColor(Visualisation::get_color(i));
+
+            Visualisation::plot_pose(plot,d->get_start())
+                .labelNone()//.label(std::to_string(i) + std::string(": Start"))
+                .lineColor(Visualisation::get_color(i));
+
+            Pose3D airref_end = d->get_end();
+            airref_end.x += wind_x*d->get_length()/stats[i].airspeed;
+            airref_end.y += wind_y*d->get_length()/stats[i].airspeed;
+            Visualisation::plot_pose(plot,airref_end)
+                .labelNone()//.label(std::to_string(i) + std::string(": End"))
+                .lineColor(Visualisation::get_color(i));
+        }
+
+        // Sample for minimal distance
+        double timestep = max_time/(samples-1);
+        double min_dist = INFINITY;
+        double min_dist_time;
+        uint ac_id_1,ac_id_2;
+        for(uint i = 0; i < samples; i++)
+        {
+
+            double ctime = i*timestep;
+            std::vector<Pose3D> poses(N);
+            for(uint j = 0; j < N; j++)
+            {
+                poses[j] = dubins[j]->get_position(ctime,stats[j].airspeed);
+            }
+
+            std::tuple<uint,uint,double> min_dist_loc = min_vec_poses_dist_XY(poses);
+
+            double curr_min_dist = std::get<2>(min_dist_loc);
+
+            if (min_dist > curr_min_dist)
+            {
+                min_dist = curr_min_dist;
+                min_dist_time = ctime;
+                ac_id_1 = std::get<0>(min_dist_loc);
+                ac_id_2 = std::get<1>(min_dist_loc);
+            }
+        }
+
+
+        Pose3D p1 = dubins[ac_id_1]->get_position(min_dist_time,stats[ac_id_1].airspeed);
+        Pose3D p2 = dubins[ac_id_2]->get_position(min_dist_time,stats[ac_id_2].airspeed);
+
+        Visualisation::plot_line(plot,
+                    p1.x+wind_x*min_dist_time,
+                    p1.y+wind_y*min_dist_time,
+                    p2.x+wind_x*min_dist_time,
+                    p2.y+wind_y*min_dist_time)
+                .dashType(3)
+                .lineColor("black")
+                .pointType(13)
+                .pointSize(1.2)
+                .label("Min distance: " + std::to_string(min_dist) + " ( " + std::to_string(ac_id_1) + " , " +std::to_string(ac_id_2) + " )");
+
+        assert(pose_dist_XY(p1,p2) == min_dist);
+
+        return min_dist;
     }
 
     Plot2D init_plot()
