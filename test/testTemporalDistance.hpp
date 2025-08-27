@@ -41,3 +41,7 @@
 #define TEST_PATH_DURATION 10
 #endif
 
+#ifndef TEST_PRECISION
+#define TEST_PRECISION DubinsFleetPlanner_PRECISION
+#endif
+

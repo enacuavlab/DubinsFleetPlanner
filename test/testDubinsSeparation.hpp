@@ -44,6 +44,10 @@
 #define TEST_MIN_TURN_RADIUS 1.
 #endif
 
+#ifndef TEST_CLIMB
+#define TEST_CLIMB 1.
+#endif
+
 #ifndef TEST_MIN_SEPARATION
 #define TEST_MIN_SEPARATION 1.
 #endif

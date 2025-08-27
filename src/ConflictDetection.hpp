@@ -80,10 +80,11 @@ double geometric_Z_dist(const PathShape<m1> &s1, const PathShape<m2> &s2, double
  * @param s1 First trajectory parameters
  * @param s2 Second trajectory parameters
  * @param duration Duration (in s) of the trajectories
+ * @param tol Solver tolerance when looking for the minimum distance
  * @return std::pair<double,double> Location and value of the minimal euclidean distance in the given duration
  */
 template<DubinsMove m1, DubinsMove m2>
-std::pair<double,double> temporal_3D_dist(const PathShape<m1> &s1, const PathShape<m2> &s2, double duration);
+std::pair<double,double> temporal_3D_dist(const PathShape<m1> &s1, const PathShape<m2> &s2, double duration, double tol);
 
 /**
  * @brief Given two base trajectories, find the minimal XY euclidean distance between them on the given time interval
@@ -96,10 +97,11 @@ std::pair<double,double> temporal_3D_dist(const PathShape<m1> &s1, const PathSha
  * @param s1 First trajectory parameters
  * @param s2 Second trajectory parameters
  * @param duration Duration (in s) of the trajectories
+ * @param tol Solver tolerance when looking for the minimum distance
  * @return std::pair<double,double> Location and value of the minimal 2D euclidean distance in the given duration
  */
 template<DubinsMove m1, DubinsMove m2, bool use_derivatives=DubinsFleetPlanner_SOLVE_WITH_DERIVATIVES>
-std::pair<double,double> temporal_XY_dist(const PathShape<m1> &s1, const PathShape<m2> &s2, double duration);
+std::pair<double,double> temporal_XY_dist(const PathShape<m1> &s1, const PathShape<m2> &s2, double duration, double tol);
 
 /**
  * @brief Given two base trajectories, find the minimal Z euclidean distance between them on the given time interval
@@ -111,7 +113,8 @@ std::pair<double,double> temporal_XY_dist(const PathShape<m1> &s1, const PathSha
  * @param s1 First trajectory parameters
  * @param s2 Second trajectory parameters
  * @param duration Duration (in s) of the trajectories
+ * @param tol Solver tolerance when looking for the minimum distance
  * @return std::pair<double,double> Location and value of the minimal vertical distance in the given duration
  */
 template<DubinsMove m1, DubinsMove m2>
-std::pair<double,double> temporal_Z_dist(const PathShape<m1> &s1, const PathShape<m2> &s2, double duration);
+std::pair<double,double> temporal_Z_dist(const PathShape<m1> &s1, const PathShape<m2> &s2, double duration, double tol);

@@ -11,7 +11,7 @@ else()
     set(ASSERTIONS 0)
 endif()
 
-set(PRECISION 1e-2)
+set(PRECISION 1e-3)
 set(SOLVE_WITH_DERIVATIVES 0)
 set(DEBUG_MSG 1)
 

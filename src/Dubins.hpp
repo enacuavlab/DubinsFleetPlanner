@@ -184,10 +184,11 @@ public:
      * @param other_speed   XY Speed along `other` path (in [L]/s)
      * @param duration Duration for which to look for conflicts (in s)
      * @param min_dist The minimal distance required for ensuring separation (in [L])
+     * @param tol      Solver tolerance used when looking for the minimal distance
      * @return true  The two trajectories are well separated
      * @return false The two trajectories are not separated
      */
     template<bool geometric_filtering=true>
     bool is_XY_separated_from(const Dubins& other, double this_speed, double other_speed, 
-        double duration, double min_dist) const;
+        double duration, double min_dist, double tol=DubinsFleetPlanner_PRECISION) const;
 };

@@ -40,6 +40,10 @@
 #define TEST_PATH_DURATION 5.5
 #endif
 
+#ifndef TEST_PRECISION
+#define TEST_PRECISION DubinsFleetPlanner_PRECISION
+#endif
+
 
 int main()
 {
@@ -76,15 +80,15 @@ int main()
 
     // -------------------- Test solver -------------------- //
 
-    std::pair<double,double> test_sl_no_der = temporal_XY_dist<STRAIGHT,LEFT,false>  (s,l,TEST_PATH_DURATION);
+    std::pair<double,double> test_sl_no_der = temporal_XY_dist<STRAIGHT,LEFT,false>  (s,l,TEST_PATH_DURATION,TEST_PRECISION);
     Pose3D test_sl_no_der_pose1 = follow_dubins(s,test_sl_no_der.first);
     Pose3D test_sl_no_der_pose2 = follow_dubins(l,test_sl_no_der.first);
 
-    std::pair<double,double> test_sr_no_der = temporal_XY_dist<STRAIGHT,RIGHT,false> (s,r,TEST_PATH_DURATION);
+    std::pair<double,double> test_sr_no_der = temporal_XY_dist<STRAIGHT,RIGHT,false> (s,r,TEST_PATH_DURATION,TEST_PRECISION);
     Pose3D test_sr_no_der_pose1 = follow_dubins(s,test_sr_no_der.first);
     Pose3D test_sr_no_der_pose2 = follow_dubins(r,test_sr_no_der.first);
 
-    std::pair<double,double> test_lr_no_der = temporal_XY_dist<LEFT,RIGHT,false>     (l,r,TEST_PATH_DURATION);
+    std::pair<double,double> test_lr_no_der = temporal_XY_dist<LEFT,RIGHT,false>     (l,r,TEST_PATH_DURATION,TEST_PRECISION);
     Pose3D test_lr_no_der_pose1 = follow_dubins(l,test_lr_no_der.first);
     Pose3D test_lr_no_der_pose2 = follow_dubins(r,test_lr_no_der.first);
 

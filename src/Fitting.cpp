@@ -50,7 +50,35 @@ double generic_fit(F f, double min_rho, double max_rho, double tol=1e-6)
 
     if (valid_bracket && precise_enough)
     {
-        output = (bracket.first+bracket.second)/2;
+
+        double o_left = bracket.first;
+        double o_right = bracket.second;
+        double o_mid = (o_left+o_right)/2.;
+        double test_val;
+
+        double best_val = INFINITY;
+
+        test_val = std::abs(f(o_left));
+        if (test_val < best_val)
+        {
+            best_val = test_val;
+            output = o_left;
+        }
+
+        test_val = std::abs(f(o_right));
+        if (test_val < best_val)
+        {
+            best_val = test_val;
+            output = o_right;
+        }
+
+        test_val = std::abs(f(o_mid));
+        if (test_val < best_val)
+        {
+            best_val = test_val;
+            output = o_mid;
+        }
+
         if (std::abs(f(output)) > DubinsFleetPlanner_PRECISION)
         {
             output = NAN;
