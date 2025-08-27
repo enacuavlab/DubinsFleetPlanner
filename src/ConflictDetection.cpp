@@ -469,8 +469,8 @@ double geometric_XY_dist(const PathShape<m1> &s1, const PathShape<m2> &s2, doubl
         /// s1 in s2
         if (d + r1 < r2)
         {
-            double t1 = std::atan2(dC.y(),dC.x());
-            double t2 = t1 + M_PI;
+            double t1 = M_PI + std::atan2(dC.y(),dC.x());
+            double t2 = t1;
             if (angle_in_arc(phi1,end_phi1,t1) && angle_in_arc(phi2,end_phi2,t2))
             {
                 min_dist = std::min(min_dist, r2 - d - r1);
@@ -481,7 +481,7 @@ double geometric_XY_dist(const PathShape<m1> &s1, const PathShape<m2> &s2, doubl
         if (d + r2 < r1)
         {
             double t1 = std::atan2(dC.y(),dC.x());
-            double t2 = t1 + M_PI;
+            double t2 = t1;
             if (angle_in_arc(phi1,end_phi1,t1) && angle_in_arc(phi2,end_phi2,t2))
             {
                 min_dist = std::min(min_dist, r1 - d - r2);

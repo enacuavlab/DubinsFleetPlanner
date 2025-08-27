@@ -54,6 +54,44 @@ template<DubinsMove m1, DubinsMove m2>
 double geometric_XY_dist(const PathShape<m1> &s1, const PathShape<m2> &s2, double duration);
 
 /**
+ * @brief Given two shapes described by paths, compute their XY geometric separation by sampling
+ * 
+ * This amount to the minimal euclidean distance between the two shapes, *ignoring* the vertical component.
+ * 
+ * @tparam m1 First shape type (STRAIGHT or a turn, RIGHT or LEFT)
+ * @tparam m2 Second shape type (STRAIGHT or a turn, RIGHT or LEFT)
+ * @tparam samples Number of samples for computing the minimal distance
+ * @param s1 First shape parameters
+ * @param s2 Second shape parameters
+ * @param duration Duration (in s) for which the shape are followed, defining segment and circle arcs
+ * @return double The minimal XY separation distance
+ */
+template<DubinsMove m1, DubinsMove m2, uint samples>
+double sampled_geometric_XY_dist(const PathShape<m1> &s1, const PathShape<m2> &s2, double duration)
+{
+    static_assert(samples > 1);
+
+    std::array<Pose3D,samples> s1_samples,s2_samples;
+    double min_dist = INFINITY;
+
+    for(uint i = 0; i < samples; i++)
+    {
+        s1_samples[i] = follow_dubins(s1,i*duration/(samples-1));
+        s2_samples[i] = follow_dubins(s2,i*duration/(samples-1));
+    }
+
+    for(uint i = 0; i <samples; i++)
+    {
+        for(uint j = 0; j < samples; j++)
+        {
+            min_dist = std::min(min_dist,pose_dist_XY(s1_samples[i],s2_samples[j]));
+        }
+    }
+
+    return min_dist;
+}
+
+/**
  * @brief Given two shapes described by paths, compute their vertical (Z) geometric separation
  * 
  * Since all shapes consider linear climbs, the exact type does not change a thing to the computations

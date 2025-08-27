@@ -71,6 +71,7 @@ bool Dubins::is_XY_separated_from(const Dubins& other, double this_speed, double
 {
 #if defined(DubinsFleetPlanner_ASSERTIONS) && DubinsFleetPlanner_ASSERTIONS > 0
     assert((this_speed > 0) && (other_speed > 0));
+    assert((this->is_valid()) && (other.is_valid()));
 #endif
 
     std::vector<double> this_junctions  = this->get_junction_locs();
