@@ -17,10 +17,28 @@ set(DEBUG_MSG 1)
 
 configure_file(ProjectHeader.h.in ProjectHeader.h)
 
-add_library(DubinsFleetPlanner SHARED Aircraft.cpp BaseDubins.cpp ConflictDetection.cpp Dubins.cpp Fitting.cpp FleetPathPlanner.cpp Primitives.cpp utils.cpp)
+add_library(DubinsFleetPlannerLib SHARED
+    Aircraft.cpp
+    BaseDubins.cpp
+    ConflictDetection.cpp
+    Dubins.cpp
+    Fitting.cpp
+    FleetPathPlanner.cpp
+    inputParser.cpp
+    Primitives.cpp 
+    utils.cpp)
 
-target_include_directories(DubinsFleetPlanner PUBLIC 
+target_include_directories(DubinsFleetPlannerLib PUBLIC 
     ${CMAKE_CURRENT_BINARY_DIR} 
     ${libs_dir}/eigen
-    ${libs_dir}/ScalarMin)
+    ${libs_dir}/ScalarMin
+    ${libs_dir}/csv_reader)
 # target_link_libraries(DubinsFleetPlanner PUBLIC Boost::headers ScalarMin)
+
+add_executable(DubinsFleetPlanner main.cpp)
+target_link_libraries(DubinsFleetPlanner PUBLIC DubinsFleetPlannerLib)
+target_include_directories(DubinsFleetPlanner PUBLIC
+    ${CMAKE_CURRENT_BINARY_DIR} 
+    ${libs_dir}/eigen
+    ${libs_dir}/ScalarMin
+    ${libs_dir}/csv_reader)

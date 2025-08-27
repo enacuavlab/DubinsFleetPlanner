@@ -15,13 +15,18 @@
 // You should have received a copy of the GNU General Public License
 // along with DubinsFleetPlanner.  If not, see <https://www.gnu.org/licenses/>.
 
-#pragma once
+#include <iostream>
+#include <unistd.h>
 
-#include <cmath>
+#include "inputParser.hpp"
+#include "FleetPathPlanner.hpp"
 
-typedef struct {
-    int id;             // A numeric ID
-    double airspeed;    // Constant airspeed, in m/s
-    double turn_radius; // Minimal turn radius, in m
-    double climb;       // Climb rate, in [alt]/s (with [alt] some unit for altitude; meters above sea level, feets above ground...)
-} AircraftStats;
+void help()
+{
+
+}
+
+int main(int argc, char *argv[])
+{
+    
+}

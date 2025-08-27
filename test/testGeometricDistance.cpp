@@ -30,7 +30,7 @@
  */
 bool check_header(const CSVRow& r)
 {
-    std::cout << "Reader header..." << std::endl
+    std::cout << "Reading header..." << std::endl
         << "- Col 0 : " << r[0]     << " (" << r[0].compare ("type1")   << ")" << std::endl
         << "- Col 1 : " << r[1]     << " (" << r[1].compare ("x1")      << ")" << std::endl
         << "- Col 2 : " << r[2]     << " (" << r[2].compare ("y1")      << ")" << std::endl

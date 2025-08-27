@@ -20,7 +20,7 @@
 #include <charconv>
 #include <filesystem>
 #include "ConflictDetection.hpp"
-#include "csv_reader.hpp"
+#include "csv_reader/csv_reader.hpp"
 
 #include "ProjectHeader.h"
 

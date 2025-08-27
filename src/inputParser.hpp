@@ -17,11 +17,31 @@
 
 #pragma once
 
-#include <cmath>
+#include <assert.h>
+#include <charconv>
+#include <iostream>
 
-typedef struct {
-    int id;             // A numeric ID
-    double airspeed;    // Constant airspeed, in m/s
-    double turn_radius; // Minimal turn radius, in m
-    double climb;       // Climb rate, in [alt]/s (with [alt] some unit for altitude; meters above sea level, feets above ground...)
-} AircraftStats;
+#include "ProjectHeader.h"
+
+#include "Aircraft.h"
+#include "utils.hpp"
+
+#include "csv_reader/csv_reader.hpp"
+
+namespace DubinsPP
+{
+    namespace InputParser
+    {
+        typedef struct 
+        {
+            Pose3D start;
+            Pose3D end;
+            AircraftStats stats;
+            double dt;
+        } RowInfo;
+
+        typedef std::tuple<std::vector<Pose3D>,std::vector<Pose3D>,std::vector<AircraftStats>,std::vector<double>> CaseData;
+
+        CaseData parse_data_csv(std::ifstream&);
+    }
+}

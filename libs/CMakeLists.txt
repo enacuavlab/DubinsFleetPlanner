@@ -16,5 +16,6 @@
 # along with DubinsFleetPlanner.  If not, see <https://www.gnu.org/licenses/>.
 
 add_subdirectory(combinations)
+add_subdirectory(csv_reader)
 add_subdirectory(eigen)
 add_subdirectory(ScalarMin)

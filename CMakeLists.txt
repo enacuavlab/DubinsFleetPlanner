@@ -59,6 +59,8 @@ option(ENABLE_ASSERTIONS "Enable assertion checks" ON)
 
 option(VISUALISATION "Include visualisation in the solver (for debug/demo purpose)" ON)
 
+# option(COVERAGE "Perform coverage analysis while running tests" ON)
+
 # -------------------- Testing -------------------- #
 
 include(CTest)
