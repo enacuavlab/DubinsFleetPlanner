@@ -55,14 +55,16 @@ add_subdirectory(src)
 
 # -------------------- Options -------------------- #
 
-option(ENABLE_ASSERTIONS "Enable assertion checks" ON)
+option(DubinsFleetPlanner_ENABLE_ASSERTIONS "Enable assertion checks" ON)
 
-option(VISUALISATION "Include visualisation in the solver (for debug/demo purpose)" ON)
 
-# option(COVERAGE "Perform coverage analysis while running tests" ON)
+option(DubinsFleetPlanner_TESTING "Enable testing for path planning (will download GTest)" ON)
+
+# option(DubinsFleetPlanner_COVERAGE "Perform coverage analysis while running tests" ON)
 
 # -------------------- Testing -------------------- #
 
-include(CTest)
-enable_testing()
-add_subdirectory(test)
+if(DubinsFleetPlanner_TESTING)
+    enable_testing()
+    add_subdirectory(test)
+endif()

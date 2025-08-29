@@ -128,6 +128,11 @@ public:
         return std::make_tuple(fst,snd,trd);
     }
 
+    const std::vector<DubinsMove> get_all_sections() const
+    {
+        return std::vector({fst,snd,trd});
+    }
+
     constexpr const std::string& get_type_abbr() const
     {
         return class_abbr_name;

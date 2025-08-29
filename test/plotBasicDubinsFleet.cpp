@@ -19,6 +19,8 @@
 #include "BaseDubins.hpp"
 #include "plotDubins.hpp"
 #include "FleetPathPlanner.hpp"
+#include "ioUtils.hpp"
+
 
 #include "randomPathShape.hpp"
 
@@ -41,8 +43,9 @@
 #endif
 
 #ifndef TEST_AIRCRAFT_NUM 
-#define TEST_AIRCRAFT_NUM 15
+#define TEST_AIRCRAFT_NUM 31
 #endif
+
 
 template<uint N>
 std::array<Pose3D,N> generate_hline(double sep)
@@ -122,8 +125,8 @@ void rotate_around_poses(V& poses, Pose3D rot_ref)
         poses[i].z -= rot_ref.z;
         poses[i].theta += rot_ref.theta;
         
-        double new_x = -std::cos(rot_ref.theta)*poses[i].x + std::sin(rot_ref.theta)*poses[i].y;
-        double new_y = -std::sin(rot_ref.theta)*poses[i].x + std::cos(rot_ref.theta)*poses[i].y;
+        double new_x = std::cos(rot_ref.theta)*poses[i].x - std::sin(rot_ref.theta)*poses[i].y;
+        double new_y = std::sin(rot_ref.theta)*poses[i].x + std::cos(rot_ref.theta)*poses[i].y;
 
         poses[i].x = new_x + rot_ref.x;
         poses[i].y = new_y + rot_ref.y;
@@ -156,19 +159,31 @@ int main()
     std::array<Pose3D,N> hline = generate_hline<N>(1.5);
     std::array<Pose3D,N> hchevron = generate_hchevron<N>(1.5,1.);
 
-    shift_poses(hline,Pose3D(-static_cast<double>(N)/2,2*static_cast<double>(N),0.,0.));
-    shift_poses(hchevron,Pose3D(-static_cast<double>(N)/2,2*static_cast<double>(N),0.,0.));
+    shift_poses(hline,Pose3D(-static_cast<double>(N),0.,0.,0.));
+    shift_poses(hchevron,Pose3D(-static_cast<double>(N),0.,0.,0.));
+
+    std::array<Pose3D,N> vline = generate_hline<N>(1.5);
+    rotate_around_poses(vline,Pose3D(0.,0.,0.,M_PI_2));
+    shift_poses(vline,Pose3D(static_cast<double>(N),2*static_cast<double>(N),0.,0.));
+
+    std::array<Pose3D,N> vchevron = generate_hchevron<N>(1.5,1.);
+    rotate_around_poses(vchevron,Pose3D(0.,0.,0.,-M_PI_2));
+    shift_poses(vchevron,Pose3D(static_cast<double>(N)*5,2*static_cast<double>(N),0.,0.));
 
     std::array<AircraftStats,N> stats;
     for(uint i = 0; i < N; i++)
     {
+        stats[i].id = i;
         stats[i].airspeed = 1.;
         stats[i].climb = 1.;
         stats[i].turn_radius = 1.;
     }
 
-    std::array<Pose3D,N> starts = circ;
-    std::array<Pose3D,N> ends   = hchevron;
+    // std::array<Pose3D,N> starts = circ;
+    // std::array<Pose3D,N> ends   = hchevron;
+
+    std::array<Pose3D,N> starts = hchevron;
+    std::array<Pose3D,N> ends   = vchevron;
 
     // std::cout   << "Start: " << std::endl << pose_to_string(starts[0]) << std::endl
     //             << "End: " << std::endl << pose_to_string(ends[0]) << std::endl;
@@ -178,7 +193,8 @@ int main()
     // -------------------- Test solver -------------------- //
 
     // auto opt_result = DubinsPP::BasicDubins::synchronised_no_checks<N>(starts,ends,stats,delta_t,wind_x,wind_y);
-    auto opt_result = DubinsPP::BasicDubins::synchronised_XY_checks<N>(starts,ends,stats,min_sep,delta_t,wind_x,wind_y);
+    auto opt_result = DubinsPP::BasicDubins::synchronised_XY_checks<N>(starts,ends,stats,min_sep,delta_t,wind_x,wind_y,
+        5.,1e-6,500);
 
     if (!opt_result.has_value())
     {
@@ -186,29 +202,13 @@ int main()
         exit(1);
     }
 
-    auto& results = opt_result.value();
-    
+    auto& results = opt_result.value();    
 
     // -------------------- Plotting --------------------
 
     Visualisation::Plot2D plot = Visualisation::init_plot();
 
     // ---------- Individual trajectories ---------- //
-
-    // for(uint i = 0; i < N; i++)
-    // {
-    //     std::unique_ptr<Dubins>& d = results[i];
-    //     Visualisation::plot_path<PLOTTING_SAMPLES>(plot,*d, stats[i].airspeed, wind_x, wind_y)
-    //         .label(std::to_string(i) + std::string(": ") + d->get_type_abbr() + std::string(" ") + std::to_string(d->get_length()))
-    //         .lineColor(Visualisation::get_color(i));
-
-    //     Visualisation::plot_pose(plot,starts[i])
-    //         .label(std::to_string(i) + std::string(": Start"))
-    //         .lineColor(Visualisation::get_color(i));
-    //     Visualisation::plot_pose(plot,ends[i])
-    //         .label(std::to_string(i) + std::string(": End"))
-    //         .lineColor(Visualisation::get_color(i));
-    // }
 
     std::vector<std::unique_ptr<Dubins>> results_vec(results.size());
     for(uint i = 0; i < results.size(); i++)
@@ -237,5 +237,20 @@ int main()
     sciplot::Canvas canvas  = {{fig}};
     canvas.size(1920,1080);
     canvas.show();
+
+    // ---------- Output ---------- //
+
+    std::ofstream output("/home/mael/Programming/DubinsFleetPlanner/tmp.csv");
+    if (output)
+    {
+        DubinsPP::OutputPrinter::print_paths_as_CSV(output,results_vec,stats_vec,wind_x,wind_y,PLOTTING_SAMPLES);
+        output.close();
+    }
+    else
+    {
+        std::cerr << "Could not create output file..." << std::endl;
+    }
+
+    
 
 }

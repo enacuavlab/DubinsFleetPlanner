@@ -24,7 +24,7 @@ add_library(DubinsFleetPlannerLib SHARED
     Dubins.cpp
     Fitting.cpp
     FleetPathPlanner.cpp
-    inputParser.cpp
+    ioUtils.cpp
     Primitives.cpp 
     utils.cpp)
 

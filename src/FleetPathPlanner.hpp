@@ -24,6 +24,7 @@
 #endif
 
 #include <array>
+#include <vector>
 #include <map>
 #include <optional>
 
@@ -298,7 +299,7 @@ namespace
     void list_all_possibilities(
         output_T& outputs,
         const endpoints_T& starts, const endpoints_T& ends,
-        const stats_t& stats, const times_T& times, double wind_x, double wind_y, double tol)
+        const stats_T& stats, const times_T& times, double wind_x, double wind_y, double tol)
     {
 #if defined(DubinsFleetPlanner_ASSERTIONS) && DubinsFleetPlanner_ASSERTIONS > 0
         assert(starts.size() == outputs.size());
@@ -440,7 +441,7 @@ namespace
     std::optional<choices_T> pathfinder_XY_separation(const allpaths_T& all_paths, const stats_T& stats, double min_sep)
     {
         uint current_index = 0;
-        choices_T choices(stats.size());
+        choices_T choices{static_cast<uint>(stats.size())};
         std::map<conflict_case,bool> conflicts_memo;
 
         bool success = recursive_pathfinder_XY<allpaths_T,stats_T,choices_T>(all_paths,stats,min_sep,current_index,choices,conflicts_memo);
@@ -532,47 +533,13 @@ std::optional<std::array<std::unique_ptr<Dubins>,N>> DubinsPP::BasicDubins::sync
         compute_arrival_times(times,delta_t,travel_time);
         list_all_possibilities(list_of_choices,starts,ends,stats,times,wind_x,wind_y,t_tol);
 
-
-//         double dt = 0.;
-//         bool next_iter = false;
-//         for(uint i = 0; i < N; i++)
-//         {
-//             // Modify target according to estimated travel time
-//             Pose3D base_end = ends[i];
-//             double target_time = (travel_time+dt);
-//             dt += delta_t[i];
-//             base_end.x -= target_time*wind_x;
-//             base_end.y -= target_time*wind_y;
-//             double target_len = target_time*stats[i].airspeed;
-
-//             // List all possibilities for aircraft i
-//             list_of_choices[i] = fit_possible_baseDubins(
-//                 stats[i].climb,
-//                 stats[i].turn_radius,
-//                 starts[i],base_end,
-//                 target_len,
-//                 t_tol
-//             );
-
-//             // If nothing works, skip
-//             if (list_of_choices[i].size() == 0)
-//             {
-
-// #if defined(DubinsFleetPlanner_DEBUG_MSG) && DubinsFleetPlanner_DEBUG_MSG > 0
-//                 std::cout << "  Could not find solution for aircraft " << i << " ... Skipping" << std::endl << std::endl;
-// #endif
-//                 next_iter = true;
-//                 break;
-//             }
-//         }
-
         bool next_iter = false;
 
         std::array<std::unique_ptr<Dubins>,N> output;
         for(uint i = 0; i < N; i++)
         {
             bool found_candidate = false;
-            for(uint j = 0; j < ArrayOfBaseDubins::size() ; j++)
+            for(uint j = 0; j < list_of_choices[i].size() ; j++)
             {
                 if (list_of_choices[i][j]->is_valid())
                 {
@@ -596,7 +563,6 @@ std::optional<std::array<std::unique_ptr<Dubins>,N>> DubinsPP::BasicDubins::sync
         }
         else
         {
-            std::array<std::unique_ptr<Dubins>,N> output;
             for(uint i = 0; i < N; i++)
             {
                 output[i] = std::move(list_of_choices[i][0]);
@@ -637,11 +603,14 @@ std::optional<std::vector<std::unique_ptr<Dubins>>> DubinsPP::BasicDubins::synch
     {
         list_of_choices.clear();
         double travel_time = min_travel_time + iter_count*iter_step;
+        std::vector<double> times;
+        compute_arrival_times(times,delta_t,travel_time);
 
 #if defined(DubinsFleetPlanner_DEBUG_MSG) && DubinsFleetPlanner_DEBUG_MSG > 0
         std::cout   << "Starting iteration number " << iter_count 
                     << " (target time: " << travel_time << " )" << std::endl;
 #endif
+
         double dt = 0.;
         bool next_iter = false;
         for(uint i = 0; i < N; i++)
@@ -732,9 +701,13 @@ std::optional<std::array<std::unique_ptr<Dubins>,N>> DubinsPP::BasicDubins::sync
         double travel_time = min_travel_time + iter_count*iter_step;
 
 #if defined(DubinsFleetPlanner_DEBUG_MSG) && DubinsFleetPlanner_DEBUG_MSG > 0
-        std::cout   << "Starting iteration number " << iter_count 
+        std::cout   << "Starting iteration number " << iter_count << " / " << max_iters
                     << " (target time: " << travel_time << " )" << std::endl;
 #endif
+        
+        std::array<double,N> times;
+        compute_arrival_times(times,delta_t,travel_time);
+
         double dt = 0.;
         for(uint i = 0; i < N; i++)
         {

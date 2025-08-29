@@ -18,11 +18,13 @@
 
 #################### Test folder ####################
 
+include(FetchContent)
+
 ########## Visual tests ##########
 
-# if(VISUALISATON)
-    include(FetchContent)
+option(DubinsFleetPlanner_VISUALISATION "Include visualisation in the solver (for debug/demo purpose; will download Sciplot)" ON)
 
+# if(DubinsFleetPlanner_VISUALISATON)
     FetchContent_Declare(
         sciplot
         GIT_REPOSITORY https://github.com/sciplot/sciplot.git
@@ -59,7 +61,7 @@
 
 ########## Coverage ##########
 
-# # if (COVERAGE) # Check if the build type is 'Coverage'
+# # if (DubinsFleetPlanner_COVERAGE) # Check if the build type is 'Coverage'
 #   find_package(Python3 REQUIRED COMPONENTS Interpreter)  # Required for gcovr
 #   add_custom_target(coverage
 #     COMMAND ${CMAKE_COMMAND} -E make_directory coverage

@@ -90,8 +90,8 @@ bool fit_and_test_dubins(
 TEST(DubinsSeparation,RandomNoFit)
 {
 
-    AircraftStats a1{1.,TEST_MIN_TURN_RADIUS,TEST_CLIMB};
-    AircraftStats a2{1.,TEST_MIN_TURN_RADIUS,TEST_CLIMB};
+    AircraftStats a1{1,1.,TEST_MIN_TURN_RADIUS,TEST_CLIMB};
+    AircraftStats a2{2,1.,TEST_MIN_TURN_RADIUS,TEST_CLIMB};
 
     double min_separation = TEST_MIN_SEPARATION;
 
@@ -163,8 +163,8 @@ static double longest_path(const std::vector<std::unique_ptr<Dubins>>& dubins_li
 
 TEST(DubinsSeparation,RandomFitToLongest)
 {
-    AircraftStats a1{1.,TEST_MIN_TURN_RADIUS,TEST_CLIMB};
-    AircraftStats a2{1.,TEST_MIN_TURN_RADIUS,TEST_CLIMB};
+    AircraftStats a1{1,1.,TEST_MIN_TURN_RADIUS,TEST_CLIMB};
+    AircraftStats a2{2,1.,TEST_MIN_TURN_RADIUS,TEST_CLIMB};
 
     double min_separation = TEST_MIN_SEPARATION;
 
@@ -295,8 +295,8 @@ TEST(DubinsSeparation,SelectedCase1)
     double target_length_1 = 59.302868877849335;
     double target_length_2 = 59.302868877849335;
 
-    AircraftStats a1{p1_speed,p1_turn_radius,p1_climb};
-    AircraftStats a2{p2_speed,p2_turn_radius,p2_climb};
+    AircraftStats a1{1,p1_speed,p1_turn_radius,p1_climb};
+    AircraftStats a2{2,p2_speed,p2_turn_radius,p2_climb};
 
 
     fit_and_test_dubins<TEST_SAMPLES_COUNT>(

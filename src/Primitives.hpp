@@ -117,8 +117,8 @@ std::pair<double,double> SLS_possible_d(double alpha, double beta);
  */
 enum DubinsMove {
     STRAIGHT = 0,
-    LEFT = 1,
-    RIGHT = 2
+    LEFT     = 1,
+    RIGHT    = 2
 };
 
 constexpr const std::array<std::string,3> DubinsMoveNames{
@@ -171,11 +171,11 @@ Pose3D follow_dubins(const Pose3D& pose, double duration, double speed, double c
 template<DubinsMove m>
 struct PathShape
 {
-    double x,y,z;   ///< A reference point (typically starting point)
-    double p1;  ///< For a Straight: horizontal x speed | For a circle: Radius
-    double p2;  ///< For a Straight: horizontal y speed | For a circle: signed angular speed
+    double x,y,z;   ///< A reference point. For a Straight: the initial point | For a turn: the circle center
+    double p1;  ///< For a Straight: horizontal x speed | For a turn: Radius
+    double p2;  ///< For a Straight: horizontal y speed | For a turn: signed angular speed; positive when LEFT, negative when RIGHT
     double p3;  ///< Vertical speed
-    double p4;  ///< For a Straight: unused | For a circle: initial angle
+    double p4;  ///< For a Straight: unused | For a turn: initial angle
 };
 
 /**

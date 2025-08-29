@@ -30,7 +30,7 @@ int main()
     Pose3D start{0.,0.,0.,0.};
     Pose3D end{1.,2.,0.,M_PI/2};
 
-    AircraftStats stats{1.,1.,1.};
+    AircraftStats stats{0,1.,1.,1.};
 
     // auto candidates = list_all_baseDubins(stats.climb,stats.turn_radius,start,end);
     auto candidates = fit_all_baseDubins(stats.climb,stats.turn_radius,start,end, 15.,1e-6);

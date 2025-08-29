@@ -98,6 +98,7 @@ public:
 
     // virtual constexpr const std::string& get_type_name() const = 0;
     virtual constexpr const std::string& get_type_abbr() const = 0;
+    virtual const std::vector<DubinsMove> get_all_sections() const = 0;
 
     void set_start(const Pose3D& _start) {start = _start; recompute();}
     Pose3D get_start() const {return start;}
@@ -169,8 +170,58 @@ public:
         return get_positions<samples>(times*speed,sorted);
     }
 
+    /**
+     * @brief Get the location (in length coordinate) of the junction points between shapes
+     * 
+     * @return std::vector<double> 
+     */
     virtual std::vector<double> get_junction_locs() const = 0;
+
+    /**
+     * @brief Get the location (in length coordinate) of the endpoints, ie start, junctions and end
+     * 
+     * @return std::vector<double> 
+     */
+    std::vector<double> get_endpoints_locs() const
+    {
+        std::vector<double> output{0.};
+
+        std::vector<double> junctions = get_junction_locs();
+        for(double l: junctions)
+        {
+            output.push_back(l);
+        }
+
+        output.push_back(get_length());
+        return output;
+    }
+
+    /**
+     * @brief Get the poses at the junctions between shapes
+     * 
+     * @return std::vector<Pose3D> 
+     */
     virtual std::vector<Pose3D> get_junction_points() const = 0;
+
+    /**
+     * @brief Get the poses of the endpoints, ie start, junctions and end
+     * 
+     * @return std::vector<Pose3D> 
+     */
+    std::vector<Pose3D> get_endpoints() const
+    {
+        std::vector<Pose3D> output;
+        output.push_back(get_start());
+
+        std::vector<Pose3D> junctions = get_junction_points();
+        for(Pose3D l: junctions)
+        {
+            output.push_back(l);
+        }
+
+        output.push_back(get_end());
+        return output;
+    }
 
     virtual DubinsMove get_section_type(double loc) const = 0;
 
