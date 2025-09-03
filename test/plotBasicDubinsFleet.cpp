@@ -43,105 +43,10 @@
 #endif
 
 #ifndef TEST_AIRCRAFT_NUM 
-#define TEST_AIRCRAFT_NUM 31
+#define TEST_AIRCRAFT_NUM 12
 #endif
 
-
-template<uint N>
-std::array<Pose3D,N> generate_hline(double sep)
-{
-    std::array<Pose3D,N> output;
-    for(uint i = 0; i < N; i++)
-    {
-        output[i] = Pose3D(i*sep,0.,0.,M_PI_2);
-    }
-
-    return output;
-}
-
-template<uint N>
-std::array<Pose3D,N> generate_circle(double radius)
-{
-    std::array<Pose3D,N> output;
-    double step_angle = 2*M_PI/N;
-    for(uint i = 0; i < N; i++)
-    {
-        output[i] = Pose3D(
-                radius*std::cos(i*step_angle),
-                radius*std::sin(i*step_angle),
-                0.,
-                mod_2pi(i*step_angle+M_PI_2));
-    }
-
-    return output;
-}
-
-template<uint N>
-std::array<Pose3D,N> generate_hdiag(double hsep, double vsep)
-{
-    std::array<Pose3D,N> output;
-    for(uint i = 0; i < N; i++)
-    {
-        output[i] = Pose3D(i*hsep,i*vsep,0.,M_PI_2);
-    }
-
-    return output;
-}
-
-template<uint N>
-std::array<Pose3D,N> generate_hchevron(double hsep, double vsep)
-{
-    std::array<Pose3D,N> output;
-    for(uint i = 0; i < N/2; i++)
-    {
-        output[i] = Pose3D(i*hsep,i*vsep,0.,M_PI_2);
-    }
-    for(uint i = N/2; i < N; i++)
-    {
-        output[i] = Pose3D(i*hsep,(N-i-1)*vsep,0.,M_PI_2);
-    }
-
-    return output;
-}
-
-template<class V>
-void shift_poses(V& poses, const Pose3D& shift)
-{
-    for(uint i = 0; i < poses.size(); i++)
-    {
-        poses[i].x += shift.x;
-        poses[i].y += shift.y;
-        poses[i].z += shift.z;
-    }
-}
-
-template<class V>
-void rotate_around_poses(V& poses, Pose3D rot_ref)
-{
-    for(uint i = 0; i < poses.size(); i++)
-    {
-        poses[i].x -= rot_ref.x;
-        poses[i].y -= rot_ref.y;
-        poses[i].z -= rot_ref.z;
-        poses[i].theta += rot_ref.theta;
-        
-        double new_x = std::cos(rot_ref.theta)*poses[i].x - std::sin(rot_ref.theta)*poses[i].y;
-        double new_y = std::sin(rot_ref.theta)*poses[i].x + std::cos(rot_ref.theta)*poses[i].y;
-
-        poses[i].x = new_x + rot_ref.x;
-        poses[i].y = new_y + rot_ref.y;
-    }
-}
-
-template<class V>
-void swap_poses(V& poses)
-{
-    uint N = poses.size();
-    for(uint i = 0; i < N/2; i++)
-    {
-        std::swap(poses[i],poses[N-1-i]);
-    }
-}
+#include "FleetDrawPrimitives.hpp"
 
 int main()
 {
@@ -154,13 +59,18 @@ int main()
     double min_sep = 1.1;
 
     constexpr uint N = TEST_AIRCRAFT_NUM;
+    const std::string test_name("tmp" + std::to_string(N));
+    const std::string file_format("csv");
 
+    std::array<Pose3D,N> random_poses = generate_random<N>(static_cast<double>(N),1.,12);
+    std::array<Pose3D,N> hchev_3 = generate_P_chevron<N,N/3>(1.5,1.5);
     std::array<Pose3D,N> circ = generate_circle<N>(std::sqrt(N));
     std::array<Pose3D,N> hline = generate_hline<N>(1.5);
     std::array<Pose3D,N> hchevron = generate_hchevron<N>(1.5,1.);
 
-    shift_poses(hline,Pose3D(-static_cast<double>(N),0.,0.,0.));
-    shift_poses(hchevron,Pose3D(-static_cast<double>(N),0.,0.,0.));
+    shift_poses(hline,Pose3D(0.,0*static_cast<double>(N),0.,0.));
+    shift_poses(hchevron,Pose3D(0.,1*static_cast<double>(N),0.,0.));
+    shift_poses(hchev_3,Pose3D(0.,1*static_cast<double>(N),0.,0.));
 
     std::array<Pose3D,N> vline = generate_hline<N>(1.5);
     rotate_around_poses(vline,Pose3D(0.,0.,0.,M_PI_2));
@@ -182,8 +92,10 @@ int main()
     // std::array<Pose3D,N> starts = circ;
     // std::array<Pose3D,N> ends   = hchevron;
 
-    std::array<Pose3D,N> starts = hchevron;
-    std::array<Pose3D,N> ends   = vchevron;
+    std::array<Pose3D,N> starts = hchev_3;
+    std::array<Pose3D,N> ends   = hline;
+
+    // std::array<Pose3D,N> ends   = circ;
 
     // std::cout   << "Start: " << std::endl << pose_to_string(starts[0]) << std::endl
     //             << "End: " << std::endl << pose_to_string(ends[0]) << std::endl;
@@ -240,7 +152,7 @@ int main()
 
     // ---------- Output ---------- //
 
-    std::ofstream output("/home/mael/Programming/DubinsFleetPlanner/tmp.csv");
+    std::ofstream output("/home/mael/Programming/DubinsFleetPlanner/" + test_name + "." + file_format);
     if (output)
     {
         DubinsPP::OutputPrinter::print_paths_as_CSV(output,results_vec,stats_vec,wind_x,wind_y,PLOTTING_SAMPLES);

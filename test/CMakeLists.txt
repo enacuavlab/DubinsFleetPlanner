@@ -57,6 +57,10 @@ option(DubinsFleetPlanner_VISUALISATION "Include visualisation in the solver (fo
     add_executable(PlotBasicDubinsFleet plotBasicDubinsFleet.cpp)
     target_link_libraries(PlotBasicDubinsFleet PUBLIC sciplot DubinsFleetPlannerLib)
     target_include_directories(PlotBasicDubinsFleet PUBLIC "${PROJECT_SOURCE_DIR}/src")
+
+    add_executable(SequenceDubinsFleet sequenceDubinsFleet.cpp)
+    target_link_libraries(SequenceDubinsFleet PUBLIC sciplot DubinsFleetPlannerLib)
+    target_include_directories(SequenceDubinsFleet PUBLIC "${PROJECT_SOURCE_DIR}/src")
 # endif()
 
 ########## Coverage ##########
