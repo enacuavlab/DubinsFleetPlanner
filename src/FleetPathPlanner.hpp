@@ -707,27 +707,30 @@ std::optional<std::array<std::unique_ptr<Dubins>,N>> DubinsPP::BasicDubins::sync
         
         std::array<double,N> times;
         compute_arrival_times(times,delta_t,travel_time);
+        list_all_possibilities(list_of_choices,starts,ends,stats,times,wind_x,wind_y,t_tol);
 
-        double dt = 0.;
-        for(uint i = 0; i < N; i++)
-        {
-            // Modify target according to estimated travel time
-            Pose3D base_end = ends[i];
-            double target_time = (travel_time+dt);
-            dt += delta_t[i];
-            base_end.x -= target_time*wind_x;
-            base_end.y -= target_time*wind_y;
-            double target_len = target_time*stats[i].airspeed;
+        // double dt = 0.;
+        // for(uint i = 0; i < N; i++)
+        // {
+        //     // Modify target according to estimated travel time
+        //     Pose3D base_end = ends[i];
+        //     double target_time = (travel_time+dt);
+        //     dt += delta_t[i];
+        //     base_end.x -= target_time*wind_x;
+        //     base_end.y -= target_time*wind_y;
+        //     double target_len = target_time*stats[i].airspeed;
 
-            // List all possibilities for aircraft i
-            list_of_choices[i] = fit_all_baseDubins(
-                stats[i].climb,
-                stats[i].turn_radius,
-                starts[i],base_end,
-                target_len,
-                t_tol
-            );
-        }
+        //     // List all possibilities for aircraft i
+        //     list_of_choices[i] = fit_all_baseDubins(
+        //         stats[i].climb,
+        //         stats[i].turn_radius,
+        //         starts[i],base_end,
+        //         target_len,
+        //         t_tol
+        //     );
+        // }
+
+
 
 #if defined(DubinsFleetPlanner_DEBUG_MSG) && DubinsFleetPlanner_DEBUG_MSG > 0
         std::cout   << "  - Fitting done, starting search" << std::endl; 
