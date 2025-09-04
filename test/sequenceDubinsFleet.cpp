@@ -108,10 +108,10 @@ int main()
             results_vec[i] = std::move(results[i]);
         }
 
-        std::ofstream output("/home/mael/Programming/DubinsFleetPlanner/" + std::to_string(i) + "_chained.csv");
+        std::ofstream output("/home/mael/Programming/DubinsFleetPlanner/" + std::to_string(i) + "_chained.json");
         if (output)
         {
-            DubinsPP::OutputPrinter::print_paths_as_CSV(output,results_vec,stats_vec,wind_x,wind_y,PLOTTING_SAMPLES);
+            DubinsPP::OutputPrinter::print_paths_as_JSON(output,results_vec,stats_vec,min_sep,wind_x,wind_y);
             output.close();
         }
         else

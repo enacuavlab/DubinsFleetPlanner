@@ -54,6 +54,23 @@ std::array<Pose3D,N> generate_circle(double radius)
 }
 
 template<uint N>
+std::array<Pose3D,N> generate_circle_inward(double radius)
+{
+    std::array<Pose3D,N> output;
+    double step_angle = 2*M_PI/N;
+    for(uint i = 0; i < N; i++)
+    {
+        output[i] = Pose3D(
+                radius*std::cos(i*step_angle),
+                radius*std::sin(i*step_angle),
+                0.,
+                mod_2pi(i*step_angle+M_PI));
+    }
+
+    return output;
+}
+
+template<uint N>
 std::array<Pose3D,N> generate_hdiag(double hsep, double vsep)
 {
     std::array<Pose3D,N> output;
@@ -115,6 +132,53 @@ std::array<Pose3D,N> generate_random(double xy_limit, double z_limit, int seed=0
     }
     return output;
 }
+
+template<uint N>
+std::array<Pose3D,N> generate_random_circle_inward(double radius, double altitude, double orientation_eps, int seed=0)
+{
+    std::default_random_engine gen(seed); // Some seeded RNG 
+    std::array<Pose3D,N> output;
+
+    radius  = std::abs(radius);
+    orientation_eps = std::abs(orientation_eps);
+
+    std::uniform_real_distribution<double> dis_pos(-M_PI, M_PI);
+    std::uniform_real_distribution<double> dis_angle(-orientation_eps,orientation_eps);
+
+    for(uint i = 0; i < N; i++)
+    {
+        double angle = dis_pos(gen);
+        double orientation = angle + M_PI + dis_angle(gen);
+
+        output[i].x = radius*std::cos(angle);
+        output[i].y = radius*std::sin(angle);
+        output[i].z = altitude;
+        output[i].theta = orientation;
+    }
+
+    return output;
+}
+
+template<uint N>
+std::array<Pose3D,N> generate_ordinals(double radius, double altitude, double sep)
+{
+    std::array<Pose3D,N> output;
+
+    for(uint i = 0; i < N; i++)
+    {
+        double l_radius = radius + (i/4)*sep; 
+        double angle = M_PI_4 + (i%4)*M_PI_2;
+
+        output[i].x = l_radius*std::cos(angle);
+        output[i].y = l_radius*std::sin(angle);
+
+        output[i].z = altitude;
+        output[i].theta = angle - M_PI_2;
+    }
+
+    return output;
+}
+
 
 template<class V>
 void shift_poses(V& poses, const Pose3D& shift)

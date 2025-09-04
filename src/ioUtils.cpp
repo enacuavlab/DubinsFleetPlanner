@@ -228,7 +228,8 @@ void print_field<Pose3D>(std::ostream& s, const std::string& name, const Pose3D&
         s << "\t";
     }
 
-    s   << "{\"x\": " << value.x 
+    s   << "\"" << name << "\": "
+        << "{\"x\": " << value.x 
         << " ,\"y\": " << value.y 
         << " ,\"z\": " << value.z 
         << " ,\"theta\": " << value.theta 
@@ -312,7 +313,9 @@ void print_trajectory(std::ostream& s,
 
                 for(uint i = 0; i < sections_N; i++)
                 {
-                    if (i > 0) {s << "," << std::endl;}
+                    if (i > 0) {s << ",";}
+                    
+                    s << std::endl;
 
                     double sec_len = endpoints_locs[i+1]-endpoints_locs[i];
                     double sec_middle = (endpoints_locs[i+1]+endpoints_locs[i])/2;
@@ -327,17 +330,17 @@ void print_trajectory(std::ostream& s,
                         {
                         case STRAIGHT:
                             print_pathShape_fields<STRAIGHT>(s,
-                                compute_params<STRAIGHT>(sec_start,sec_end,stats.airspeed,stats.turn_radius,stats.climb),6);
+                                compute_params<STRAIGHT>(sec_start,sec_end,stats.airspeed,path->get_turn_radius(),path->get_climb()),6);
                             break;
 
                         case LEFT:
                             print_pathShape_fields<LEFT>(s,
-                                compute_params<LEFT>(sec_start,sec_end,stats.airspeed,stats.turn_radius,stats.climb),6);
+                                compute_params<LEFT>(sec_start,sec_end,stats.airspeed,path->get_turn_radius(),path->get_climb()),6);
                             break;
 
                         case RIGHT:
                             print_pathShape_fields<RIGHT>(s,
-                                compute_params<RIGHT>(sec_start,sec_end,stats.airspeed,stats.turn_radius,stats.climb),6);
+                                compute_params<RIGHT>(sec_start,sec_end,stats.airspeed,path->get_turn_radius(),path->get_climb()),6);
                             break;
                         
                         default:
@@ -360,7 +363,8 @@ void print_trajectory(std::ostream& s,
 void DubinsPP::OutputPrinter::print_paths_as_JSON(std::ostream& s, 
     const std::vector<std::unique_ptr<Dubins>>& paths,
     const std::vector<AircraftStats>& stats,
-    double wind_x, double wind_y)
+    double min_sep,
+    double wind_x, double wind_y, double z_alpha)
 {
     assert(paths.size() == stats.size());
 
@@ -372,6 +376,8 @@ void DubinsPP::OutputPrinter::print_paths_as_JSON(std::ostream& s,
     s << "{" << std::endl;
 
     {
+        print_field(s,"separation",min_sep,true,1);
+        print_field(s,"z_alpha",z_alpha,true,1);
         print_field(s,"wind_x",wind_x,true,1);
         print_field(s,"wind_y",wind_y,true,1);
         print_field(s,"duration",duration,true,1);
