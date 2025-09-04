@@ -40,8 +40,15 @@
 # debug information files
 *.dwo
 
+# Python
+.venv/**
+*.pyc
+
 # CMake build location
 build/**
+
+# Data produced
+results/**
 
 ##### Editors #####
 # VSCode
