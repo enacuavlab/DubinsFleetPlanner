@@ -46,32 +46,22 @@
 
                   Otherwise, stores the results in JSON format as follow (two sub-objects are defined further down):
                   {
-                     <!-- "separation": (Float Number: separation value), -->
-                     <!-- "z_alpha"   : (Float Number: Z distance modifier value), -->
-                     "wind_x"    : (Float Number: wind_x value),
-                     "wind_y"    : (Float Number: wind_y value),
+                     "separation": (Float Number: Minimal separation achieved),
+                     "z_alpha"   : (Float Number: Z distance modifier value),
+                     "wind_x"    : (Float Number: Wind speed along the X axis),
+                     "wind_y"    : (Float Number: Wind speed along the Y axis),
                      "duration"  : (Float Number: time duration of the plan)
                      "AC_num"    : (Int Number  : number of aircraft),
                      "trajectories": [
                         {
-                           "stats": {
-                              "id"         : (Int Number  : aircraft id),
-                              "airspeed"   : (Float Number: aircraft speed in air referential),
-                              "climb"      : (Float Number: aircraft climb rate),
-                              "turn_radius": (Float Number: aircraft minimal turn radius),
-                           },
-                           "path": {
-                              "total_length"  : (Float Number : total length of the path),
-                              "sections_count": (Int Number   : number of basic sectionsin this path),
-                              "start"         : (Pose3D object: starting pose),
-                              "end"           : (Pose3D object: ending pose),
-                              "sections": [
-                                 BasicPath objects,...
-                              ]
-                           }
+                           "stats": Stats object,
+                           "path": Path object
                         },...
                      ]
                   }
+
+                  A 'trajectory' is the combination of both the Path, i.e. the geometry drawing; and the Stats which describe how the aircraft follows said geometry.
+
 
                   A Pose3D object is defined as follow:
                   {
@@ -81,7 +71,26 @@
                      "theta": (Float Number: XY orientation, in radian)
                   }
 
-                  A BasicPath object is defined as follow:
+                  A Stats object:
+                  {
+                     "id"         : (Int Number  : aircraft id),
+                     "airspeed"   : (Float Number: aircraft speed in air referential),
+                     "climb"      : (Float Number: aircraft climb rate),
+                     "turn_radius": (Float Number: aircraft minimal turn radius),
+                  }
+
+                  A Path object:
+                  {
+                     "total_length"  : (Float Number : total length of the path),
+                     "sections_count": (Int Number   : number of basic sections in this path),
+                     "start"         : (Pose3D object: starting pose),
+                     "end"           : (Pose3D object: ending pose),
+                     "sections": [
+                        BasicPath objects,...
+                     ]
+                  }
+
+                  A BasicPath object:
                   {
                      "length": (Float Number: Length of this section)
                      "type"  : (String      : Either "LEFT","RIGHT" or "STRAIGHT", for describing a turn or a straight line movement),
