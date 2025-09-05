@@ -49,16 +49,19 @@ include_directories(${Boost_INCLUDE_DIRS})
 ### ScalarMin solver ###
 #find_package(ScalarMin REQUIRED)
 
-# -------------------- Targets -------------------- #
-
-add_subdirectory(src)
-
 # -------------------- Options -------------------- #
+
+option(DubinsFleetPlanner_PARALLEL "Enable parallel solver (Requires HiGHS Library)" ON)
 
 option(DubinsFleetPlanner_ENABLE_ASSERTIONS "Enable assertion checks" ON)
 
 
 option(DubinsFleetPlanner_TESTING "Enable testing for path planning (will download GTest)" ON)
+
+# -------------------- Targets -------------------- #
+
+add_subdirectory(src)
+
 
 # option(DubinsFleetPlanner_COVERAGE "Perform coverage analysis while running tests" ON)
 

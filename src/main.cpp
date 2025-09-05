@@ -15,11 +15,13 @@
 // You should have received a copy of the GNU General Public License
 // along with DubinsFleetPlanner.  If not, see <https://www.gnu.org/licenses/>.
 
+#include <string>
 #include <iostream>
 #include <unistd.h>
 
-#include "inputParser.hpp"
+#include "ioUtils.hpp"
 #include "FleetPathPlanner.hpp"
+
 
 void help()
 {
@@ -28,5 +30,14 @@ void help()
 
 int main(int argc, char *argv[])
 {
+    switch (argc)
+    {
+    case 3:
+        /* code */
+        break;
     
+    default:
+        help();
+        exit(0);
+    }
 }

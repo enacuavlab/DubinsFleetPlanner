@@ -242,4 +242,15 @@ public:
     template<bool geometric_filtering=true>
     bool is_XY_separated_from(const Dubins& other, double this_speed, double other_speed, 
         double duration, double min_dist, double tol=DubinsFleetPlanner_PRECISION) const;
+
+    /**
+     * @brief A static version of `is_XY_separated_from`
+     * 
+     */
+    template<bool geometric_filtering=true>
+    static bool are_XY_separated(const Dubins& first, const Dubins& second, double first_speed, double second_speed, 
+        double duration, double min_dist, double tol=DubinsFleetPlanner_PRECISION)
+    {
+        return first.is_XY_separated_from(second,first_speed,second_speed,duration,min_dist,tol);
+    }
 };

@@ -179,8 +179,7 @@ namespace DubinsPP
          */
         std::optional<std::vector<std::unique_ptr<Dubins>>> synchronised_XY_checks(
             const std::vector<Pose3D>& starts, const std::vector<Pose3D>& ends, const std::vector<AircraftStats>& stats,
-            const std::vector<double>& delta_t,
-            double min_sep, double wind_x = 0., double wind_y = 0.,
+            double min_sep, const std::vector<double>& delta_t = {0.}, double wind_x = 0., double wind_y = 0.,
             double max_r_duration = 3., double t_tol = 1e-6,
             uint max_iters = 100
         );
@@ -399,7 +398,7 @@ namespace
                             dubin->get_length()/this_speed,
                             other->get_length()/other_speed);
 
-                        conflict_with_existing = !dubin->is_XY_separated_from(*other,this_speed,other_speed,duration,min_sep);
+                        conflict_with_existing = !Dubins::are_XY_separated(*dubin,*other,this_speed,other_speed,duration,min_sep);
                         conflicts_memo.insert({ccase,conflict_with_existing});
                     }
                     else    // Otherwise, simply retrieve the value
@@ -771,5 +770,90 @@ std::optional<std::array<std::unique_ptr<Dubins>,N>> DubinsPP::BasicDubins::sync
 #endif
     return std::nullopt;
 }
+
+std::optional<std::vector<std::unique_ptr<Dubins>>> DubinsPP::BasicDubins::synchronised_XY_checks(
+    const std::vector<Pose3D>& starts, const std::vector<Pose3D>& ends, const std::vector<AircraftStats>& stats,
+    double min_sep, const std::vector<double>& delta_t, double wind_x, double wind_y,
+    double max_r_length, double t_tol,
+    uint max_iters
+)
+{
+    uint N = starts.size();
+#if defined(DubinsFleetPlanner_ASSERTIONS) && DubinsFleetPlanner_ASSERTIONS > 0
+    assert(max_r_length > 1.);
+    assert(max_iters > 1);
+    assert(t_tol > 0);
+    assert(starts.size() == ends.size());
+    assert(starts.size() == stats.size());
+    assert(starts.size() == delta_t.size() -1);
+
+    for(uint i = 0; i < N; i++)
+    {
+        for(uint j = i+1; j < N; j++)
+        {
+            assert(pose_dist_XY(starts[i],starts[j]) > min_sep);
+        }
+    }
+#endif
+
+    double min_travel_time = compute_max_of_mins_traveltime_vec(starts,ends,stats,delta_t);
+
+    uint iter_count = 0;
+    double iter_step = min_travel_time*(max_r_length-1)/max_iters;
+
+    std::vector<ArrayOfBaseDubins> list_of_choices(N);
+    while(iter_count < max_iters)
+    {
+        double travel_time = min_travel_time + iter_count*iter_step;
+
+#if defined(DubinsFleetPlanner_DEBUG_MSG) && DubinsFleetPlanner_DEBUG_MSG > 0
+        std::cout   << "Starting iteration number " << iter_count << " / " << max_iters
+                    << " (target time: " << travel_time << " )" << std::endl;
+#endif
+        
+        std::vector<double> times(N);
+        compute_arrival_times(times,delta_t,travel_time);
+        list_all_possibilities(list_of_choices,starts,ends,stats,times,wind_x,wind_y,t_tol);
+
+#if defined(DubinsFleetPlanner_DEBUG_MSG) && DubinsFleetPlanner_DEBUG_MSG > 0
+        std::cout   << "  - Fitting done, starting search" << std::endl; 
+#endif
+
+        std::optional<std::vector<uint>> result = pathfinder_XY_separation
+            <std::vector<ArrayOfBaseDubins>,std::vector<AircraftStats>,std::vector<uint>>
+            (list_of_choices,stats,min_sep);
+
+        if (result.has_value())
+        {
+
+#if defined(DubinsFleetPlanner_DEBUG_MSG) && DubinsFleetPlanner_DEBUG_MSG > 0
+        std::cout   << "  - Solution found! Returning..." << std::endl << std::endl; 
+#endif
+            std::vector<std::unique_ptr<Dubins>> output(N);
+            std::vector<uint> choices = result.value();
+
+            for(uint i = 0; i < N; i++)
+            {
+                output[i] = std::move(list_of_choices[i][choices[i]]);
+            }
+
+            return output;
+        }
+        else
+        {
+#if defined(DubinsFleetPlanner_DEBUG_MSG) && DubinsFleetPlanner_DEBUG_MSG > 0
+        std::cout   << "  - No solution..." << std::endl << std::endl; 
+#endif
+            iter_count++;
+        }
+
+    }
+
+#if defined(DubinsFleetPlanner_DEBUG_MSG) && DubinsFleetPlanner_DEBUG_MSG > 0
+        std::cout   << "-> No Solution found... Returning nullptrs" << std::endl << std::endl; 
+#endif
+    return std::nullopt;
+}
+
 
 
