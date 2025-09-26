@@ -20,7 +20,7 @@
 // ---------------------------------------- Misc function ---------------------------------------- //
 
 static double compute_plan_duration(
-    const std::vector<std::unique_ptr<Dubins>>& paths,
+    const std::vector<std::shared_ptr<Dubins>>& paths,
     const std::vector<AircraftStats>& stats)
 {
     assert(paths.size() == stats.size());
@@ -283,7 +283,7 @@ static inline void print_pathShape_fields(std::ostream& s, PathShape<m> p, uint 
 
 
 void print_trajectory(std::ostream& s, 
-    const std::unique_ptr<Dubins>& path,
+    const std::shared_ptr<Dubins>& path,
     const AircraftStats& stats,
     double wind_x, double wind_y, double duration)
 {
@@ -361,7 +361,7 @@ void print_trajectory(std::ostream& s,
 }
 
 void DubinsPP::OutputPrinter::print_paths_as_JSON(std::ostream& s, 
-    const std::vector<std::unique_ptr<Dubins>>& paths,
+    const std::vector<std::shared_ptr<Dubins>>& paths,
     const std::vector<AircraftStats>& stats,
     double min_sep,
     double wind_x, double wind_y, double z_alpha)
@@ -400,7 +400,7 @@ void DubinsPP::OutputPrinter::print_paths_as_JSON(std::ostream& s,
 }
 
 void DubinsPP::OutputPrinter::print_paths_as_CSV(std::ostream& s, 
-    const std::vector<std::unique_ptr<Dubins>>& paths,
+    const std::vector<std::shared_ptr<Dubins>>& paths,
     const std::vector<AircraftStats>& stats,
     double wind_x, double wind_y, uint samples)
 {

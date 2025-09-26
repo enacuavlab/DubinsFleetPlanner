@@ -43,7 +43,7 @@
 #endif
 
 #ifndef TEST_AIRCRAFT_NUM 
-#define TEST_AIRCRAFT_NUM 21
+#define TEST_AIRCRAFT_NUM 25
 #endif
 
 #ifndef TEST_AIRPORT_RADIUS
@@ -76,11 +76,11 @@ int main()
 
     // -------------------- Generate test cases -------------------- //
     double wind_x = 0.;//0.3;
-    double wind_y = 0.;//-0.2;
+    double wind_y = 0.2;
     double min_sep = TEST_AIRPORT_AIRSEP;
 
     constexpr uint N = TEST_AIRCRAFT_NUM;
-    const std::string test_name("random_to_airport_" + std::to_string(N));
+    const std::string test_name("airport_arrival_" + std::to_string(N));
     const std::string file_format("json");
 
     std::array<Pose3D,N> random_poses = generate_random<N>(static_cast<double>(N),1.,12);
@@ -88,14 +88,16 @@ int main()
     std::array<Pose3D,N> hchev_3_bis = generate_P_chevron<N,N/3>(1.5,1.2);
     std::array<Pose3D,N> circ = generate_circle<N>(std::sqrt(N));
     std::array<Pose3D,N> hline = generate_hline<N>(1.5);
+    std::array<Pose3D,N> hline_bis = generate_hline<N>(1.5);
     std::array<Pose3D,N> hchevron = generate_hchevron<N>(1.5,1.);
-    std::array<Pose3D,N> random_circle_inward = generate_random_circle_inward<N>(TEST_AIRPORT_RADIUS,0.,M_PI_4,2);
-    std::array<Pose3D,N> airport_ordinal_arrivals = generate_ordinals<N>(TEST_AIRPORT_RADIUS,0.,TEST_AIRPORT_AIRSEP+1);
+    std::array<Pose3D,N> random_circle_inward = generate_random_circle_inward<N>(1.2*TEST_AIRPORT_RADIUS,0.,M_PI_4,7);
+    std::array<Pose3D,N> airport_ordinal_arrivals = generate_ordinals<N>(TEST_AIRPORT_RADIUS,0.,TEST_AIRPORT_AIRSEP*5);
 
     std::array<Pose3D,N> airport; airport.fill(Pose3D(0,0,0,M_PI_2));
 
     shift_poses(hline,Pose3D(0.,0*static_cast<double>(N),0.,0.));
-    shift_poses(hchevron,Pose3D(0.,1*static_cast<double>(N),0.,0.));
+    shift_poses(hline_bis,Pose3D(0.,2*static_cast<double>(N),0.,0.));
+    shift_poses(hchevron,Pose3D(0.,2*static_cast<double>(N),0.,0.));
     shift_poses(hchev_3,Pose3D(0.,1*static_cast<double>(N),0.,0.));
     rotate_around_poses(hchev_3_bis,Pose3D(0.,0.,0.,M_PI_2));
     shift_poses(hchev_3_bis,Pose3D(static_cast<double>(N),2*static_cast<double>(N),0.,0.));
@@ -117,10 +119,18 @@ int main()
         stats[i].turn_radius = TEST_AIRPORT_TURN;
     }
 
+    std::vector<AircraftStats> stats_vec(stats.cbegin(),stats.cend());
 
-    std::array<Pose3D,N> starts = airport_ordinal_arrivals;
+
+    std::array<Pose3D,N> starts = random_circle_inward;
     std::array<Pose3D,N> ends   = airport;
-    std::array<double,N-1> delta_t; delta_t.fill(TEST_AIRPORT_TIMESEP);
+    std::array<double,N-1> delta_t; 
+    // delta_t.fill(0.); 
+    delta_t.fill(TEST_AIRPORT_TIMESEP);
+
+    std::vector<Pose3D> starts_vec(starts.cbegin(),starts.cend());
+    std::vector<Pose3D> ends_vec(ends.cbegin(),ends.cend());
+    std::vector<double> delta_t_vec(delta_t.cbegin(),delta_t.cend());
 
 
     // std::cout   << "Start: " << std::endl << pose_to_string(starts[0]) << std::endl
@@ -132,6 +142,9 @@ int main()
     // auto opt_result = DubinsPP::BasicDubins::synchronised_no_checks<N>(starts,ends,stats,delta_t,wind_x,wind_y);
     auto opt_result = DubinsPP::BasicDubins::synchronised_XY_checks<N>(starts,ends,stats,min_sep,delta_t,wind_x,wind_y,
         5.,1e-6,500);
+
+    // auto opt_result = DubinsPP::BasicDubins::synchronised_XY_checks_parallel(starts_vec,ends_vec,stats_vec,min_sep,delta_t_vec,wind_x,wind_y,
+    //     5.,1e-6,500);
 
     if (!opt_result.has_value())
     {
@@ -147,14 +160,11 @@ int main()
 
     // ---------- Individual trajectories ---------- //
 
-    std::vector<std::unique_ptr<Dubins>> results_vec(results.size());
+    std::vector<std::shared_ptr<Dubins>> results_vec(results.size());
     for(uint i = 0; i < results.size(); i++)
     {
         results_vec[i] = std::move(results[i]);
     }
-
-    std::vector<AircraftStats> stats_vec(stats.cbegin(),stats.cend());
-
 
     double sampled_min_dist = Visualisation::plot_multiple_paths<PLOTTING_SAMPLES>(plot,results_vec,stats_vec,wind_x,wind_y);
 

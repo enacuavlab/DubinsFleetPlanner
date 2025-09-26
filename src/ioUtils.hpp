@@ -70,14 +70,14 @@ namespace DubinsPP
     namespace OutputPrinter
     {
         void print_paths_as_JSON(std::ostream&, 
-            const std::vector<std::unique_ptr<Dubins>>& paths,
+            const std::vector<std::shared_ptr<Dubins>>& paths,
             const std::vector<AircraftStats>& stats,
             double min_sep,
             double wind_x, double wind_y,
             double z_alpha=1.);
 
         void print_paths_as_CSV(std::ostream&, 
-            const std::vector<std::unique_ptr<Dubins>>& paths,
+            const std::vector<std::shared_ptr<Dubins>>& paths,
             const std::vector<AircraftStats>& stats,
             double wind_x, double wind_y, uint samples);
     } // namespace OutputPrinter

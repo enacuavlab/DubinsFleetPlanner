@@ -21,6 +21,7 @@
 #include <array>
 #include <cmath>
 #include <string>
+#include <memory>
 
 #include "ProjectHeader.h"
 
@@ -254,3 +255,8 @@ public:
         return first.is_XY_separated_from(second,first_speed,second_speed,duration,min_dist,tol);
     }
 };
+
+
+// ----- Other helper functions ----- //
+
+std::vector<std::shared_ptr<Dubins>> make_Dubins_vector_shared(std::vector<std::unique_ptr<Dubins>>&);

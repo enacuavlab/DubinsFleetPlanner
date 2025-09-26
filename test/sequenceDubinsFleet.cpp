@@ -102,7 +102,7 @@ int main()
 
         auto& results = opt_result.value();    
 
-        std::vector<std::unique_ptr<Dubins>> results_vec(results.size());
+        std::vector<std::shared_ptr<Dubins>> results_vec(results.size());
         for(uint i = 0; i < results.size(); i++)
         {
             results_vec[i] = std::move(results[i]);

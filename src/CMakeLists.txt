@@ -3,6 +3,8 @@
 # This software is released under the MIT License.
 # https://opensource.org/licenses/MIT
 
+include(FetchContent)
+
 #################### General configuration #################### 
 
 if(DubinsFleetPlanner_ENABLE_ASSERTIONS)
@@ -39,21 +41,31 @@ set(DubinsFleetPlannerLib_INCL
     ${libs_dir}/csv_reader)
 
 if(DubinsFleetPlanner_PARALLEL)
+    ### HiGHS Solver ###
+
+    set(HIGHS_DIR /usr/local/lib/cmake/highs)
+    find_package(HIGHS REQUIRED)
+
     set(DubinsFleetPlannerLib_SRC
         ${DubinsFleetPlannerLib_SRC}
-        ConflictMatrix.cpp)
-    
-    set(DubinsFleetPlannerLib_INCL
-        ${DubinsFleetPlannerLib_INCL} 
-        ${libs_dir}/HiGHS)
+        ConflictList.cpp)
+
 endif()
 
 add_library(DubinsFleetPlannerLib SHARED ${DubinsFleetPlannerLib_SRC})
 
 target_include_directories(DubinsFleetPlannerLib PUBLIC ${DubinsFleetPlannerLib_INCL})
 
+if(DubinsFleetPlanner_PARALLEL)
+    ### HiGHS Solver ###
+
+    target_link_libraries(DubinsFleetPlannerLib highs::highs)
+
+endif()
+
 # target_link_libraries(DubinsFleetPlanner PUBLIC Boost::headers ScalarMin)
 
 add_executable(DubinsFleetPlanner main.cpp)
-target_link_libraries(DubinsFleetPlanner PUBLIC DubinsFleetPlannerLib)
+
 target_include_directories(DubinsFleetPlanner PUBLIC ${DubinsFleetPlannerLib_INCL})
+target_link_libraries(DubinsFleetPlanner PUBLIC DubinsFleetPlannerLib)

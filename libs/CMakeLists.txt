@@ -18,5 +18,5 @@
 add_subdirectory(combinations)
 add_subdirectory(csv_reader)
 add_subdirectory(eigen)
-add_subdirectory(HiGHS)
+# add_subdirectory(HiGHS)
 add_subdirectory(ScalarMin)

@@ -32,6 +32,8 @@
 #include "Dubins.hpp"
 #include "BaseDubins.hpp"
 
+#include "ConflictList.hpp"
+
 namespace DubinsPP
 {
 
@@ -185,7 +187,12 @@ namespace DubinsPP
         );
 
 
-        
+        std::optional<std::vector<std::shared_ptr<Dubins>>> synchronised_XY_checks_parallel(
+            const std::vector<Pose3D>& starts, const std::vector<Pose3D>& ends, const std::vector<AircraftStats>& stats,
+            double min_sep, const std::vector<double>& delta_t = {0.}, double wind_x = 0., double wind_y = 0.,
+            double max_r_duration = 3., double t_tol = 1e-6,
+            uint max_iters = 100, uint THREADS = std::thread::hardware_concurrency()/2
+        );
     }
 }
 
@@ -286,7 +293,7 @@ namespace
 #if defined(DubinsFleetPlanner_ASSERTIONS) && DubinsFleetPlanner_ASSERTIONS > 0
         assert(dts.size() >= outputs.size()-1);
 #endif
-        uint N = dts.size();
+        uint N = outputs.size();
         outputs[0] = time_ref;
         for(uint i = 1; i < N; i++)
         {
@@ -294,9 +301,9 @@ namespace
         }
     }
 
-    template<class output_T, class endpoints_T, class stats_T, class times_T>
+    template<class output_T, class endpoints_T, class stats_T, class times_T, typename DubinsPathsGenerator_T>
     void list_all_possibilities(
-        output_T& outputs,
+        output_T& outputs, DubinsPathsGenerator_T paths_gen_function,
         const endpoints_T& starts, const endpoints_T& ends,
         const stats_T& stats, const times_T& times, double wind_x, double wind_y, double tol)
     {
@@ -317,7 +324,7 @@ namespace
             double target_len = target_time*stats[i].airspeed;
 
             // List all possibilities for aircraft i
-            outputs[i] = fit_all_baseDubins(
+            outputs[i] = paths_gen_function(
                 stats[i].climb,
                 stats[i].turn_radius,
                 starts[i],base_end,
@@ -530,7 +537,7 @@ std::optional<std::array<std::unique_ptr<Dubins>,N>> DubinsPP::BasicDubins::sync
 #endif
         std::array<double,N> times;
         compute_arrival_times(times,delta_t,travel_time);
-        list_all_possibilities(list_of_choices,starts,ends,stats,times,wind_x,wind_y,t_tol);
+        list_all_possibilities(list_of_choices,fit_all_baseDubins,starts,ends,stats,times,wind_x,wind_y,t_tol);
 
         bool next_iter = false;
 
@@ -550,6 +557,11 @@ std::optional<std::array<std::unique_ptr<Dubins>,N>> DubinsPP::BasicDubins::sync
             
             if (!found_candidate)
             {
+
+#if defined(DubinsFleetPlanner_DEBUG_MSG) && DubinsFleetPlanner_DEBUG_MSG > 0
+                std::cout   << "No solution for aircraft " << i << std::endl;
+#endif
+
                 next_iter = true;
                 break;
             }
@@ -562,10 +574,6 @@ std::optional<std::array<std::unique_ptr<Dubins>,N>> DubinsPP::BasicDubins::sync
         }
         else
         {
-            for(uint i = 0; i < N; i++)
-            {
-                output[i] = std::move(list_of_choices[i][0]);
-            }
             return output;
         }
 
@@ -706,7 +714,7 @@ std::optional<std::array<std::unique_ptr<Dubins>,N>> DubinsPP::BasicDubins::sync
         
         std::array<double,N> times;
         compute_arrival_times(times,delta_t,travel_time);
-        list_all_possibilities(list_of_choices,starts,ends,stats,times,wind_x,wind_y,t_tol);
+        list_all_possibilities(list_of_choices,fit_all_baseDubins,starts,ends,stats,times,wind_x,wind_y,t_tol);
 
         // double dt = 0.;
         // for(uint i = 0; i < N; i++)
@@ -813,7 +821,7 @@ std::optional<std::vector<std::unique_ptr<Dubins>>> DubinsPP::BasicDubins::synch
         
         std::vector<double> times(N);
         compute_arrival_times(times,delta_t,travel_time);
-        list_all_possibilities(list_of_choices,starts,ends,stats,times,wind_x,wind_y,t_tol);
+        list_all_possibilities(list_of_choices,fit_all_baseDubins,starts,ends,stats,times,wind_x,wind_y,t_tol);
 
 #if defined(DubinsFleetPlanner_DEBUG_MSG) && DubinsFleetPlanner_DEBUG_MSG > 0
         std::cout   << "  - Fitting done, starting search" << std::endl; 
@@ -838,6 +846,91 @@ std::optional<std::vector<std::unique_ptr<Dubins>>> DubinsPP::BasicDubins::synch
             }
 
             return output;
+        }
+        else
+        {
+#if defined(DubinsFleetPlanner_DEBUG_MSG) && DubinsFleetPlanner_DEBUG_MSG > 0
+        std::cout   << "  - No solution..." << std::endl << std::endl; 
+#endif
+            iter_count++;
+        }
+
+    }
+
+#if defined(DubinsFleetPlanner_DEBUG_MSG) && DubinsFleetPlanner_DEBUG_MSG > 0
+        std::cout   << "-> No Solution found... Returning nullptrs" << std::endl << std::endl; 
+#endif
+    return std::nullopt;
+}
+
+
+std::optional<std::vector<std::shared_ptr<Dubins>>> DubinsPP::BasicDubins::synchronised_XY_checks_parallel(
+    const std::vector<Pose3D>& starts, const std::vector<Pose3D>& ends, const std::vector<AircraftStats>& stats,
+    double min_sep, const std::vector<double>& delta_t, double wind_x, double wind_y,
+    double max_r_length, double t_tol,
+    uint max_iters, uint THREADS
+)
+{
+    uint N = starts.size();
+#if defined(DubinsFleetPlanner_ASSERTIONS) && DubinsFleetPlanner_ASSERTIONS > 0
+    assert(max_r_length > 1.);
+    assert(max_iters > 1);
+    assert(t_tol > 0);
+    assert(starts.size() == ends.size());
+    assert(starts.size() == stats.size());
+    assert(starts.size()-1 == delta_t.size());
+
+    for(uint i = 0; i < N; i++)
+    {
+        for(uint j = i+1; j < N; j++)
+        {
+            assert(pose_dist_XY(starts[i],starts[j]) > min_sep);
+        }
+    }
+#endif
+
+    double min_travel_time = compute_max_of_mins_traveltime_vec(starts,ends,stats,delta_t);
+    Highs base_model;
+    setup_base_model(base_model, N,std::tuple_size_v<AllBaseDubins>);
+
+    uint iter_count = 0;
+    double iter_step = min_travel_time*(max_r_length-1)/max_iters;
+
+    ListOfPossibilities list_of_choices(N);
+    SharedListOfPossibilities shared_list_of_choices(N);
+    while(iter_count < max_iters)
+    {
+        double travel_time = min_travel_time + iter_count*iter_step;
+
+#if defined(DubinsFleetPlanner_DEBUG_MSG) && DubinsFleetPlanner_DEBUG_MSG > 0
+        std::cout   << "Starting iteration number " << iter_count << " / " << max_iters
+                    << " (target time: " << travel_time << " )" << std::endl;
+#endif
+        
+        std::vector<double> times(N);
+        compute_arrival_times(times,delta_t,travel_time);
+        list_all_possibilities(list_of_choices,fit_possible_baseDubins,starts,ends,stats,times,wind_x,wind_y,t_tol);
+
+        for(uint ii = 0; ii < N; ii++)
+        {
+            shared_list_of_choices[ii] = make_Dubins_vector_shared(list_of_choices[ii]);
+        }
+
+
+#if defined(DubinsFleetPlanner_DEBUG_MSG) && DubinsFleetPlanner_DEBUG_MSG > 0
+        std::cout   << "  - Fitting done, starting search" << std::endl;
+#endif
+        std::vector<Conflict_T> conflicts = parallel_compute_XY_separations(shared_list_of_choices,stats,min_sep,THREADS);
+        std::optional<std::vector<std::shared_ptr<Dubins>>> result = find_pathplanning_LP_solution(shared_list_of_choices,stats,conflicts,std::tuple_size_v<AllBaseDubins>,&base_model);
+
+        if (result.has_value())
+        {
+
+#if defined(DubinsFleetPlanner_DEBUG_MSG) && DubinsFleetPlanner_DEBUG_MSG > 0
+        std::cout   << "  - Solution found! Returning..." << std::endl << std::endl; 
+#endif
+
+            return result;
         }
         else
         {

@@ -170,7 +170,7 @@ namespace Visualisation
 
     template<uint samples>
     double plot_multiple_paths(Plot2D& plot, 
-        const std::vector<std::unique_ptr<Dubins>>& dubins, const std::vector<AircraftStats>& stats,
+        const std::vector<std::shared_ptr<Dubins>>& dubins, const std::vector<AircraftStats>& stats,
         double wind_x, double wind_y)
     {
         static_assert(samples > 1);

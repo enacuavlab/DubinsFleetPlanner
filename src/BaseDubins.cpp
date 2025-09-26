@@ -356,6 +356,8 @@ double BaseDubins<fst,snd,trd>::adjust_length([[maybe_unused]] double target_len
     return NAN;
 }
 
+// -- Single thread, single owner version -- //
+
 ArrayOfBaseDubins list_all_baseDubins(double _climb, double _turn_radius, const Pose3D& _start, const Pose3D& _end)
 {
     ArrayOfBaseDubins output = {
@@ -473,5 +475,23 @@ std::vector<std::unique_ptr<Dubins>> fit_possible_baseDubins(double _climb, doub
     transfer(LRL_ptr);
     transfer(SRS_ptr);
     transfer(SLS_ptr);
+    return output;
+}
+
+// -- Conversion to shared ptr -- //
+
+SharedArrayOfBaseDubins make_baseDubins_array_shared(ArrayOfBaseDubins& arr)
+{
+    SharedArrayOfBaseDubins output = {
+        std::move(arr[0]),
+        std::move(arr[1]),
+        std::move(arr[2]),
+        std::move(arr[3]),
+        std::move(arr[4]),
+        std::move(arr[5]),
+        std::move(arr[6]),
+        std::move(arr[7])
+    };
+
     return output;
 }

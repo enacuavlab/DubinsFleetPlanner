@@ -265,3 +265,19 @@ template bool Dubins::is_XY_separated_from<true>(const Dubins& other, double thi
         double duration, double min_dist, double tol) const;
 template bool Dubins::is_XY_separated_from<false>(const Dubins& other, double this_speed, double other_speed, 
         double duration, double min_dist, double tol) const;
+
+
+
+// -------------------- Other helper functions -------------------- //
+
+std::vector<std::shared_ptr<Dubins>> make_Dubins_vector_shared(std::vector<std::unique_ptr<Dubins>>& vec)
+{
+    std::vector<std::shared_ptr<Dubins>> output(vec.size());
+
+    for(uint i = 0; i < vec.size(); i++)
+    {
+        output[i] = std::move(vec[i]);
+    }
+    
+    return output;
+}
