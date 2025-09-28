@@ -160,6 +160,56 @@ std::array<Pose3D,N> generate_random_circle_inward(double radius, double altitud
 }
 
 template<uint N>
+std::array<Pose3D,N> generate_random_safe_disk_inward(double min_radius, double max_radius, 
+    double altitude, double orientation_eps, double min_sep, int max_tries = 100, int seed=0)
+{
+    std::default_random_engine gen(seed); // Some seeded RNG 
+    std::array<Pose3D,N> output;
+
+    min_sep = std::abs(min_sep);
+
+    min_radius  = std::abs(min_radius);
+    max_radius  = std::abs(max_radius);
+    if (min_radius > max_radius)
+    {
+        std::swap(min_radius,max_radius);
+    }
+
+    orientation_eps = std::abs(orientation_eps);
+
+    std::uniform_real_distribution<double> dis_pos_angle(-M_PI, M_PI);
+    std::uniform_real_distribution<double> dis_pos_r(min_radius, max_radius);
+    std::uniform_real_distribution<double> dis_angle(-orientation_eps,orientation_eps);
+
+    for(uint i = 0; i < N; i++)
+    {
+        double min_dist;
+        int test_num = 0;
+        do
+        {
+            double angle        = dis_pos_angle(gen);
+            double radius       = dis_pos_r(gen);
+            double orientation  = angle + M_PI + dis_angle(gen);
+
+            output[i].x     = radius*std::cos(angle);
+            output[i].y     = radius*std::sin(angle);
+            output[i].z     = altitude;
+            output[i].theta = orientation;
+
+            test_num++;
+
+            min_dist = (i == 0) ? min_sep*2 : std::get<2>(min_poses_dist(pose_dist_XY,output.data(),i)); 
+
+        } while (min_dist < min_sep && test_num < max_tries);
+
+
+        assert(test_num < max_tries);
+    }
+
+    return output;
+}
+
+template<uint N>
 std::array<Pose3D,N> generate_ordinals(double radius, double altitude, double sep)
 {
     std::array<Pose3D,N> output;

@@ -183,7 +183,7 @@ namespace Visualisation
         for(uint i = 0; i < N; i++)
         {
             auto& d = dubins[i];
-            max_time = std::max(max_time, d->get_length()/stats[i].airspeed);
+            max_time = std::max(max_time, d->get_duration(stats[i].airspeed));
             Visualisation::plot_path<samples>(plot,*d, stats[i].airspeed, wind_x, wind_y)
                 .label(std::to_string(i) + std::string(": ") + d->get_type_abbr() + std::string(" ") + std::to_string(d->get_length()))
                 .lineColor(Visualisation::get_color(i));
@@ -212,7 +212,14 @@ namespace Visualisation
             std::vector<Pose3D> poses(N);
             for(uint j = 0; j < N; j++)
             {
-                poses[j] = dubins[j]->get_position(ctime,stats[j].airspeed);
+                if (ctime > dubins[j]->get_duration(stats[j].airspeed))
+                {
+                    poses[j] = UndefPose;
+                }
+                else
+                {
+                    poses[j] = dubins[j]->get_position(ctime,stats[j].airspeed);
+                }
             }
 
             std::tuple<uint,uint,double> min_dist_loc = min_vec_poses_dist_XY(poses);

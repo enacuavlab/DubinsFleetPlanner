@@ -45,6 +45,10 @@ class Pose3D:
     
     def asdict(self) -> dict[str,float]:
         return asdict(self)
+    
+    @staticmethod
+    def undefined() -> Pose3D:
+        return Pose3D(np.nan,np.nan,np.nan,np.nan)
         
     
 def poses_XY_dist(p1:Pose3D,p2:Pose3D) -> float:
@@ -164,6 +168,9 @@ class Path:
     def pose_at(self,t:float) -> Pose3D:
         section_id = 0
         time = t
+        if time > self.duration():
+            return Pose3D.undefined()
+        
         while section_id < len(self.junctions) and t > self.junctions[section_id]:
             time -= self.sections[section_id].duration()
             section_id += 1

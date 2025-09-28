@@ -90,7 +90,10 @@ int main()
     std::array<Pose3D,N> hline = generate_hline<N>(1.5);
     std::array<Pose3D,N> hline_bis = generate_hline<N>(1.5);
     std::array<Pose3D,N> hchevron = generate_hchevron<N>(1.5,1.);
-    std::array<Pose3D,N> random_circle_inward = generate_random_circle_inward<N>(1.2*TEST_AIRPORT_RADIUS,0.,M_PI_4,7);
+    std::array<Pose3D,N> random_disk_inward = generate_random_safe_disk_inward<N>(0.9*TEST_AIRPORT_RADIUS,3*TEST_AIRPORT_RADIUS,
+        0.,M_PI_4,TEST_AIRPORT_AIRSEP,
+        100000,3);
+
     std::array<Pose3D,N> airport_ordinal_arrivals = generate_ordinals<N>(TEST_AIRPORT_RADIUS,0.,TEST_AIRPORT_AIRSEP*5);
 
     std::array<Pose3D,N> airport; airport.fill(Pose3D(0,0,0,M_PI_2));
@@ -122,8 +125,17 @@ int main()
     std::vector<AircraftStats> stats_vec(stats.cbegin(),stats.cend());
 
 
-    std::array<Pose3D,N> starts = random_circle_inward;
+
+    std::array<Pose3D,N> starts = random_disk_inward;
     std::array<Pose3D,N> ends   = airport;
+
+    // Sort by distance to airport
+    auto sort_function = [&](const Pose3D& a, const Pose3D& b)
+    {
+        return pose_dist_XY(a,airport[0]) <= pose_dist_XY(b,airport[0]);
+    };
+    std::sort(starts.begin(),starts.end(),sort_function);
+
     std::array<double,N-1> delta_t; 
     // delta_t.fill(0.); 
     delta_t.fill(TEST_AIRPORT_TIMESEP);
@@ -144,7 +156,7 @@ int main()
         5.,1e-6,500);
 
     // auto opt_result = DubinsPP::BasicDubins::synchronised_XY_checks_parallel(starts_vec,ends_vec,stats_vec,min_sep,delta_t_vec,wind_x,wind_y,
-    //     5.,1e-6,500);
+        // 5.,1e-6,500);
 
     if (!opt_result.has_value())
     {

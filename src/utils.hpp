@@ -51,6 +51,10 @@ typedef struct {
     double theta; // XY Orientation (in radiants, 0 is pure X, pi/2 is pure Y)
 } Pose3D;
 
+const Pose3D UndefPose{
+    NAN,NAN,NAN,NAN
+};
+
 std::string pose_to_string(const Pose3D& p);
 
 /**
@@ -217,6 +221,37 @@ inline std::tuple<uint,uint,double> min_vec_poses_dist_XY(const std::vector<Pose
  */
 template<std::regular_invocable<Pose3D,Pose3D> F, uint N>
 std::tuple<uint,uint,double> min_poses_dist(F f, const std::array<Pose3D,N>& poses)
+{
+    double min_dist = INFINITY;
+    uint i0,j0;
+
+    for(uint i = 0; i < N; i++)
+    {
+        for(uint j = i+1; j < N; j++)
+        {
+            double dist = f(poses[i],poses[j]);
+            if (dist < min_dist)
+            {
+                min_dist = dist;
+                i0 = i;
+                j0 = j;
+            }
+        }
+    }
+
+    return {i0,j0,min_dist};
+}
+
+/**
+ * @brief Generic function computing the minimal distance in a dynamic-length array of points, given some distance function
+ * 
+ * @tparam F Distance function between two Pose3D
+ * @param poses Array of poses
+ * @param N Number of poses
+ * @return std::tuple<uint,uint,double> id0, id1, min_dist identifying the points and minimal distance in the given set 
+ */
+template<std::regular_invocable<Pose3D,Pose3D> F>
+std::tuple<uint,uint,double> min_poses_dist(F f, const Pose3D* poses, uint N)
 {
     double min_dist = INFINITY;
     uint i0,j0;
