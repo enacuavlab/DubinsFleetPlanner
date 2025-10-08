@@ -186,7 +186,28 @@ namespace DubinsPP
             uint max_iters = 100
         );
 
-
+        /**
+         * @brief Compute a synchronized path planning for a team of fixed-wing aircraft, considering XY separation
+         * 
+         * Proceed by estimating a minimal travel time (using individual path planning), then try to compute a solution
+         * with the given travel time estimation. If it works, return the solution. Otherwise, increase the travel time and retry.
+         * The travel time is linearly increased from the minimum estimate t_min to t_min * max_r_duration with max_iters samples.
+         * 
+         * This version uses only basic Dubins paths for its planning.
+         * 
+         * @param starts    Starting points
+         * @param ends      Ending points, ordered by rank of arrival
+         * @param stats     Aircraft characteristics (speed, climb rate, turn radius)
+         * @param delta_t   By how much time the arrival of aircraft N+1 should be delayed from aircraft N. Default to 0s (synchronised arrivals)
+         * @param min_sep   Minimal XY euclidean distance that must be kept between two aircraft at all time
+         * @param wind_x    Wind, x component (default to 0 if unspecified)
+         * @param wind_y    Wind, y component (default to 0 if unspecified)
+         * @param max_r_duration Maximum relative duration, ie by how much the initial travel time guess can be multiplied by. Must be greater than 1. Default to 3.
+         * @param t_tol     Tolerance (absolue) for timing accuracy. Must be positive. Default to 1e-6
+         * @param max_iters Maximum number of iterations. Must be greater than 2. Default to 100
+         * @param THREADS   Number of threads to use when computing separation between trajectories
+         * @return std::array<std::unique_ptr<Dubins>,N> 
+         */
         std::optional<std::vector<std::shared_ptr<Dubins>>> synchronised_XY_checks_parallel(
             const std::vector<Pose3D>& starts, const std::vector<Pose3D>& ends, const std::vector<AircraftStats>& stats,
             double min_sep, const std::vector<double>& delta_t = {0.}, double wind_x = 0., double wind_y = 0.,
@@ -194,13 +215,104 @@ namespace DubinsPP
             uint max_iters = 100, uint THREADS = std::thread::hardware_concurrency()/2
         );
     }
+
+    namespace ExtendedDubins
+    {
+        /**
+         * @brief Compute a synchronized path planning for a team of fixed-wing aircraft, ignoring collisions
+         * 
+         * Proceed by estimating a minimal travel time (using individual path planning), then try to compute a solution
+         * with the given travel time estimation. If it works, return the solution. Otherwise, increase the travel time and retry.
+         * The travel time is linearly increased from the minimum estimate t_min to t_min * max_r_duration with max_iters samples.
+         * 
+         * This version extends basic Dubins paths, i.e. adds a straight or a turn at the start and end of each possible Dubins path.
+         * 
+         * @param starts    Starting points
+         * @param ends      Ending points, ordered by rank of arrival
+         * @param stats     Aircraft characteristics (speed, climb rate, turn radius)
+         * @param delta_t   By how much time the arrival of aircraft N+1 should be delayed from aircraft N.
+         * @param stimes    Possible durations of the first segment 
+         * @param etimes    Possible durations of the last segment
+         * @param wind_x    Wind, x component (default to 0 if unspecified)
+         * @param wind_y    Wind, y component (default to 0 if unspecified)
+         * @param max_r_duration Maximum relative duration, ie by how much the initial travel time guess can be multiplied by. Must be greater than 1. Default to 3.
+         * @param t_tol     Tolerance (absolue) for timing accuracy. Must be positive. Default to 1e-6
+         * @param max_iters Maximum number of iterations. Must be greater than 2. Default to 100
+         * @return std::array<std::unique_ptr<Dubins>,N> 
+         */
+        std::optional<std::vector<std::unique_ptr<Dubins>>> synchronised_no_checks(
+            const std::vector<Pose3D>& starts, const std::vector<Pose3D>& ends, const std::vector<AircraftStats>& stats,
+            const std::vector<double>& delta_t, const std::vector<double>& stimes, const std::vector<double>& etimes,
+            double wind_x = 0., double wind_y = 0.,
+            double max_r_duration = 3., double t_tol = 1e-6,
+            uint max_iters = 100
+        );
+
+        /**
+         * @brief Compute a synchronized path planning for a team of fixed-wing aircraft, considering XY separation
+         * 
+         * Proceed by estimating a minimal travel time (using individual path planning), then try to compute a solution
+         * with the given travel time estimation. If it works, return the solution. Otherwise, increase the travel time and retry.
+         * The travel time is linearly increased from the minimum estimate t_min to t_min * max_r_duration with max_iters samples.
+         * 
+         * This version extends basic Dubins paths, i.e. adds a straight or a turn at the start and end of each possible Dubins path.
+         * 
+         * @param starts    Starting points
+         * @param ends      Ending points, ordered by rank of arrival
+         * @param stats     Aircraft characteristics (speed, climb rate, turn radius)
+         * @param delta_t   By how much time the arrival of aircraft N+1 should be delayed from aircraft N. Default to 0s (synchronised arrivals)
+         * @param stimes    Possible durations of the first segment 
+         * @param etimes    Possible durations of the last segment
+         * @param min_sep   Minimal XY euclidean distance that must be kept between two aircraft at all time
+         * @param wind_x    Wind, x component (default to 0 if unspecified)
+         * @param wind_y    Wind, y component (default to 0 if unspecified)
+         * @param max_r_duration Maximum relative duration, ie by how much the initial travel time guess can be multiplied by. Must be greater than 1. Default to 3.
+         * @param t_tol     Tolerance (absolue) for timing accuracy. Must be positive. Default to 1e-6
+         * @param max_iters Maximum number of iterations. Must be greater than 2. Default to 100
+         * @return std::array<std::unique_ptr<Dubins>,N> 
+         */
+        std::optional<std::vector<std::unique_ptr<Dubins>>> synchronised_XY_checks(
+            const std::vector<Pose3D>& starts, const std::vector<Pose3D>& ends, const std::vector<AircraftStats>& stats,
+            double min_sep, const std::vector<double>& delta_t, const std::vector<double>& stimes, const std::vector<double>& etimes,
+            double wind_x = 0., double wind_y = 0.,
+            double max_r_duration = 3., double t_tol = 1e-6,
+            uint max_iters = 100
+        );
+
+        /**
+         * @brief Compute a synchronized path planning for a team of fixed-wing aircraft, considering XY separation
+         * 
+         * Proceed by estimating a minimal travel time (using individual path planning), then try to compute a solution
+         * with the given travel time estimation. If it works, return the solution. Otherwise, increase the travel time and retry.
+         * The travel time is linearly increased from the minimum estimate t_min to t_min * max_r_duration with max_iters samples.
+         * 
+         * This version extends basic Dubins paths, i.e. adds a straight or a turn at the start and end of each possible Dubins path.
+         * 
+         * @param starts    Starting points
+         * @param ends      Ending points, ordered by rank of arrival
+         * @param stats     Aircraft characteristics (speed, climb rate, turn radius)
+         * @param delta_t   By how much time the arrival of aircraft N+1 should be delayed from aircraft N. Default to 0s (synchronised arrivals)
+         * @param stimes    Possible durations of the first segment 
+         * @param etimes    Possible durations of the last segment
+         * @param min_sep   Minimal XY euclidean distance that must be kept between two aircraft at all time
+         * @param wind_x    Wind, x component (default to 0 if unspecified)
+         * @param wind_y    Wind, y component (default to 0 if unspecified)
+         * @param max_r_duration Maximum relative duration, ie by how much the initial travel time guess can be multiplied by. Must be greater than 1. Default to 3.
+         * @param t_tol     Tolerance (absolue) for timing accuracy. Must be positive. Default to 1e-6
+         * @param max_iters Maximum number of iterations. Must be greater than 2. Default to 100
+         * @param THREADS   Number of threads to use when computing separation between trajectories
+         * @return std::array<std::unique_ptr<Dubins>,N> 
+         */
+        std::optional<std::vector<std::shared_ptr<Dubins>>> synchronised_XY_checks_parallel(
+            const std::vector<Pose3D>& starts, const std::vector<Pose3D>& ends, const std::vector<AircraftStats>& stats,
+            double min_sep, const std::vector<double>& delta_t, const std::vector<double>& stimes, const std::vector<double>& etimes, 
+            double wind_x = 0., double wind_y = 0.,
+            double max_r_duration = 3., double t_tol = 1e-6,
+            uint max_iters = 100, uint THREADS = std::thread::hardware_concurrency()/2
+        );
+    }
 }
 
-/*******************************************************************/
-/*                                                                 */
-/*                    Templates implementations                    */
-/*                                                                 */
-/*******************************************************************/
 
 // -------------------- Non-declared helper functions -------------------- //
 
@@ -464,49 +576,14 @@ namespace
 
 }
 
+/*********************************************************************************/
+/*                                                                               */
+/*                    Templates implementations : BasicDubins                    */
+/*                                                                               */
+/*********************************************************************************/
 
 // ---------- No checks functions ---------- //
 
-// template<uint N>
-// std::array<std::unique_ptr<Dubins>,N> shortest_dubins(
-//     const std::array<Pose3D,N>& starts, const std::array<Pose3D,N>& ends, const std::array<AircraftStats,N>& stats,
-//     double wind_x = 0., double wind_y = 0.)
-// {
-//     for(uint i = 0; i < N; i++)
-//     {
-//         const Pose3D& s        = starts[i];
-//         const Pose3D& e        = ends[i];
-//         const AircraftStats& p = stats[i];
-
-//         std::unique_ptr<Dubins> dd = shortest_possible_baseDubins(
-//             p.climb,
-//             p.turn_radius,
-//             s,e
-//         );
-
-//         if (i == 0)
-//         {
-//             min_travel_time = dd->get_length()/p.airspeed;
-//         }
-//         else
-//         {
-//             min_travel_time = std::max(
-//                 min_travel_time,
-//                 dd->get_length()/p.airspeed - delta_sum);
-            
-//             delta_sum += delta_t[i-1];
-//         }
-        
-//     }
-// }
-
-
-// std::vector<std::unique_ptr<Dubins>> shortest_dubins(
-//     const std::vector<Pose3D>& starts, const std::vector<Pose3D>& ends, const std::vector<AircraftStats>& stats,
-//     double wind_x = 0., double wind_y = 0.)
-// {
-
-// }
 
 template<uint N>
 std::optional<std::array<std::unique_ptr<Dubins>,N>> DubinsPP::BasicDubins::synchronised_no_checks(
@@ -716,29 +793,6 @@ std::optional<std::array<std::unique_ptr<Dubins>,N>> DubinsPP::BasicDubins::sync
         compute_arrival_times(times,delta_t,travel_time);
         list_all_possibilities(list_of_choices,fit_all_baseDubins,starts,ends,stats,times,wind_x,wind_y,t_tol);
 
-        // double dt = 0.;
-        // for(uint i = 0; i < N; i++)
-        // {
-        //     // Modify target according to estimated travel time
-        //     Pose3D base_end = ends[i];
-        //     double target_time = (travel_time+dt);
-        //     dt += delta_t[i];
-        //     base_end.x -= target_time*wind_x;
-        //     base_end.y -= target_time*wind_y;
-        //     double target_len = target_time*stats[i].airspeed;
-
-        //     // List all possibilities for aircraft i
-        //     list_of_choices[i] = fit_all_baseDubins(
-        //         stats[i].climb,
-        //         stats[i].turn_radius,
-        //         starts[i],base_end,
-        //         target_len,
-        //         t_tol
-        //     );
-        // }
-
-
-
 #if defined(DubinsFleetPlanner_DEBUG_MSG) && DubinsFleetPlanner_DEBUG_MSG > 0
         std::cout   << "  - Fitting done, starting search" << std::endl; 
 #endif
@@ -913,7 +967,7 @@ std::optional<std::vector<std::shared_ptr<Dubins>>> DubinsPP::BasicDubins::synch
 
         for(uint ii = 0; ii < N; ii++)
         {
-            shared_list_of_choices[ii] = make_Dubins_vector_shared(list_of_choices[ii]);
+            shared_list_of_choices[ii] = make_shared(list_of_choices[ii]);
         }
 
 
@@ -921,7 +975,7 @@ std::optional<std::vector<std::shared_ptr<Dubins>>> DubinsPP::BasicDubins::synch
         std::cout   << "  - Fitting done, starting search" << std::endl;
 #endif
         std::vector<Conflict_T> conflicts = parallel_compute_XY_separations(shared_list_of_choices,stats,min_sep,THREADS);
-        std::optional<std::vector<std::shared_ptr<Dubins>>> result = find_pathplanning_LP_solution(shared_list_of_choices,stats,conflicts,std::tuple_size_v<AllBaseDubins>,&base_model);
+        std::optional<std::vector<std::shared_ptr<Dubins>>> result = find_pathplanning_LP_solution(shared_list_of_choices,stats,conflicts,std::tuple_size_v<AllBaseDubins>,THREADS,&base_model);
 
         if (result.has_value())
         {
@@ -949,4 +1003,8 @@ std::optional<std::vector<std::shared_ptr<Dubins>>> DubinsPP::BasicDubins::synch
 }
 
 
-
+/*******************************************************************************************/
+/*                                                                                         */
+/*                    Templates implementations : Extended Basic Dubins                    */
+/*                                                                                         */
+/*******************************************************************************************/
