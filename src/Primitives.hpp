@@ -24,6 +24,7 @@
 #include <string>
 
 #include "utils.hpp"
+#include "Aircraft.h"
 
 
 /********************  Fundamental Dubins path computing  ********************/
@@ -121,11 +122,14 @@ enum DubinsMove {
     RIGHT    = 2
 };
 
+const uint DubinsMoveNum = 3;
+
 constexpr const std::array<std::string,3> DubinsMoveNames{
     std::string("STRAIGHT"),
     std::string("LEFT"),
     std::string("RIGHT")
 };
+
 
 inline constexpr const std::string get_DubinsMove_name(DubinsMove m)
 {
@@ -259,6 +263,14 @@ inline double path_initial_direction(const PathShape<m>& s)
  */
 template<DubinsMove m>
 PathShape<m> compute_params(const Pose3D& start, const Pose3D& end, double h_speed, double turn_radius, double v_speed);
+
+
+template<DubinsMove m>
+PathShape<m> compute_params(const Pose3D& start, const Pose3D& end, const AircraftStats& stats)
+{
+    return compute_params<m>(start,end,stats.airspeed,stats.turn_radius,stats.climb);
+}
+
 
 
 /**
