@@ -18,17 +18,26 @@
 
 #include "BaseDubins.hpp"
 #include "plotDubins.hpp"
-#include "FleetPathPlanner.hpp"
+
+#include "FleetPlanner.hpp"
+
 #include "ioUtils.hpp"
+#include "ExtendedDubins.hpp"
 
 
 #include "randomPathShape.hpp"
 
-
-
 #ifndef PLOTTING_SAMPLES
 #define PLOTTING_SAMPLES 500
 #endif
+
+#ifndef TEST_PRECISION
+#define TEST_PRECISION 1e-3
+#endif
+
+#ifndef TEST_MAX_R_LENGTH
+#define TEST_MAX_R_LENGTH 10
+#endif 
 
 #ifndef TEST_POS_RANGE
 #define TEST_POS_RANGE 5.
@@ -43,11 +52,11 @@
 #endif
 
 #ifndef TEST_AIRCRAFT_NUM 
-#define TEST_AIRCRAFT_NUM 25
+#define TEST_AIRCRAFT_NUM 5
 #endif
 
 #ifndef TEST_AIRPORT_RADIUS
-#define TEST_AIRPORT_RADIUS 50 // In nautical miles (NM)
+#define TEST_AIRPORT_RADIUS 50. // In nautical miles (NM)
 #endif
 
 #ifndef TEST_AIRPORT_SPEED
@@ -80,16 +89,14 @@ int main()
     double min_sep = TEST_AIRPORT_AIRSEP;
 
     constexpr uint N = TEST_AIRCRAFT_NUM;
-    const std::string test_name("airport_arrival_" + std::to_string(N));
-    const std::string file_format("json");
 
     std::array<Pose3D,N> random_poses = generate_random<N>(static_cast<double>(N),1.,12);
-    std::array<Pose3D,N> hchev_3 = generate_P_chevron<N,N/3>(1.5,1.2);
-    std::array<Pose3D,N> hchev_3_bis = generate_P_chevron<N,N/3>(1.5,1.2);
-    std::array<Pose3D,N> circ = generate_circle<N>(std::sqrt(N));
-    std::array<Pose3D,N> hline = generate_hline<N>(1.5);
-    std::array<Pose3D,N> hline_bis = generate_hline<N>(1.5);
-    std::array<Pose3D,N> hchevron = generate_hchevron<N>(1.5,1.);
+    std::array<Pose3D,N> hchev_3 = generate_P_chevron<N,N/3>(min_sep*1.1,1.2);
+    std::array<Pose3D,N> hchev_3_bis = generate_P_chevron<N,N/3>(min_sep*1.1,1.2);
+    std::array<Pose3D,N> circ = generate_circle<N>(1.1*N*min_sep/(2*M_PI));
+    std::array<Pose3D,N> hline = generate_hline<N>(min_sep*1.1);
+    std::array<Pose3D,N> hline_bis = generate_hline<N>(min_sep*1.1);
+    std::array<Pose3D,N> hchevron = generate_hchevron<N>(min_sep*1.1,1.);
     std::array<Pose3D,N> random_disk_inward = generate_random_safe_disk_inward<N>(0.9*TEST_AIRPORT_RADIUS,3*TEST_AIRPORT_RADIUS,
         0.,M_PI_4,TEST_AIRPORT_AIRSEP,
         100000,3);
@@ -98,20 +105,20 @@ int main()
 
     std::array<Pose3D,N> airport; airport.fill(Pose3D(0,0,0,M_PI_2));
 
-    shift_poses(hline,Pose3D(0.,0*static_cast<double>(N),0.,0.));
-    shift_poses(hline_bis,Pose3D(0.,2*static_cast<double>(N),0.,0.));
-    shift_poses(hchevron,Pose3D(0.,2*static_cast<double>(N),0.,0.));
-    shift_poses(hchev_3,Pose3D(0.,1*static_cast<double>(N),0.,0.));
+    shift_poses(hline,Pose3D(0.,0*TEST_AIRPORT_RADIUS,0.,0.));
+    shift_poses(hline_bis,Pose3D(0.,TEST_AIRPORT_RADIUS,0.,0.));
+    shift_poses(hchevron,Pose3D(0.,TEST_AIRPORT_RADIUS,0.,0.));
+    shift_poses(hchev_3,Pose3D(0.,TEST_AIRPORT_RADIUS,0.,0.));
     rotate_around_poses(hchev_3_bis,Pose3D(0.,0.,0.,M_PI_2));
-    shift_poses(hchev_3_bis,Pose3D(static_cast<double>(N),2*static_cast<double>(N),0.,0.));
+    shift_poses(hchev_3_bis,Pose3D(TEST_AIRPORT_RADIUS,2*TEST_AIRPORT_RADIUS,0.,0.));
 
     std::array<Pose3D,N> vline = generate_hline<N>(1.5);
     rotate_around_poses(vline,Pose3D(0.,0.,0.,M_PI_2));
-    shift_poses(vline,Pose3D(static_cast<double>(N),2*static_cast<double>(N),0.,0.));
+    shift_poses(vline,Pose3D(TEST_AIRPORT_RADIUS,2*TEST_AIRPORT_RADIUS,0.,0.));
 
     std::array<Pose3D,N> vchevron = generate_hchevron<N>(1.5,1.);
     rotate_around_poses(vchevron,Pose3D(0.,0.,0.,-M_PI_2));
-    shift_poses(vchevron,Pose3D(static_cast<double>(N)*5,2*static_cast<double>(N),0.,0.));
+    shift_poses(vchevron,Pose3D(TEST_AIRPORT_RADIUS*5,2*TEST_AIRPORT_RADIUS,0.,0.));
 
     std::array<AircraftStats,N> stats;
     for(uint i = 0; i < N; i++)
@@ -125,20 +132,22 @@ int main()
     std::vector<AircraftStats> stats_vec(stats.cbegin(),stats.cend());
 
 
+    std::string test_name("cirlce_to_chev_" + std::to_string(N));
+    std::string file_format("json");
 
-    std::array<Pose3D,N> starts = random_disk_inward;
-    std::array<Pose3D,N> ends   = airport;
+    std::array<Pose3D,N> starts = circ;
+    std::array<Pose3D,N> ends   = hchevron;
 
     // Sort by distance to airport
-    auto sort_function = [&](const Pose3D& a, const Pose3D& b)
-    {
-        return pose_dist_XY(a,airport[0]) <= pose_dist_XY(b,airport[0]);
-    };
-    std::sort(starts.begin(),starts.end(),sort_function);
+    // auto sort_function = [&](const Pose3D& a, const Pose3D& b)
+    // {
+    //     return pose_dist_XY(a,airport[0]) <= pose_dist_XY(b,airport[0]);
+    // };
+    // std::sort(starts.begin(),starts.end(),sort_function);
 
     std::array<double,N-1> delta_t; 
-    // delta_t.fill(0.); 
-    delta_t.fill(TEST_AIRPORT_TIMESEP);
+    delta_t.fill(0.); 
+    // delta_t.fill(TEST_AIRPORT_TIMESEP);
 
     std::vector<Pose3D> starts_vec(starts.cbegin(),starts.cend());
     std::vector<Pose3D> ends_vec(ends.cbegin(),ends.cend());
@@ -151,17 +160,46 @@ int main()
 
     // -------------------- Test solver -------------------- //
 
+
+    BasicDubinsFleetPlanner basic_planner(TEST_PRECISION,TEST_MAX_R_LENGTH);
+
+    std::vector<double> extensions_lengths{
+        0.,
+        // TEST_AIRPORT_SPEED*0.1,
+        // TEST_AIRPORT_SPEED*0.5,
+        TEST_AIRPORT_SPEED*1.,
+        // TEST_AIRPORT_SPEED*2.,
+        // TEST_AIRPORT_SPEED*5.
+    };
+
+    ExtendedDubinsFleetPlanner extended_planner(TEST_PRECISION,TEST_MAX_R_LENGTH,extensions_lengths,extensions_lengths);
+
+    auto opt_result = basic_planner.solve<Dubins::are_XY_separated>(starts_vec,ends_vec,stats_vec,min_sep,delta_t_vec,wind_x,wind_y);
+    // auto opt_result = basic_planner.solve_parallel<Dubins::are_XY_separated>(starts_vec,ends_vec,stats_vec,min_sep,delta_t_vec,wind_x,wind_y);
+    
+    // auto opt_result = extended_planner.solve<Dubins::are_XY_separated>(starts_vec,ends_vec,stats_vec,min_sep,delta_t_vec,wind_x,wind_y);
+    // auto opt_result = extended_planner.solve_parallel<Dubins::are_XY_separated>(starts_vec,ends_vec,stats_vec,min_sep,delta_t_vec,wind_x,wind_y);
+    
+
     // auto opt_result = DubinsPP::BasicDubins::synchronised_no_checks<N>(starts,ends,stats,delta_t,wind_x,wind_y);
-    auto opt_result = DubinsPP::BasicDubins::synchronised_XY_checks<N>(starts,ends,stats,min_sep,delta_t,wind_x,wind_y,
-        5.,1e-6,500);
+
+
+    // auto opt_result = DubinsPP::BasicDubins::synchronised_XY_checks<N>(starts,ends,stats,min_sep,delta_t,wind_x,wind_y,
+        // TEST_MAX_R_LENGTH,TEST_PRECISION,500);
 
     // auto opt_result = DubinsPP::BasicDubins::synchronised_XY_checks_parallel(starts_vec,ends_vec,stats_vec,min_sep,delta_t_vec,wind_x,wind_y,
-        // 5.,1e-6,500);
+        // 5.,1e-6,500,10);
 
     if (!opt_result.has_value())
     {
         std::cout << std::endl << "| ***** !! No solution found !! ***** |" << std::endl;
-        exit(1);
+        // opt_result = extended_planner.solve_parallel<Dubins::are_XY_separated>(starts_vec,ends_vec,stats_vec,0.,delta_t_vec,wind_x,wind_y);
+        // test_name = std::string("COLLIDING_") + test_name;
+
+        if (!opt_result.has_value())
+        {
+            exit(1);
+        }
     }
 
     auto& results = opt_result.value();    

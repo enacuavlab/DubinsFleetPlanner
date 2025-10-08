@@ -28,8 +28,10 @@ set(DubinsFleetPlannerLib_SRC
     BaseDubins.cpp
     ConflictDetection.cpp
     Dubins.cpp
+    ExtendedDubins.cpp
     Fitting.cpp
     FleetPathPlanner.cpp
+    FleetPlanner.cpp
     ioUtils.cpp
     Primitives.cpp 
     utils.cpp)

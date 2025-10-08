@@ -19,17 +19,17 @@
 
 // ---------------------------------------- Util functions ---------------------------------------- //
 
-template<typename F>
-static inline bool generic_check_compatibility(F are_separated_function, const Dubins& d1, const Dubins& d2, const AircraftStats& s1, const AircraftStats& s2, double sep)
+template<Dubins::DubinsSeparationFunction separation_function>
+static inline bool generic_check_compatibility(const Dubins& d1, const Dubins& d2, const AircraftStats& s1, const AircraftStats& s2, double sep)
 {
     double duration = std::min(d1.get_duration(s1.airspeed),d2.get_duration(s2.airspeed));
-    return d1.is_valid() && d2.is_valid() && are_separated_function(d1,d2,s1.airspeed,s2.airspeed,duration,sep,DubinsFleetPlanner_PRECISION);
+    return d1.is_valid() && d2.is_valid() && separation_function(d1,d2,s1.airspeed,s2.airspeed,duration,sep,DubinsFleetPlanner_PRECISION);
 }
 
 // ---------------------------------------- Single thread functions ---------------------------------------- //
 
-template<typename F>
-std::vector<Conflict_T> generic_compute_separations(F are_separated_fun, const ListOfPossibilities& list_of_possibilites, const std::vector<AircraftStats>& stats, double sep)
+template<Dubins::DubinsSeparationFunction separation_function>
+std::vector<Conflict_T> generic_compute_separations(const ListOfPossibilities& list_of_possibilites, const std::vector<AircraftStats>& stats, double sep)
 {
     uint N = list_of_possibilites.size();
 
@@ -59,10 +59,10 @@ std::vector<Conflict_T> generic_compute_separations(F are_separated_fun, const L
                     const Dubins& d1 = *d1_paths[p1];
                     const Dubins& d2 = *d1_paths[p2];
 
-                    if (!generic_check_compatibility(are_separated_fun,d1,d2,d1_stats,d2_stats,sep))
+                    if (!generic_check_compatibility<separation_function>(d1,d2,d1_stats,d2_stats,sep))
                     {
                         output.push_back({
-                            i,j,p1,p2
+                            i,p1,j,p2
                         });
                     }
                 }
@@ -76,8 +76,8 @@ std::vector<Conflict_T> generic_compute_separations(F are_separated_fun, const L
 
 // ---------------------------------------- Multi thread functions ---------------------------------------- //
 
-template<typename F>
-std::vector<Conflict_T> _subtask_compute_separations(F are_separated_fun,
+template<Dubins::DubinsSeparationFunction separation_function>
+std::vector<Conflict_T> _subtask_compute_separations(
     const SharedListOfPossibilities& list_of_possibilites, const std::vector<AircraftStats>& stats,
     double sep, uint start_i, uint start_j, uint ac_num)
 {
@@ -117,10 +117,10 @@ std::vector<Conflict_T> _subtask_compute_separations(F are_separated_fun,
                     //             << d1.get_type_abbr() << " VS " << d2.get_type_abbr() << " ]" << std::endl; 
                             
 
-                    if (!generic_check_compatibility(are_separated_fun,d1,d2,d1_stats,d2_stats,sep))
+                    if (!generic_check_compatibility<separation_function>(d1,d2,d1_stats,d2_stats,sep))
                     {
                         output.push_back({
-                            i,j,p1,p2
+                            i,p1,j,p2
                         });
                     }
                 }
@@ -143,8 +143,8 @@ std::vector<Conflict_T> _subtask_compute_separations(F are_separated_fun,
 }
 
 
-template<typename F>
-std::vector<Conflict_T> generic_parallel_compute_separations(uint THREADS, F are_separated_fun, const SharedListOfPossibilities& list_of_possibilites, const std::vector<AircraftStats>& stats, double sep)
+template<Dubins::DubinsSeparationFunction separation_function>
+std::vector<Conflict_T> generic_parallel_compute_separations(uint THREADS, const SharedListOfPossibilities& list_of_possibilites, const std::vector<AircraftStats>& stats, double sep)
 {
     assert(THREADS > 0);
 
@@ -174,8 +174,8 @@ std::vector<Conflict_T> generic_parallel_compute_separations(uint THREADS, F are
                 futures.push_back(
                     std::async(
                         std::launch::async,
-                        _subtask_compute_separations<F>,
-                        are_separated_fun,list_of_possibilites,stats,sep,
+                        _subtask_compute_separations<separation_function>,
+                        list_of_possibilites,stats,sep,
                         start_i,start_j,tasks_given
                     )
                 );
@@ -197,7 +197,7 @@ std::vector<Conflict_T> generic_parallel_compute_separations(uint THREADS, F are
 
     if (tasks_given > 0)
     {
-        output = _subtask_compute_separations(are_separated_fun,
+        output = _subtask_compute_separations<separation_function>(
             list_of_possibilites,stats,
             sep,start_i,start_j,tasks_given);
     }
@@ -215,16 +215,15 @@ std::vector<Conflict_T> generic_parallel_compute_separations(uint THREADS, F are
 
 // ---------------------------------------- Specialized implementations ---------------------------------------- //
 
-std::vector<Conflict_T> compute_XY_separations(const ListOfPossibilities& list_of_possibilites, const std::vector<AircraftStats>& stats, double sep)
+std::vector<Conflict_T> compute_XY_separations(ListOfPossibilities& list_of_possibilites, const std::vector<AircraftStats>& stats, double sep)
 {
-    return generic_compute_separations(Dubins::are_XY_separated<true>,list_of_possibilites,stats,sep);
+    return generic_compute_separations<Dubins::are_XY_separated<true>>(list_of_possibilites,stats,sep);
 }
 
-std::vector<Conflict_T> parallel_compute_XY_separations(const SharedListOfPossibilities& list_of_possibilites, const std::vector<AircraftStats>& stats, double sep, uint THREADS)
+std::vector<Conflict_T> parallel_compute_XY_separations(SharedListOfPossibilities& list_of_possibilites, const std::vector<AircraftStats>& stats, double sep, uint THREADS)
 {
-    return generic_parallel_compute_separations(
+    return generic_parallel_compute_separations<Dubins::are_XY_separated<true>>(
         THREADS,
-        Dubins::are_XY_separated<true>,
         list_of_possibilites,stats,sep
     );
 }
@@ -237,9 +236,15 @@ void setup_base_model(Highs& highs, uint AC_count, uint max_paths_count)
     highs.setOptionValue("output_flag",true);
     highs.setOptionValue("presolve","on");
     highs.setOptionValue("parallel","on");
-    highs.setOptionValue("log_file","highs.log");
+    // highs.setOptionValue("log_file","highs.log");
     highs.setOptionValue("mip_abs_gap", 1-1e-5); // Since all variables in the objective are binary, it should stop when the absolute gap is below 1
     // highs.setOptionValue('random_seed', SEED)
+
+    #if defined(DubinsFleetPlanner_DEBUG_MSG) && DubinsFleetPlanner_DEBUG_MSG > 0
+    highs.setOptionValue("log_to_console",true);
+    #else
+    highs.setOptionValue("log_to_console",false);
+    #endif
 
     // Define variables with bounds (01-LP problem)
     uint var_num = AC_count * max_paths_count; 
@@ -289,8 +294,8 @@ std::optional<std::vector<std::shared_ptr<Dubins>>> find_pathplanning_LP_solutio
     SharedListOfPossibilities& list_of_possibilites,
     const std::vector<AircraftStats>& stats,
     const std::vector<Conflict_T>& conflicts,
-    uint max_path_num,
-    Highs* preset_model)
+    uint max_path_num, int THREADS,
+    const Highs* preset_model)
 {
 
     uint N = list_of_possibilites.size();
@@ -312,6 +317,8 @@ std::optional<std::vector<std::shared_ptr<Dubins>>> find_pathplanning_LP_solutio
         assert(HighsStatus::kOk == model.passOptions(preset_model->getOptions()));
         assert(HighsStatus::kOk == model.passModel(preset_model->getModel()));
     }
+
+    model.setOptionValue("threads",THREADS);
 
     // -- Remove impossible paths by adding constraints
 
@@ -336,14 +343,23 @@ std::optional<std::vector<std::shared_ptr<Dubins>>> find_pathplanning_LP_solutio
 
     for(const Conflict_T& c : conflicts)
     {
+        uint ac_id1     = std::get<0>(c);
+        uint path_id1   = std::get<1>(c);
+        uint ac_id2     = std::get<2>(c);
+        uint path_id2   = std::get<3>(c);
+
+
         uint indices[] = {
-            c.ac_id1*max_path_num + c.path_id1,
-            c.ac_id2*max_path_num + c.path_id2
+            ac_id1*max_path_num + path_id1,
+            ac_id2*max_path_num + path_id2
         };
 
         double values[] = {
             1.,1.
         };
+
+        // std::cout << "Adding conflict between ( " << ac_id1 << " , " << path_id1 << " ) and ( " << ac_id2 << " , " << path_id2 << " )" << std::endl;
+        // std::cout << "Code : ( " <<  indices[0] << " , " << indices[1] << " )" << std::endl;
 
         model.addRow(0,1.,2,(const int*)indices,values);
     }

@@ -31,23 +31,21 @@
 #include "Dubins.hpp"
 #include "Primitives.hpp"
 
-struct Conflict_T
-{
-    uint ac_id1;
-    uint ac_id2;
-    uint path_id1;
-    uint path_id2;
-};
+/**
+ * @brief Represent a conflict in the form (ac_id1,path_id1,ac_id2,path_id2)
+ * 
+ */
+typedef std::tuple<unsigned short, unsigned short, unsigned short, unsigned short> Conflict_T;
 
 typedef std::vector<std::vector<std::unique_ptr<Dubins>>> ListOfPossibilities;
 typedef std::vector<std::vector<std::shared_ptr<Dubins>>> SharedListOfPossibilities;
 
-std::vector<Conflict_T> compute_XY_separations(const ListOfPossibilities&, const std::vector<AircraftStats>&,double);
+std::vector<Conflict_T> compute_XY_separations(ListOfPossibilities&, const std::vector<AircraftStats>&, double);
 
-std::vector<Conflict_T> parallel_compute_XY_separations(const SharedListOfPossibilities&, const std::vector<AircraftStats>&, double, 
+std::vector<Conflict_T> parallel_compute_XY_separations(SharedListOfPossibilities&, const std::vector<AircraftStats>&, double, 
     uint THREADS = std::thread::hardware_concurrency()/2);
 
-
+// TODO: Compute the full matrix of separations, in order to find the best global separation
 
 /**
  * @brief Generate a base Highs model for our path finding problem
@@ -77,9 +75,20 @@ std::vector<Conflict_T> parallel_compute_XY_separations(const SharedListOfPossib
  */
 void setup_base_model(Highs& highs, uint AC_count, uint max_paths_count);
 
+/**
+ * @brief Solve the path finding problem using HiGHS ILP solver
+ * 
+ * @param possibilites  List of possibles paths per aircraft
+ * @param stats         Caracteristics of each aircraft
+ * @param conflicts     List of conflicts (paths that cannot be taken together)
+ * @param max_path_num  Maximum number of paths for an aircraft
+ * @param THREADS       Number of threads to use. 0 choose automatically. Default to 0
+ * @param preset_model  A preset HiGHS model to quickly setup
+ * @return std::optional<std::vector<std::shared_ptr<Dubins>>> 
+ */
 std::optional<std::vector<std::shared_ptr<Dubins>>> find_pathplanning_LP_solution(
-    SharedListOfPossibilities&, 
-    const std::vector<AircraftStats>&, 
-    const std::vector<Conflict_T>&,
-    uint max_path_num,
-    Highs* preset_model = nullptr);
+    SharedListOfPossibilities& possibilites, 
+    const std::vector<AircraftStats>& stats, 
+    const std::vector<Conflict_T>& conflicts,
+    uint max_path_num, int THREADS = 0,
+    const Highs* preset_model = nullptr);
