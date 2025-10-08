@@ -23,6 +23,20 @@
 #include <array>
 #include <concepts>
 #include <string>
+#include <memory>
+
+// -------------------- General util -------------------- //
+
+template<typename T>
+std::vector<std::shared_ptr<T>> make_shared(std::vector<std::unique_ptr<T>>& v)
+{
+    std::vector<std::shared_ptr<T>> output(v.size());
+    for(uint i = 0; i < v.size(); i++)
+    {
+        output[i] = std::move(v[i]);
+    }
+    return output;
+}
 
 // -------------------- General maths -------------------- //
 
@@ -180,8 +194,8 @@ double pose_dist_XY(const Pose3D& p1, const Pose3D& p2);
  * @param poses Vector of poses
  * @return std::tuple<uint,uint,double> id0, id1, min_dist identifying the points and minimal distance in the given set 
  */
-template<std::regular_invocable<Pose3D,Pose3D> F>
-std::tuple<uint,uint,double> min_vec_poses_dist(F f, const std::vector<Pose3D>& poses)
+template<double (*distance_fun)(const Pose3D&, const Pose3D&)>
+std::tuple<uint,uint,double> min_vec_poses_dist(const std::vector<Pose3D>& poses)
 {
     uint N = poses.size();
 
@@ -192,7 +206,7 @@ std::tuple<uint,uint,double> min_vec_poses_dist(F f, const std::vector<Pose3D>& 
     {
         for(uint j = i+1; j < N; j++)
         {
-            double dist = f(poses[i],poses[j]);
+            double dist = distance_fun(poses[i],poses[j]);
             if (dist < min_dist)
             {
                 min_dist = dist;
@@ -208,7 +222,7 @@ std::tuple<uint,uint,double> min_vec_poses_dist(F f, const std::vector<Pose3D>& 
 [[gnu::pure]]
 inline std::tuple<uint,uint,double> min_vec_poses_dist_XY(const std::vector<Pose3D>& poses)
 {
-    return min_vec_poses_dist(pose_dist_XY,poses);
+    return min_vec_poses_dist<pose_dist_XY>(poses);
 }
 
 /**
