@@ -423,7 +423,7 @@ std::vector<std::unique_ptr<Dubins>> list_possible_baseDubins(double _climb, dou
     return output;
 }
 
-std::unique_ptr<Dubins> shortest_possible_baseDubins(double _climb, double _turn_radius, const Pose3D& _start, const Pose3D& _end)
+std::unique_ptr<Dubins> shortest_possible_baseDubins(double _climb, double _turn_radius, const Pose3D& _start, const Pose3D& _end, double wind_x, double wind_y)
 {
     std::vector<std::unique_ptr<Dubins>> all_dubins = list_possible_baseDubins(_climb,_turn_radius,_start,_end);
 

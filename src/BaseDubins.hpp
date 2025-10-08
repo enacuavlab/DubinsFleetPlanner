@@ -133,7 +133,7 @@ public:
         return std::vector({fst,snd,trd});
     }
 
-    constexpr const std::string& get_type_abbr() const
+    constexpr const std::string get_type_abbr() const
     {
         return class_abbr_name;
     }
@@ -228,7 +228,19 @@ ArrayOfBaseDubins fit_all_baseDubins(double _climb, double _turn_radius, const P
     double target_len, double tol);
 
 std::vector<std::unique_ptr<Dubins>> list_possible_baseDubins(double _climb, double _turn_radius, const Pose3D& _start, const Pose3D& _end);
-std::unique_ptr<Dubins> shortest_possible_baseDubins(double _climb, double _turn_radius, const Pose3D& _start, const Pose3D& _end);
+
+/**
+ * @brief Provide the shortest Dubins path for the given configuration (TODO: Take wind into account)
+ * 
+ * @param _climb        Climb rate at unique speed
+ * @param _turn_radius  Turn radius for Dubins
+ * @param _start        Starting point
+ * @param _end          Ending point
+ * @param wind_x        Wind vector, x axis (TODO: Not yet implemented)
+ * @param wind_y        Wind vector, y axis (TODO: Not yet implemented)
+ * @return std::unique_ptr<Dubins> 
+ */
+std::unique_ptr<Dubins> shortest_possible_baseDubins(double _climb, double _turn_radius, const Pose3D& _start, const Pose3D& _end, double wind_x = 0., double wind_y = 0.);
 std::vector<std::unique_ptr<Dubins>> fit_possible_baseDubins(double _climb, double _turn_radius, const Pose3D& _start, const Pose3D& _end,
     double target_len, double tol);
 

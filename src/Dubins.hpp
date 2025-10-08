@@ -25,11 +25,10 @@
 
 #include "ProjectHeader.h"
 
+#include "utils.hpp"
 #include "Aircraft.h"
 #include "Primitives.hpp"
 #include "Fitting.hpp"
-
-#define _GENERATE_AWAIT(x) AWAIT_##x##_MS = ##(x)+3
 
 class Dubins
 {
@@ -98,7 +97,7 @@ public:
     /****** Setters and getters ******/
 
     // virtual constexpr const std::string& get_type_name() const = 0;
-    virtual constexpr const std::string& get_type_abbr() const = 0;
+    virtual const std::string get_type_abbr() const = 0;
     virtual const std::vector<DubinsMove> get_all_sections() const = 0;
 
     void set_start(const Pose3D& _start) {start = _start; recompute();}
@@ -140,7 +139,7 @@ public:
         return output;
     }
 
-    virtual std::vector<Pose3D> get_positions(const std::vector<double>& lens, [[maybe_unused]] bool sorted=false) const
+    virtual const std::vector<Pose3D> get_positions(std::vector<double>& lens, [[maybe_unused]] bool sorted=false) const
     {
         std::vector<Pose3D> output;
         for(const double& l : lens)
@@ -150,7 +149,7 @@ public:
         return output;
     }
 
-    std::vector<Pose3D> get_positions(const std::vector<double>& times, double speed, bool sorted=false) const
+    const std::vector<Pose3D> get_positions(std::vector<double>& times, double speed, bool sorted=false) const
     {
 
 #if DubinsFleetPlanner_ASSERTIONS > 0
@@ -240,13 +239,16 @@ public:
      * @return true  The two trajectories are well separated
      * @return false The two trajectories are not separated
      */
-    template<bool geometric_filtering=true>
-    bool is_XY_separated_from(const Dubins& other, double this_speed, double other_speed, 
-        double duration, double min_dist, double tol=DubinsFleetPlanner_PRECISION) const;
+    template <bool geometric_filtering = true>
+    bool is_XY_separated_from(const Dubins &other, double this_speed, double other_speed,
+                              double duration, double min_dist, double tol = DubinsFleetPlanner_PRECISION) const;
+
+    template <bool geometric_filtering>
+    bool apply_to_path_pair(DubinsMove this_type, DubinsMove other_type, Pose3D &this_start, Pose3D &this_end, double this_speed, double this_turn_radius, double this_vspeed, Pose3D &other_start, Pose3D &other_end, double other_speed, double other_turn_radius, double other_vspeed, double &section_duration, double &min_dist, double &tol, bool &retFlag) const;
 
     /**
      * @brief A static version of `is_XY_separated_from`
-     * 
+     *
      */
     template<bool geometric_filtering=true>
     static bool are_XY_separated(const Dubins& first, const Dubins& second, double first_speed, double second_speed, 
@@ -254,9 +256,32 @@ public:
     {
         return first.is_XY_separated_from(second,first_speed,second_speed,duration,min_dist,tol);
     }
+
+    /**
+     * @brief Generic type for distance function
+     * 
+     * The arguments are:
+     * First path, second path, first speed, second speed, duration, minimal distance, computation precision
+     */
+    typedef bool (*DubinsSeparationFunction)(const Dubins&, const Dubins&, double, double, double, double, double);
+
+    /**
+     * @brief Generic type for path generation function (minimal turn radius)
+     * 
+     * The arguments are:
+     * Climb ratio, turn radius, start pose, end pose
+     * 
+     * Returns the list of valid paths as unique_ptr
+     */
+    typedef std::vector<std::unique_ptr<Dubins>> (*PathGeneratorFunction)(double, double, const Pose3D&, const Pose3D&);
+
+    /**
+     * @brief Generic type for fitted path generation function
+     * 
+     * The arguments are:
+     * Climb ratio, turn radius, start pose, end pose, target length, length tolerance
+     * 
+     * Returns the list of valid paths as unique_ptr
+     */
+    typedef std::vector<std::unique_ptr<Dubins>> (*FittedPathGeneratorFunction)(double, double, const Pose3D&, const Pose3D&, double, double);
 };
-
-
-// ----- Other helper functions ----- //
-
-std::vector<std::shared_ptr<Dubins>> make_Dubins_vector_shared(std::vector<std::unique_ptr<Dubins>>&);

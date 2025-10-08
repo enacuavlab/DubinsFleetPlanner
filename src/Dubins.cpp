@@ -21,12 +21,33 @@
 
 // ---------- Local template for computing separation between shapes ---------- //
 
-template<DubinsMove m1, DubinsMove m2, bool geometric_filtering>
+/**
+ * @brief Check is two basic path elements are separated based on the XY euclidean distance
+ * 
+ * @tparam m1 Type of the first element
+ * @tparam m2 Type of the second element
+ * @tparam geometric_filtering Toggle geometric pre-filtering
+ * @param p1 First path
+ * @param p2 Second path
+ * @param duration Time duration of the section to study
+ * @param min_sep Minial required distance
+ * @param tol Precision with respect
+ * @return true Path elements are separated
+ * @return false Path are not separated
+ */
+template<DubinsMove m1, DubinsMove m2, bool geometric_filtering, bool use_derivatives=false>
 static bool check_XY_separation(const PathShape<m1>& p1, const PathShape<m2>& p2, double duration, double min_sep, double tol)
 {
+    if (duration < tol)
+    {
+        Pose3D p1_start = initial_pose(p1);
+        Pose3D p2_start = initial_pose(p2);
+        return pose_dist_XY(p1_start,p2_start) > min_sep;
+    }
+
     if ((m1 == STRAIGHT) && (m2 == STRAIGHT))
     {
-        auto loc_val_dist = temporal_XY_dist(p1,p2,duration,tol);
+        auto loc_val_dist = temporal_XY_dist<m1,m2,use_derivatives>(p1,p2,duration,tol);
         if (loc_val_dist.second < min_sep)
         {
             return false;
@@ -43,7 +64,7 @@ static bool check_XY_separation(const PathShape<m1>& p1, const PathShape<m2>& p2
             double geo_dist = geometric_XY_dist(p1,p2,duration);
             if (geo_dist < min_sep)
             {
-                auto loc_val_dist = temporal_XY_dist(p1,p2,duration,tol);
+                auto loc_val_dist = temporal_XY_dist<m1,m2,use_derivatives>(p1,p2,duration,tol);
                 if (loc_val_dist.second < min_sep)
                 {
                     return false;
@@ -52,7 +73,7 @@ static bool check_XY_separation(const PathShape<m1>& p1, const PathShape<m2>& p2
         }
         else
         {
-            auto loc_val_dist = temporal_XY_dist(p1,p2,duration,tol);
+            auto loc_val_dist = temporal_XY_dist<m1,m2,use_derivatives>(p1,p2,duration,tol);
             if (loc_val_dist.second < min_sep)
             {
                 return false;
@@ -60,37 +81,56 @@ static bool check_XY_separation(const PathShape<m1>& p1, const PathShape<m2>& p2
         }
         return true;
     }
-    
+}
+
+/**
+ * @brief Compute the minimal XY distance between two paths elements 
+ * 
+ * @tparam m1 Type of the first element
+ * @tparam m2 Type of the second element
+ * @param p1 First path
+ * @param p2 Second path
+ * @param duration Time duration of the section to study
+ * @param tol Precision with respect
+ * @return Minimal distance between the paths
+ */
+template<DubinsMove m1, DubinsMove m2>
+static double compute_XY_separation(const PathShape<m1>& p1, const PathShape<m2>& p2, double duration, double tol)
+{
+    auto loc_val_dist = temporal_XY_dist(p1,p2,duration,tol);
+    return loc_val_dist.second;
 }
 
 // ---------- Separation between Dubins ---------- //
 
-template<bool geometric_filtering>
-bool Dubins::is_XY_separated_from(const Dubins& other, double this_speed, double other_speed, 
-        double duration, double min_dist, double tol) const
+/**
+ * @brief For two Dubins paths, compute the sections identifying the part when we stick to a specific basic path
+ * 
+ * @param p1 One Dubins path
+ * @param p2 Other Dubins path
+ * @param p1_speed Speed along first path
+ * @param p2_speed Speed along second path
+ * @param duration Duration for which we follow the path
+ * @return std::vector<double> List of junctions timestamps
+ */
+static std::vector<double> compute_timepoints(const Dubins &p1, const Dubins &p2, double p1_speed, double p2_speed, double &duration)
 {
-#if defined(DubinsFleetPlanner_ASSERTIONS) && DubinsFleetPlanner_ASSERTIONS > 0
-    assert((this_speed > 0) && (other_speed > 0));
-    assert((this->is_valid()) && (other.is_valid()));
-#endif
-
-    std::vector<double> this_junctions  = this->get_junction_locs();
-    std::vector<double> other_junctions = other.get_junction_locs();
-
     std::vector<double> timepoints = {0.};
+    
+    std::vector<double> this_junctions = p1.get_junction_locs();
+    std::vector<double> other_junctions = p2.get_junction_locs();
     size_t this_index = 0;
     size_t other_index = 0;
 
     // Merge the junctions points lists by timestamp until total duration is met
-    while((this_index < this_junctions.size()) && (other_index < other_junctions.size()))
+    while ((this_index < this_junctions.size()) && (other_index < other_junctions.size()))
     {
-        double this_candidate   = this_junctions[this_index]/this_speed;
-        double other_candidate  = other_junctions[other_index]/other_speed;
+        double this_candidate = this_junctions[this_index] / p1_speed;
+        double other_candidate = other_junctions[other_index] / p2_speed;
         if ((this_candidate > duration) && (other_candidate > duration))
         {
             break;
         }
-
         if (this_candidate < other_candidate)
         {
             timepoints.push_back(this_candidate);
@@ -103,19 +143,35 @@ bool Dubins::is_XY_separated_from(const Dubins& other, double this_speed, double
         }
     }
 
-    while((this_index < this_junctions.size()) && (this_junctions[this_index]/this_speed < duration))
+    while ((this_index < this_junctions.size()) && (this_junctions[this_index] / p1_speed < duration))
     {
-        timepoints.push_back(this_junctions[this_index]/this_speed);
+        timepoints.push_back(this_junctions[this_index] / p1_speed);
         this_index++;
     }
 
-    while((other_index < other_junctions.size()) && (other_junctions[other_index]/other_speed < duration))
+    while ((other_index < other_junctions.size()) && (other_junctions[other_index] / p2_speed < duration))
     {
-        timepoints.push_back(other_junctions[other_index]/other_speed);
+        timepoints.push_back(other_junctions[other_index] / p2_speed);
         other_index++;
     }
 
     timepoints.push_back(duration);
+    return timepoints;
+}
+
+
+
+
+template<bool geometric_filtering>
+bool Dubins::is_XY_separated_from(const Dubins& other, double this_speed, double other_speed, 
+        double duration, double min_dist, double tol) const
+{
+#if defined(DubinsFleetPlanner_ASSERTIONS) && DubinsFleetPlanner_ASSERTIONS > 0
+    assert((this_speed > 0) && (other_speed > 0));
+    assert((this->is_valid()) && (other.is_valid()));
+#endif
+
+    std::vector<double> timepoints = compute_timepoints(*this, other, this_speed, other_speed, duration);
 
     double this_turn_radius = this->get_turn_radius();
     double this_vspeed      = this->get_climb();
@@ -137,6 +193,7 @@ bool Dubins::is_XY_separated_from(const Dubins& other, double this_speed, double
 
         double section_duration = timepoints[i+1]-timepoints[i];
 
+        // Double switch-case to go through all pairs of (DubinsMove,DubinsMove)
         switch (this_type)
         {
         case STRAIGHT:
@@ -263,21 +320,6 @@ bool Dubins::is_XY_separated_from(const Dubins& other, double this_speed, double
 
 template bool Dubins::is_XY_separated_from<true>(const Dubins& other, double this_speed, double other_speed, 
         double duration, double min_dist, double tol) const;
+
 template bool Dubins::is_XY_separated_from<false>(const Dubins& other, double this_speed, double other_speed, 
         double duration, double min_dist, double tol) const;
-
-
-
-// -------------------- Other helper functions -------------------- //
-
-std::vector<std::shared_ptr<Dubins>> make_Dubins_vector_shared(std::vector<std::unique_ptr<Dubins>>& vec)
-{
-    std::vector<std::shared_ptr<Dubins>> output(vec.size());
-
-    for(uint i = 0; i < vec.size(); i++)
-    {
-        output[i] = std::move(vec[i]);
-    }
-    
-    return output;
-}
