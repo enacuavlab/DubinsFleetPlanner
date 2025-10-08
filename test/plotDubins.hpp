@@ -19,6 +19,7 @@
 
 #include <sciplot/sciplot.hpp>
 
+#include <format>
 #include <tuple>
 #include <valarray>
 #include <map>
@@ -185,7 +186,7 @@ namespace Visualisation
             auto& d = dubins[i];
             max_time = std::max(max_time, d->get_duration(stats[i].airspeed));
             Visualisation::plot_path<samples>(plot,*d, stats[i].airspeed, wind_x, wind_y)
-                .label(std::to_string(i) + std::string(": ") + d->get_type_abbr() + std::string(" ") + std::to_string(d->get_length()))
+                .label(std::to_string(i) + std::string(": ") + d->get_type_abbr() + std::format(" ( {:.3f} )",d->get_length()))
                 .lineColor(Visualisation::get_color(i));
 
             Visualisation::plot_pose(plot,d->get_start())
