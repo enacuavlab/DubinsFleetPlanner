@@ -435,6 +435,11 @@ public:
         assert(starts.size() == delta_t.size() +1);
         #endif
         
+        if (threads == 0)
+        {
+            threads = std::thread::hardware_concurrency();
+        }
+
         min_sep = std::abs(min_sep);
 
         setup_base_model(ref_model,starts.size(),max_path_num());

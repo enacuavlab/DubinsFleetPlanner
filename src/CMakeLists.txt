@@ -5,6 +5,8 @@
 
 include(FetchContent)
 
+find_package(Boost REQUIRED COMPONENTS program_options)
+
 #################### General configuration #################### 
 
 if(DubinsFleetPlanner_ENABLE_ASSERTIONS)
@@ -69,5 +71,5 @@ endif()
 
 add_executable(DubinsFleetPlanner main.cpp)
 
-target_include_directories(DubinsFleetPlanner PUBLIC ${DubinsFleetPlannerLib_INCL})
-target_link_libraries(DubinsFleetPlanner PUBLIC DubinsFleetPlannerLib)
+target_include_directories(DubinsFleetPlanner PUBLIC ${DubinsFleetPlannerLib_INCL} ${Boost_INCLUDE_DIRS})
+target_link_libraries(DubinsFleetPlanner LINK_PUBLIC DubinsFleetPlannerLib ${Boost_LIBRARIES})
