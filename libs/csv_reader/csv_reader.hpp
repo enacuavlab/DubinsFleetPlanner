@@ -29,6 +29,9 @@
 class CSVRow
 {
     public:
+        CSVRow(char c)  : sep(c) {}
+        CSVRow()        : sep(',') {}
+
         std::string_view operator[](std::size_t index) const
         {
             return std::string_view(&m_line[m_data[index] + 1], m_data[index + 1] -  (m_data[index] + 1));
@@ -44,7 +47,7 @@ class CSVRow
             m_data.clear();
             m_data.emplace_back(-1);
             std::string::size_type pos = 0;
-            while((pos = m_line.find(',', pos)) != std::string::npos)
+            while((pos = m_line.find(sep, pos)) != std::string::npos)
             {
                 m_data.emplace_back(pos);
                 ++pos;
@@ -54,6 +57,7 @@ class CSVRow
             m_data.emplace_back(pos);
         }
     private:
+        char                sep;
         std::string         m_line;
         std::vector<int>    m_data;
 };
@@ -73,8 +77,9 @@ class CSVIterator
         typedef CSVRow*                     pointer;
         typedef CSVRow&                     reference;
 
-        CSVIterator(std::istream& str)  :m_str(str.good()?&str:nullptr) { ++(*this); }
-        CSVIterator()                   :m_str(nullptr) {}
+        CSVIterator(std::istream& str, char sep):m_str(str.good()?&str:nullptr),m_row(sep) { ++(*this); }
+        CSVIterator(char sep)                   :m_str(nullptr),m_row(sep) {}
+        CSVIterator()                           :m_str(nullptr) {}
 
         // Pre Increment
         CSVIterator& operator++()               {if (m_str) { if (!((*m_str) >> m_row)){m_str = nullptr;}}return *this;}
@@ -94,10 +99,16 @@ class CSVIterator
 class CSVRange
 {
     std::istream&   stream;
+    char sep;
     public:
-        CSVRange(std::istream& str)
-            : stream(str)
+        CSVRange(std::istream& str, char separator)
+            : stream(str),sep(separator)
         {}
-        CSVIterator begin() const {return CSVIterator{stream};}
-        CSVIterator end()   const {return CSVIterator{};}
+
+        CSVRange(std::istream& str)
+            : stream(str),sep(',')
+        {}
+
+        CSVIterator begin() const {return CSVIterator{stream,sep};}
+        CSVIterator end()   const {return CSVIterator{sep};}
 };

@@ -178,7 +178,7 @@ CaseData DubinsPP::InputParser::parse_data_csv(std::istream& stream)
     bool first = true;
     std::vector<RowInfo> parsed_rows;
 
-    for(auto &row: CSVRange(stream))
+    for(auto &row: CSVRange(stream,';'))
     {
         if (first)
         {
