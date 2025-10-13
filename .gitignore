@@ -48,8 +48,10 @@
 build/**
 
 # Data produced
+cases/**
 results/**
 
 ##### Editors #####
 # VSCode
 .vscode/**
+
