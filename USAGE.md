@@ -5,7 +5,7 @@
 `DubinsFleetPlanner data_file separation [wind_x] [wind_y] {-flags}`
 
 - `data_file` : A CSV file containing the base data for the problem. It's header (first line) must be:
-   `ac_id,start_x,start_y,start_z,start_theta,end_x,end_y,end_z,end_theta,airspeed,climb,turn_radius,dt`
+   `ac_id;start_x;start_y;start_z;start_theta;end_x;end_y;end_z;end_theta;airspeed;climb;turn_radius;dt`
 
    The fields describe respectively, for each aircraft:
    * `ac_id`              : An integer identifying the aircraft
@@ -26,7 +26,7 @@
 
                  AS OF NOW, THE THIRD AXIS (Z) IS NOT IMPLEMENTED. SEPARATION IS ONLY CONSIDERED AS IF ALL AIRCRAFT ARE ON THE SAME XY PLANE.
 
-- `wind_x,wind_y`: Values describing the wind speed relative to the ground, respectively along the X and Y axes. If not set, default to 0.
+- `wind_x;wind_y`: Values describing the wind speed relative to the ground, respectively along the X and Y axes. If not set, default to 0.
                    Unit is [l]/[T].
 
 - `{-flags}`: List of options that may be set:
@@ -42,7 +42,7 @@
    * `-o file`: Store the resulting plan in the given file. Two formats are possible (chosen automatically from file extension):
                   If it ends with `.csv`, stores the results by sampling each path (see flag `-s`), and put them in a CSV with samples+1 lines
                   (data+header), the header being
-                  `time,[X_{ac_id},Y_{ac_id},Z_{ac_id},theta_{ac_id}]*{number of aircraft}`
+                  `time;[X_{ac_id};Y_{ac_id};Z_{ac_id};theta_{ac_id}]*{number of aircraft}`
 
                   Otherwise, stores the results in JSON format as follow (two sub-objects are defined further down):
                   {
