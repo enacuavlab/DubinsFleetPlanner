@@ -85,21 +85,21 @@ static void failable_from_stringview(const std::string_view& v, T& t)
  */
 bool check_header(const CSVRow& r)
 {
-    std::cout << "Reading header..." << std::endl
-        << "- Col 0 : " << r[0]     << " (" << r[0].compare ("ac_id")       << ")" << std::endl
-        << "- Col 1 : " << r[1]     << " (" << r[1].compare ("start_x")     << ")" << std::endl
-        << "- Col 2 : " << r[2]     << " (" << r[2].compare ("start_y")     << ")" << std::endl
-        << "- Col 3 : " << r[3]     << " (" << r[3].compare ("start_z")     << ")" << std::endl
-        << "- Col 4 : " << r[4]     << " (" << r[4].compare ("start_theta") << ")" << std::endl
-        << "- Col 5 : " << r[5]     << " (" << r[5].compare ("end_x")       << ")" << std::endl
-        << "- Col 6 : " << r[6]     << " (" << r[6].compare ("end_y")       << ")" << std::endl
-        << "- Col 7 : " << r[7]     << " (" << r[7].compare ("end_z")       << ")" << std::endl
-        << "- Col 8 : " << r[8]     << " (" << r[8].compare ("end_theta")   << ")" << std::endl
-        << "- Col 9 : " << r[9]     << " (" << r[9].compare ("airspeed")    << ")" << std::endl
-        << "- Col 10: " << r[10]    << " (" << r[10].compare("climb")       << ")" << std::endl
-        << "- Col 11: " << r[11]    << " (" << r[11].compare("turn_radius") << ")" << std::endl
-        << "- Col 12: " << r[12]    << " (" << r[12].compare("dt")          << ")" << std::endl
-        << std::endl;
+    // std::cout << "Reading header..." << std::endl
+    //     << "- Col 0 : " << r[0]     << " (" << r[0].compare ("ac_id")       << ")" << std::endl
+    //     << "- Col 1 : " << r[1]     << " (" << r[1].compare ("start_x")     << ")" << std::endl
+    //     << "- Col 2 : " << r[2]     << " (" << r[2].compare ("start_y")     << ")" << std::endl
+    //     << "- Col 3 : " << r[3]     << " (" << r[3].compare ("start_z")     << ")" << std::endl
+    //     << "- Col 4 : " << r[4]     << " (" << r[4].compare ("start_theta") << ")" << std::endl
+    //     << "- Col 5 : " << r[5]     << " (" << r[5].compare ("end_x")       << ")" << std::endl
+    //     << "- Col 6 : " << r[6]     << " (" << r[6].compare ("end_y")       << ")" << std::endl
+    //     << "- Col 7 : " << r[7]     << " (" << r[7].compare ("end_z")       << ")" << std::endl
+    //     << "- Col 8 : " << r[8]     << " (" << r[8].compare ("end_theta")   << ")" << std::endl
+    //     << "- Col 9 : " << r[9]     << " (" << r[9].compare ("airspeed")    << ")" << std::endl
+    //     << "- Col 10: " << r[10]    << " (" << r[10].compare("climb")       << ")" << std::endl
+    //     << "- Col 11: " << r[11]    << " (" << r[11].compare("turn_radius") << ")" << std::endl
+    //     << "- Col 12: " << r[12]    << " (" << r[12].compare("dt")          << ")" << std::endl
+    //     << std::endl;
 
 
     bool test = (
