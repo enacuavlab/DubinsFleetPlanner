@@ -31,3 +31,7 @@
 #define DubinsFleetPlanner_LOCATION "@PROJECT_SOURCE_DIR@"
 
 #define DubinsFleetPlanner_DEBUG_MSG @DEBUG_MSG@
+
+#define DubinsFleetPlanner_SOLVING_SUCCESS 0
+#define DubinsFleetPlanner_SOLVING_FAILURE 1
+#define DubinsFleetPlanner_PARSING_FAILURE 2
