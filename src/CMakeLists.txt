@@ -5,7 +5,7 @@
 
 include(FetchContent)
 
-find_package(Boost REQUIRED COMPONENTS program_options)
+find_package(Boost REQUIRED COMPONENTS program_options chrono system)
 
 #################### General configuration #################### 
 
@@ -61,9 +61,12 @@ add_library(DubinsFleetPlannerLib SHARED ${DubinsFleetPlannerLib_SRC})
 target_include_directories(DubinsFleetPlannerLib PUBLIC ${DubinsFleetPlannerLib_INCL})
 
 if(DubinsFleetPlanner_PARALLEL)
-    ### HiGHS Solver ###
+    ### HiGHS Solver + BOOST ###
 
-    target_link_libraries(DubinsFleetPlannerLib highs::highs)
+    target_link_libraries(DubinsFleetPlannerLib highs::highs ${Boost_LIBRARIES})
+else()
+    ### BOOST only ###
+    target_link_libraries(DubinsFleetPlannerLib ${Boost_LIBRARIES})
 
 endif()
 

@@ -16,6 +16,7 @@
 // along with DubinsFleetPlanner.  If not, see <https://www.gnu.org/licenses/>.
 
 #include <boost/program_options.hpp>
+#include <boost/chrono.hpp>
 
 #include <string>
 #include <iostream>
@@ -28,12 +29,27 @@
 
 #include "ioUtils.hpp"
 #include "FleetPlanner.hpp"
+#include "ProjectHeader.h"
+
+/******************** Util functions ********************/
+
+static void lower_string(std::string& s)
+{
+    std::transform(s.begin(), s.end(), s.begin(),
+    [](unsigned char c){ return std::tolower(c); });
+}
+
+/******************** Argument parsing ********************/
+
+namespace fs = std::filesystem;
+namespace po = boost::program_options;
+namespace chrono = boost::chrono;
 
 
 struct program_arguments
 {
-    string src_filename;
-    string out_filename;
+    string src_pathname;
+    string out_pathname;
     double separation;
     double wind_x,wind_y;
     vector<double> length_extensions;
@@ -45,8 +61,6 @@ struct program_arguments
     double max_r_length;
 };
 
-namespace fs = std::filesystem;
-namespace po = boost::program_options;
 
 bool process_command_line(int argc, char* argv[], program_arguments& parsed_args)
 {
@@ -59,10 +73,10 @@ bool process_command_line(int argc, char* argv[], program_arguments& parsed_args
     // Define options
     po::options_description desc("Allowed options");
     desc.add_options()
-    ("input"        , po::value<string>(&parsed_args.src_filename)->required()
-                    , "REQUIRED, positional. CSV file describing a problem. See 'USAGE.md' for the format description")
-    ("output"       , po::value<string>(&parsed_args.out_filename)->required()
-                    , "REQUIRED, positional. Output file. Format is deduced by extension type, either JSON or CSV."
+    ("input"        , po::value<string>(&parsed_args.src_pathname)->required()
+                    , "REQUIRED, positional. Either a CSV file describing a problem, or a folder containing such files. See 'USAGE.md' for the format description")
+    ("output"       , po::value<string>(&parsed_args.out_pathname)->required()
+                    , "REQUIRED, positional. Output file/folder (if input is a folder). Format is deduced by extension type, either JSON or CSV."
                         "Format is described in 'USAGE.md'." )
 
     ("separation"   , po::value<double>(&parsed_args.separation)->required()
@@ -134,49 +148,68 @@ bool process_command_line(int argc, char* argv[], program_arguments& parsed_args
         return false;
     }
     
-    // Declare the supported options.
     return true;
 }
 
-int main(int argc, char *argv[])
+/******************** Problem solving ********************/
+
+void write_result(const fs::path& out_filepath, vector<std::shared_ptr<Dubins>>& sol, vector<AircraftStats>& stats, program_arguments& args)
 {
+
+    std::ofstream out_data(out_filepath);
     
-    // ----- Parse arguments ----- //
-    
-    program_arguments args;
-    
-    bool successful_parse = process_command_line(argc,argv,args);
-    
-    if (!successful_parse) {exit(0);}
-    
-    if (args.max_iters <= 0)
+    string ext;
+    if (out_filepath.has_extension())
     {
-        std::cerr   << "Maximal number of iterations is non-positive (Got: " << args.max_iters << " )!" << std::endl 
-        << "Exiting now..." << std::endl; 
-        exit(0);
+        ext = out_filepath.extension();
+    }
+    else
+    {
+        ext = ".json";
     }
     
-    if (args.samples < 3)
+    // Put to lowercase
+    lower_string(ext);
+
+    if (args.verbosity > 0)
     {
-        std::cerr   << "Number of saples is too small, ie less than 3 (Got: " << args.samples << " )!" << std::endl 
-        << "Exiting now..." << std::endl; 
-        exit(0);
+        std::cout << "Writing result at: " << out_filepath.string() << std::endl << std::endl;
     }
+     
     
-    // ----- Parse input file ----- //
-    
-    fs::path src_file(args.src_filename);
-    std::ifstream src_data(src_file);
-    
-    if (src_data.bad())
+    if (ext == ".csv")
     {
-        std::cerr   << "Error while reading trying to open the input file (tried path: " << args.src_filename << " )" << std::endl
+        DubinsPP::OutputPrinter::print_paths_as_CSV(out_data,sol,stats,args.wind_x,args.wind_y,args.samples);
+    }
+    else
+    {
+        DubinsPP::OutputPrinter::print_paths_as_JSON(out_data,sol,stats,args.separation,args.wind_x,args.wind_y);
+    }
+}
+
+std::tuple<int,SharedDubinsResults,ExtraPPResults> solve_case(const fs::path& input_path, const fs::path& output_path, program_arguments& args)
+{
+    ExtraPPResults extra;
+    extra.case_name = input_path.string();
+
+    if (args.verbosity > 0)
+    {
+        std::cout << "Reading file: " << input_path << std::endl;
+    }
+
+    std::ifstream data_src(input_path);
+
+    if (data_src.bad())
+    {
+        std::cerr   << "Error while reading trying to open the input file (tried path: " << input_path << " )" << std::endl
         << "Exiting now..." << std::endl;
-        exit(0); 
+        return std::make_tuple(DubinsFleetPlanner_PARSING_FAILURE,std::nullopt,extra);
     }
     
-    DubinsPP::InputParser::CaseData data = DubinsPP::InputParser::parse_data_csv(src_data);
     
+
+    DubinsPP::InputParser::CaseData data = DubinsPP::InputParser::parse_data_csv(data_src);
+
     std::vector<Pose3D> starts,ends;
     std::vector<AircraftStats> stats;
     std::vector<double> dt;
@@ -193,18 +226,24 @@ int main(int argc, char *argv[])
     
     if (args.length_extensions.size())
     {
-        planner = std::make_unique<ExtendedDubinsFleetPlanner>(args.precision,args.max_r_length,args.length_extensions,args.length_extensions); 
+        planner = std::make_unique<ExtendedDubinsFleetPlanner>(
+            args.precision, args.max_r_length,
+            args.length_extensions, args.length_extensions,
+            args.verbosity); 
     }
     else
     {
-        planner = std::make_unique<BasicDubinsFleetPlanner>(args.precision,args.max_r_length);
+        planner = std::make_unique<BasicDubinsFleetPlanner>(
+            args.precision ,args.max_r_length,
+            args.verbosity);
     }
     
-    std::optional<vector<std::shared_ptr<Dubins>>> sols;
+    SharedDubinsResults sols;
+    
     
     if (args.thread_num < 0)
     {
-        auto tmp_sols = planner->solve<Dubins::are_XY_separated>(starts,ends,stats,args.separation,
+        UniqueDubinsResults tmp_sols = planner->solve<Dubins::are_XY_separated>(extra,starts,ends,stats,args.separation,
             dt,args.wind_x,args.wind_y,args.max_iters);
             
         if (tmp_sols.has_value())
@@ -218,7 +257,8 @@ int main(int argc, char *argv[])
 
             std::cerr << "WARNING: Could not find a solution; retrying with SEPARATION DISABLED" << std::endl;
 
-            auto tmp_sols_bis = planner->solve<Dubins::are_XY_separated>(starts,ends,stats,0.,
+            ExtraPPResults _backup;
+            UniqueDubinsResults tmp_sols_bis = planner->solve<Dubins::are_XY_separated>(_backup,starts,ends,stats,0.,
                 dt,args.wind_x,args.wind_y,args.max_iters);
 
             if (tmp_sols_bis.has_value())
@@ -233,14 +273,15 @@ int main(int argc, char *argv[])
     }
     else
     {
-        sols = planner->solve_parallel<Dubins::are_XY_separated>(starts,ends,stats,args.separation,
+        sols = planner->solve_parallel<Dubins::are_XY_separated>(extra,starts,ends,stats,args.separation,
             dt,args.wind_x,args.wind_y,args.max_iters,args.thread_num);
 
         if (!sols.has_value()) // If no solution, retry without separation
         {
+            ExtraPPResults _backup;
             std::cerr << "WARNING: Could not find a solution; retrying with SEPARATION DISABLED" << std::endl;
             
-            sols = planner->solve_parallel<Dubins::are_XY_separated>(starts,ends,stats,0.,
+            sols = planner->solve_parallel<Dubins::are_XY_separated>(_backup,starts,ends,stats,0.,
                 dt,args.wind_x,args.wind_y,args.max_iters,args.thread_num);
         }
         else
@@ -251,45 +292,140 @@ int main(int argc, char *argv[])
         
     if (!sols.has_value())
     {
-        std::cerr << "ERROR: Could not find a solution, exiting without writing file..." << std::endl;
-        exit(1);
-    }
-    
-    // ----- Print result ----- //
-    
-    fs::path out_file(args.out_filename);
-    std::ofstream out_data(out_file);
-    
-    string ext;
-    if (out_file.has_extension())
-    {
-        ext = out_file.extension();
+        std::cerr << "ERROR: Could not find a solution!" << std::endl;
+        return std::make_tuple(DubinsFleetPlanner_SOLVING_FAILURE,std::nullopt,extra);
     }
     else
     {
-        ext = ".json";
-    }
-    
-    // Put to lowercase
-    std::transform(ext.begin(), ext.end(), ext.begin(),
-    [](unsigned char c){ return std::tolower(c); });
-    
-    if (ext == ".csv")
-    {
-        DubinsPP::OutputPrinter::print_paths_as_CSV(out_data,sols.value(),stats,args.wind_x,args.wind_y,args.samples);
-    }
-    else
-    {
-        DubinsPP::OutputPrinter::print_paths_as_JSON(out_data,sols.value(),stats,args.separation,args.wind_x,args.wind_y);
-    }
+        write_result(output_path,sols.value(),stats,args);
 
-    if (good_solution)
+        if (good_solution)
+        {
+            return std::make_tuple(DubinsFleetPlanner_SOLVING_SUCCESS,sols,extra);
+        }
+        else
+        {
+            return std::make_tuple(DubinsFleetPlanner_SOLVING_FAILURE,sols,extra);
+        }
+    }
+}
+
+
+
+/******************** Main entrypoint ********************/
+
+int main(int argc, char *argv[])
+{
+    
+    // ----- Parse arguments ----- //
+    
+    program_arguments args;
+    
+    bool successful_parse = process_command_line(argc,argv,args);
+    
+    if (!successful_parse) {exit(0);}
+    
+    if (args.max_iters <= 0)
     {
-        return 0;
+        std::cerr   << "Maximal number of iterations is non-positive (Got: " << args.max_iters << " )!" << std::endl 
+        << "Exiting now..." << std::endl; 
+        exit(DubinsFleetPlanner_PARSING_FAILURE);
+    }
+    
+    if (args.samples < 3)
+    {
+        std::cerr   << "Number of saples is too small, ie less than 3 (Got: " << args.samples << " )!" << std::endl 
+        << "Exiting now..." << std::endl; 
+        exit(DubinsFleetPlanner_PARSING_FAILURE);
+    }
+    
+    // ----- Parse input file ----- //
+    
+    fs::path src_path(args.src_pathname);
+    fs::path out_path(args.out_pathname);
+
+    if (fs::is_directory(src_path))
+    {
+        // Handle a directory: several test cases
+
+        uint testcase_count = 0;
+        uint success_count  = 0;
+
+        vector<fs::path> failures;
+
+        chrono::nanoseconds total_cpu_time(0);
+        long unsigned int total_iterations = 0;
+        
+        if (!fs::is_directory(out_path))
+        {
+            if (!fs::create_directory(out_path))
+            {
+                std::cerr << "ERROR: Failure when creating ouput directory: " << out_path << std::endl
+                << "Exiting now..." << std::endl;
+
+                exit(DubinsFleetPlanner_PARSING_FAILURE);
+            }
+        }
+
+        
+        for(auto srcfile : fs::directory_iterator(src_path))
+        {
+            if (fs::is_regular_file(srcfile))
+            {
+                fs::path out_filepath(out_path);
+                string ext = "sol";
+                ext.append((out_path.has_extension()) ? (out_path.extension()) : (".json"));
+
+                out_filepath /= srcfile.path().filename();
+                out_filepath.replace_extension(ext);
+
+                auto __ret = solve_case(srcfile,out_filepath,args);
+
+                int code = std::get<0>(__ret);
+                ExtraPPResults& extra = std::get<2>(__ret);
+
+                total_cpu_time      += extra.duration;
+                total_iterations    += extra.iterations;
+
+                if (code == DubinsFleetPlanner_SOLVING_SUCCESS)
+                {
+                    success_count++;
+                }
+                else
+                {
+                    failures.push_back(srcfile.path());
+                }
+
+                testcase_count++;
+            }
+        }
+
+        
+        std::cout   << "List of failures:" << std::endl;
+        
+        for(auto& inpath : failures)
+        {
+            std::cout << inpath << std::endl;
+        }
+
+        std::cout   << std::endl
+                    << "Succes ratio: " << success_count << " / " << testcase_count << std::endl
+                    << "Succes rate : " << 100*(static_cast<double>(success_count)/static_cast<double>(testcase_count)) << " %" << std::endl 
+                    << "Average time per case (s)       : " << chrono::duration<double>(total_cpu_time)/(1000000000 * testcase_count) << std::endl
+                    << "Average time per iteration (s)  : " << chrono::duration<double>(total_cpu_time)/(1000000000 * total_iterations) << std::endl
+                    << std::endl;
     }
     else
     {
-        return 1;
+        // Handle a single file
+        auto __ret = solve_case(src_path,out_path,args);
+        
+        int code = std::get<0>(__ret);
+        ExtraPPResults& extra = std::get<2>(__ret);
+
+        std::cout << extra.format() << std::endl;
+
+        exit(code);
     }
 }
 

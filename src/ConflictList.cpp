@@ -230,7 +230,7 @@ std::vector<Conflict_T> parallel_compute_XY_separations(SharedListOfPossibilitie
 
 // ---------------------------------------- LP Solver ---------------------------------------- //
 
-void setup_base_model(Highs& highs, uint AC_count, uint max_paths_count)
+void setup_base_model(Highs& highs, uint AC_count, uint max_paths_count, int verbosity)
 {
     // -- General Options
     highs.setOptionValue("output_flag",true);
@@ -240,11 +240,14 @@ void setup_base_model(Highs& highs, uint AC_count, uint max_paths_count)
     highs.setOptionValue("mip_abs_gap", 1-1e-5); // Since all variables in the objective are binary, it should stop when the absolute gap is below 1
     // highs.setOptionValue('random_seed', SEED)
 
-    #if defined(DubinsFleetPlanner_DEBUG_MSG) && DubinsFleetPlanner_DEBUG_MSG > 0
-    highs.setOptionValue("log_to_console",true);
-    #else
-    highs.setOptionValue("log_to_console",false);
-    #endif
+    if (verbosity > 1)
+    {
+        highs.setOptionValue("log_to_console",true);
+    }
+    else
+    {
+        highs.setOptionValue("log_to_console",false);
+    }
 
     // Define variables with bounds (01-LP problem)
     uint var_num = AC_count * max_paths_count; 
@@ -366,7 +369,22 @@ std::optional<std::vector<std::shared_ptr<Dubins>>> find_pathplanning_LP_solutio
 
     // -- Solve
 
-    assert(model.run() == HighsStatus::kOk);
+    auto highs_ret = model.run();
+
+    model.getInfo();
+
+    model.getICrashInfo();
+
+    ;
+
+
+    if (highs_ret != HighsStatus::kOk)
+    {
+        std::cerr   << "ERROR: HiGHS Failure" << std::endl
+                    << " Model status     : " << model.modelStatusToString(model.getModelStatus()) << std::endl << std::endl;
+
+        return std::nullopt;
+    }
 
 
     if (model.getModelStatus() == HighsModelStatus::kOptimal)

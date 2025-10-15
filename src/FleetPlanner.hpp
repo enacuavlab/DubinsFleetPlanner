@@ -18,14 +18,56 @@
 #pragma once
 
 #include <vector>
+#include <tuple>
 #include <memory>
 #include <optional>
+#include <format>
+
+#include <boost/chrono.hpp>
 
 #include "Dubins.hpp"
 #include "BaseDubins.hpp"
 #include "ExtendedDubins.hpp"
 
 #include "ConflictList.hpp"
+
+/********************************************************************************/
+/********************************************************************************/
+
+/**                                     Helpers                                 */
+
+/********************************************************************************/
+/********************************************************************************/
+
+// ---------- Imports and typedefs ---------- //
+
+namespace chrono = boost::chrono;
+
+typedef std::optional<std::vector<std::unique_ptr<Dubins>>> UniqueDubinsResults;
+typedef std::optional<std::vector<std::shared_ptr<Dubins>>> SharedDubinsResults;
+
+// ---------- Metadata processing ---------- //
+
+class ExtraPPResults
+{
+public:
+    std::string case_name;
+    bool success;
+    uint iterations;
+    chrono::nanoseconds duration;
+
+    std::string format() const
+    {
+        return std::format("Case: {}\n -> {}\n Performed {} iterations in {} ns",case_name, (success)?"Success!":"FAILURE", iterations,duration.count());
+    }
+
+    std::string as_CSV() const
+    {
+        return std::format("{};{};{};{}",case_name,success,iterations,duration.count());
+    }
+};
+
+// ---------- Helpful for solving ---------- //
 
 double maxmin_dubins_traveltime(
     const std::vector<Pose3D>& starts, const std::vector<Pose3D>& ends,
@@ -203,10 +245,10 @@ protected:
      * @param all_paths List of all possible path for each agent
      * @param stats     Statistics of each agent
      * @param min_sep   Minimal distance required
-     * @return std::optional<std::vector<std::unique_ptr<Dubins>>> 
+     * @return UniqueDubinsResults
      */
     template<Dubins::DubinsSeparationFunction separation_function>
-    std::optional<std::vector<std::unique_ptr<Dubins>>> pathfinder_separated(
+    UniqueDubinsResults pathfinder_separated(
         ListOfPossibilities& all_paths, const std::vector<AircraftStats>& stats, double min_sep) const
     {
         uint current_index = 0;
@@ -246,10 +288,10 @@ protected:
      * @param all_paths List of all possible path for each agent
      * @param stats     Statistics of each agent
      * @param min_sep   Minimal distance required
-     * @return std::optional<std::vector<std::unique_ptr<Dubins>>> 
+     * @return UniqueDubinsResults
      */
     template<Dubins::DubinsSeparationFunction separation_function>
-    std::optional<std::vector<std::unique_ptr<Dubins>>> find_solution(
+    UniqueDubinsResults find_solution(
         ListOfPossibilities& possibilites, const std::vector<AircraftStats>& stats, double min_sep) const
     {
         return pathfinder_separated<separation_function>(possibilites,stats,min_sep);
@@ -263,10 +305,10 @@ protected:
      * @param stats     Statistics of each agent
      * @param min_sep   Minimal distance required
      * @param threads   Number of threads to use
-     * @return std::optional<std::vector<std::shared_ptr<Dubins>>> 
+     * @return SharedDubinsResults
      */
     template<Dubins::DubinsSeparationFunction separation_function>
-    std::optional<std::vector<std::shared_ptr<Dubins>>> find_solution_parallel(
+    SharedDubinsResults find_solution_parallel(
         ListOfPossibilities& possibilites, const std::vector<AircraftStats>& stats, double min_sep, uint threads=0) const
     {
         SharedListOfPossibilities shared_list;
@@ -311,12 +353,18 @@ protected:
 
 
 public:
-    AbstractFleetPlanner(double _prec, double _max_r_dur) : precision_tol(_prec), maximal_relative_duration(_max_r_dur) {}
+    int verbosity;
+    AbstractFleetPlanner(double _prec, double _max_r_dur, int verb) : 
+        precision_tol(_prec), maximal_relative_duration(_max_r_dur), verbosity(verb) {}
+
+    AbstractFleetPlanner(double _prec, double _max_r_dur) :
+        precision_tol(_prec), maximal_relative_duration(_max_r_dur), verbosity(1) {}
 
     /**
      * @brief Solve the pathfinding problem using a monothread solver
      * 
      * @tparam separation_function  Function to assert if two paths are separated or not
+     * @param extra     Extra information regarding the solving process
      * @param starts    List of starting poses 
      * @param ends      List of ending poses
      * @param stats     Statistics for aircraft
@@ -325,10 +373,11 @@ public:
      * @param wind_x    X component of the wind vector. Default to no wind.
      * @param wind_y    Y component of the wind vector. Default to no wind.
      * @param max_iters Maximal number of iterations before aborting research. Default to 300
-     * @return std::optional<std::vector<std::unique_ptr<Dubins>>> 
+     * @return UniqueDubinsResults
      */
     template<Dubins::DubinsSeparationFunction separation_function>
-    std::optional<std::vector<std::unique_ptr<Dubins>>> solve(
+    UniqueDubinsResults solve(
+        ExtraPPResults& extra,
         const std::vector<Pose3D>& starts, const std::vector<Pose3D>& ends,
         const std::vector<AircraftStats>& stats, double min_sep,
         const std::vector<double>& delta_t,
@@ -353,6 +402,9 @@ public:
         }
 #endif
 
+        chrono::process_real_cpu_clock clk;
+        auto start = clk.now();
+
         min_sep = std::abs(min_sep);
 
         double target_time = maxmin_dubins_traveltime(starts,ends,stats,delta_t,wind_x,wind_y);
@@ -365,10 +417,11 @@ public:
         while(current_iter < max_iters)
         {
 
-            #if defined(DubinsFleetPlanner_DEBUG_MSG) && DubinsFleetPlanner_DEBUG_MSG > 0
-                    std::cout   << "Starting iteration number " << current_iter 
-                                << " (target time: " << target_time << " )" << std::endl;
-            #endif
+            if (verbosity > 0)
+            {
+                std::cout   << "Starting iteration number " << current_iter 
+                            << " (target time: " << target_time << " )" << std::endl;
+            }
 
             std::vector<double> times = compute_arrival_times(delta_t,target_time);
 
@@ -383,23 +436,28 @@ public:
 
                 if (sol.has_value())
                 {
+                    auto end = clk.now();
+
+                    extra.success       = true;
+                    extra.duration      = end - start;
+                    extra.iterations    = current_iter;
                     return sol;
                 }
             }
-            #if defined(DubinsFleetPlanner_DEBUG_MSG) && DubinsFleetPlanner_DEBUG_MSG > 0
-            else
+            else if (verbosity > 0)
             {
                 std::cout   << "AC number " << min_loc << " has no path available..." << std::endl;
             }
-            #endif
-
-
-            
 
             current_iter++;
             target_time += time_step;
         }
+        
+        auto end = clk.now();
 
+        extra.success       = false;
+        extra.duration      = end - start;
+        extra.iterations    = current_iter;
         return std::nullopt;
     }
 
@@ -407,6 +465,7 @@ public:
      * @brief Solve the pathfinding problem using a multithread solver
      * 
      * @tparam separation_function  Function to assert if two paths are separated or not
+     * @param extra     Extra info regarding the solving process
      * @param starts    List of starting poses 
      * @param ends      List of ending poses
      * @param stats     Statistics for aircraft
@@ -416,10 +475,11 @@ public:
      * @param wind_y    Y component of the wind vector. Default to no wind.
      * @param max_iters Maximal number of iterations before aborting research. Default to 300
      * @param threads   Number of threads to use for solving. Default to half of `std::thread::hardware_concurrency()`
-     * @return std::optional<std::vector<std::unique_ptr<Dubins>>> 
+     * @return SharedDubinsResults
      */
     template<Dubins::DubinsSeparationFunction separation_function>
-    std::optional<std::vector<std::shared_ptr<Dubins>>> solve_parallel(
+    SharedDubinsResults solve_parallel(
+        ExtraPPResults& extra,
         const std::vector<Pose3D>& starts, const std::vector<Pose3D>& ends,
         const std::vector<AircraftStats>& stats, double min_sep,
         const std::vector<double>& delta_t,
@@ -427,13 +487,14 @@ public:
         uint max_iters = 300, uint threads = std::thread::hardware_concurrency()/2
     ) const
     {
-
-        
         #if defined(DubinsFleetPlanner_ASSERTIONS) && DubinsFleetPlanner_ASSERTIONS > 0
         assert(starts.size() == ends.size());
         assert(starts.size() == stats.size());
         assert(starts.size() == delta_t.size() +1);
         #endif
+
+        chrono::process_real_cpu_clock clk;
+        auto start = clk.now();
         
         if (threads == 0)
         {
@@ -442,7 +503,7 @@ public:
 
         min_sep = std::abs(min_sep);
 
-        setup_base_model(ref_model,starts.size(),max_path_num());
+        setup_base_model(ref_model,starts.size(),max_path_num(),verbosity);
 
         double target_time = maxmin_dubins_traveltime(starts,ends,stats,delta_t,wind_x,wind_y);
         double max_time = target_time * maximal_relative_duration;
@@ -454,10 +515,11 @@ public:
         while(current_iter < max_iters)
         {
 
-            #if defined(DubinsFleetPlanner_DEBUG_MSG) && DubinsFleetPlanner_DEBUG_MSG > 0
-                    std::cout   << "Starting iteration number " << current_iter 
-                                << " (target time: " << target_time << " )" << std::endl;
-            #endif
+            if (verbosity > 0)
+            {
+                std::cout   << "Starting iteration number " << current_iter 
+                            << " (target time: " << target_time << " )" << std::endl;
+            }
 
             std::vector<double> times = compute_arrival_times(delta_t,target_time);
 
@@ -467,6 +529,11 @@ public:
 
             if (sol.has_value())
             {
+                auto end = clk.now();
+
+                extra.success       = true;
+                extra.duration      = end - start;
+                extra.iterations    = current_iter;
                 return sol;
             }
 
@@ -474,6 +541,11 @@ public:
             target_time += time_step;
         }
 
+        auto end = clk.now();
+
+        extra.success       = false;
+        extra.duration      = end - start;
+        extra.iterations    = current_iter;
         return std::nullopt;
     }
 };
@@ -503,7 +575,11 @@ private:
     }
 
 public:
-    BasicDubinsFleetPlanner(double _prec, double _max_r_dur) : AbstractFleetPlanner(_prec,_max_r_dur) {}
+    BasicDubinsFleetPlanner(double _prec, double _max_r_dur) :
+        AbstractFleetPlanner(_prec,_max_r_dur) {}
+
+    BasicDubinsFleetPlanner(double _prec, double _max_r_dur, int verb) :
+        AbstractFleetPlanner(_prec,_max_r_dur,verb) {}
 };
 
 /**
@@ -526,8 +602,12 @@ private:
     } 
 
 public:
-    ExtendedDubinsFleetPlanner(double _prec, double _max_r_dur, 
+    ExtendedDubinsFleetPlanner(double _prec, double _max_r_dur,
         const std::vector<double>& _slens, const std::vector<double>& _elens)
         : AbstractFleetPlanner(_prec,_max_r_dur), start_lengths(_slens), end_lengths(_elens) {}
+
+    ExtendedDubinsFleetPlanner(double _prec, double _max_r_dur,
+        const std::vector<double>& _slens, const std::vector<double>& _elens, int verb)
+        : AbstractFleetPlanner(_prec,_max_r_dur,verb), start_lengths(_slens), end_lengths(_elens) {}
 
 };

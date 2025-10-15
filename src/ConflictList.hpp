@@ -71,9 +71,10 @@ std::vector<Conflict_T> parallel_compute_XY_separations(SharedListOfPossibilitie
  * @param highs HiGHS instance to setup
  * @param AC_count Number of aircraft
  * @param max_paths_count Maximum number of possible paths per aircraft
+ * @param verbosity Enable/Disable logging from HiGHS library (logging enabled for verbosity > 1)
  * @return Highs A preconfigured model
  */
-void setup_base_model(Highs& highs, uint AC_count, uint max_paths_count);
+void setup_base_model(Highs& highs, uint AC_count, uint max_paths_count, int verbosity=1);
 
 /**
  * @brief Solve the path finding problem using HiGHS ILP solver
