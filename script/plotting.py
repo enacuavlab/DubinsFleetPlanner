@@ -90,7 +90,9 @@ def plot_several_pose2d_sequences(ax:Axes,poses_dict:DictOfPoseTrajectories,colo
     return ax
 
 
-def animate_several_pose2d_sequences(poses_list:ListOfTimedPoses,fps:int=30,color_dict:typing.Optional[dict[int,ColorType]]=None,
+def animate_several_pose2d_sequences(poses_list:ListOfTimedPoses,fps:int=30,
+                                     color_dict:typing.Optional[dict[int,ColorType]]=None,
+                                     name_dict:dict[int,str]|None=None,
                                      save_animation:typing.Optional[str]=None,
                                      show_animation:bool=False,
                                      no_legend:bool=False):
@@ -122,8 +124,12 @@ def animate_several_pose2d_sequences(poses_list:ListOfTimedPoses,fps:int=30,colo
     init_colors = [color_dict[t[0]] for t in poses_list[0][1]]
     
     for t in poses_list[0][1]:
+        label = f"AC: {t[0]}"
+        if name_dict is not None:
+            label += " " + name_dict[t[0]]
+            
         ax.scatter([t[1].x],[t[1].y],color=color_dict[t[0]],
-                   marker='o',label=f"AC: {t[0]}",alpha=0.5)
+                   marker='o',label=label,alpha=0.5)
     for t in poses_list[-1][1]:
         ax.scatter([t[1].x],[t[1].y],color=color_dict[t[0]],
                    marker='X',alpha=0.5)
@@ -238,15 +244,18 @@ def animate_several_pose2d_sequences(poses_list:ListOfTimedPoses,fps:int=30,colo
     if show_animation:
         plt.show()
 
-def animate_fleet_plan(plan:FleetPlan,sample_num:int,fps:int=30,color_dict:typing.Optional[dict[int,ColorType]]=None,
-                        save_animation:typing.Optional[str]=None,
-                        show_animation:bool=False,
-                        no_legend:bool=False):
+def animate_fleet_plan(plan:FleetPlan,sample_num:int,fps:int=30,
+                       color_dict:typing.Optional[dict[int,ColorType]]=None,
+                       name_dict:dict[int,str]|None=None,
+                       save_animation:typing.Optional[str]=None,
+                       show_animation:bool=False,
+                       no_legend:bool=False):
     
     samples = plan.sample_poses(sample_num)
     animate_several_pose2d_sequences(samples,
                                      fps,
                                      color_dict,
+                                     name_dict,
                                      save_animation,
                                      show_animation,
                                      no_legend)
@@ -283,12 +292,15 @@ if __name__ == '__main__':
         print("Parsing...",end='')
         data = parse_trajectories_from_CSV(path)
         ids = [t[0] for t in data[0][1]]
+        name_dict = None
         print(" Done!\nCreating animation...")
     elif ext.lower() == '.json':
         print("Parsing...",end='')
         plan = parse_trajectories_from_JSON(path)
-        ids = plan.list_ids()
+        name_dict = plan.generate_id_name_dict()
+        ids = name_dict.keys()
         data = plan.sample_poses(sample_num)
+        
         print(" Done!\nCreating animation...")
     else:
         print(f"File extension not handled: {ext}\nExiting...")
@@ -307,5 +319,5 @@ if __name__ == '__main__':
             color_dict[id] = cmap((id-min_id)/(max_id-min_id))
     
         
-    animate_several_pose2d_sequences(data,args.fps,color_dict,save,show_anim,args.no_legend)
+    animate_several_pose2d_sequences(data,args.fps,color_dict,name_dict,save,show_anim,args.no_legend)
     print("Done! Exiting...")

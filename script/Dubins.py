@@ -32,6 +32,9 @@ class DubinsMove(IntEnum):
     
     def __str__(self) -> str:
         return self.name
+    
+    def abbr(self) -> str:
+        return self.name[0]
 
 @dataclass
 class Pose3D:
@@ -258,6 +261,12 @@ class FleetPlan:
     
     def list_ids(self) -> list[int]:
         output = [s.id for s,_ in self.trajectories]
+        return output
+    
+    def generate_id_name_dict(self) -> dict[int,str]:
+        output = dict()
+        for s,p in self.trajectories:
+            output[s.id] = ''.join(sec.type.abbr() for sec in p.sections)
         return output
     
     def asdict(self) -> dict[str,typing.Any]:
