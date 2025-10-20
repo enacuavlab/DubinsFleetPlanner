@@ -36,9 +36,11 @@ set(msvc_cxx "$<COMPILE_LANG_AND_ID:CXX,MSVC>")
 # -------------------- Required packages -------------------- #
 ### Boost ###
 
-set(Boost_USE_STATIC_LIBS ON) 
-set(Boost_USE_MULTITHREADED ON)  
-set(Boost_USE_STATIC_RUNTIME ON) 
+set(Boost_USE_STATIC_LIBS        ON)  # only find static libs
+set(Boost_USE_DEBUG_LIBS        OFF)  # ignore debug libs and
+set(Boost_USE_RELEASE_LIBS       ON)  # only find release libs
+set(Boost_USE_MULTITHREADED      ON)
+set(Boost_USE_STATIC_RUNTIME    OFF)
 find_package(Boost CONFIG REQUIRED)
 
 include_directories(${Boost_INCLUDE_DIRS})

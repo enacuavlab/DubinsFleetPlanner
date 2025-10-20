@@ -5,7 +5,7 @@
 
 include(FetchContent)
 
-find_package(Boost REQUIRED COMPONENTS program_options chrono system)
+find_package(Boost CONFIG REQUIRED COMPONENTS program_options chrono system)
 
 #################### General configuration #################### 
 
