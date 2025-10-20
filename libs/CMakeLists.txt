@@ -17,6 +17,18 @@
 
 add_subdirectory(combinations)
 add_subdirectory(csv_reader)
-add_subdirectory(eigen)
+
+### Eigen setup ###
+
+# if (NOT TARGET Eigen3::Eigen)
+#     add_subdirectory(eigen)
+# endif()
+
+set(EIGEN_BUILD_DEMOS OFF)
+set(EIGEN_BUILD_DOC OFF)
+set(EIGEN_BUILD_SPBENCH OFF)
+set(EIGEN_BUILD_TESTING OFF)
+set(EIGEN_LEAVE_TEST_IN_ALL_TARGET OFF)
+
 # add_subdirectory(HiGHS)
 add_subdirectory(ScalarMin)

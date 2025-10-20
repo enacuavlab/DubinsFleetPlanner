@@ -63,10 +63,10 @@ target_include_directories(DubinsFleetPlannerLib PUBLIC ${DubinsFleetPlannerLib_
 if(DubinsFleetPlanner_PARALLEL)
     ### HiGHS Solver + BOOST ###
 
-    target_link_libraries(DubinsFleetPlannerLib highs::highs ${Boost_LIBRARIES})
+    target_link_libraries(DubinsFleetPlannerLib Eigen3::Eigen highs::highs ${Boost_LIBRARIES})
 else()
     ### BOOST only ###
-    target_link_libraries(DubinsFleetPlannerLib ${Boost_LIBRARIES})
+    target_link_libraries(DubinsFleetPlannerLib Eigen3::Eigen ${Boost_LIBRARIES})
 
 endif()
 

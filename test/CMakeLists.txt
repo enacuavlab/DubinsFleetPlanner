@@ -31,6 +31,10 @@ option(DubinsFleetPlanner_VISUALISATION "Include visualisation in the solver (fo
         GIT_TAG        f8d779a # release-0.3.0
         )
 
+    set(SCIPLOT_BUILD_DOCS OFF)
+    set(SCIPLOT_BUILD_EXAMPLES OFF)
+    set(SCIPLOT_BUILD_TESTS OFF)
+    
     # For Windows: Prevent overriding the parent project's compiler/linker settings
     FetchContent_MakeAvailable(sciplot)
 

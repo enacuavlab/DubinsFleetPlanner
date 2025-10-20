@@ -16,14 +16,14 @@
 # along with DubinsFleetPlanner.  If not, see <https://www.gnu.org/licenses/>.
 
 # CMake general configuration
-cmake_minimum_required(VERSION 3.30.0)
+cmake_minimum_required(VERSION 3.28.0)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_DEBUG_POSTFIX d)
-set(CMAKE_POLICY_VERSION_MINIMUM 3.30)
+set(CMAKE_POLICY_VERSION_MINIMUM 3.28)
 
 set(CMAKE_VERBOSE_MAKEFILE ON)
 
-
+include(FetchContent)
 
 # -------------------- Project declaration -------------------- #
 project(DubinsFleetPlanner VERSION 0.1.0 LANGUAGES C CXX)
@@ -34,20 +34,30 @@ set(gcc_like_cxx "$<COMPILE_LANG_AND_ID:CXX,ARMClang,AppleClang,Clang,GNU,LCC>")
 set(msvc_cxx "$<COMPILE_LANG_AND_ID:CXX,MSVC>")
 
 # -------------------- Required packages -------------------- #
-add_subdirectory(libs)
-set(libs_dir "${PROJECT_SOURCE_DIR}/libs")
-
 ### Boost ###
 
 set(Boost_USE_STATIC_LIBS ON) 
 set(Boost_USE_MULTITHREADED ON)  
 set(Boost_USE_STATIC_RUNTIME ON) 
-find_package(Boost REQUIRED)
+find_package(Boost CONFIG REQUIRED)
 
 include_directories(${Boost_INCLUDE_DIRS})
 
-### ScalarMin solver ###
-#find_package(ScalarMin REQUIRED)
+### Eigen ###
+
+FetchContent_Declare(
+  Eigen
+  GIT_REPOSITORY https://gitlab.com/libeigen/eigen.git
+  GIT_TAG master
+  GIT_SHALLOW TRUE
+  GIT_PROGRESS TRUE)
+
+  
+add_subdirectory(libs)
+  
+FetchContent_MakeAvailable(Eigen)
+
+set(libs_dir "${PROJECT_SOURCE_DIR}/libs")
 
 # -------------------- Options -------------------- #
 
