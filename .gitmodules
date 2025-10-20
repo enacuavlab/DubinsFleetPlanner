@@ -9,4 +9,4 @@
 	url = https://gitlab.com/libeigen/eigen.git
 [submodule "libs/HiGHS"]
 	path = libs/HiGHS
-	url = https://github.com/ERGO-Code/HiGHS
+	url = git@github.com:ERGO-Code/HiGHS.git
