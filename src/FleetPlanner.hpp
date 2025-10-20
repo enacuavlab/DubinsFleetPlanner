@@ -55,15 +55,45 @@ public:
     bool success;
     uint iterations;
     chrono::nanoseconds duration;
+    uint threads;
+    uint possible_paths_num;
+    double initial_path_time;
+    double final_path_time;
 
     std::string format() const
     {
-        return std::format("Case: {}\n -> {}\n Performed {} iterations in {} ns",case_name, (success)?"Success!":"FAILURE", iterations,duration.count());
+        return std::format(
+            "Case: {}\n -> {}\n  Found path of duration {} (baseline is {})"
+            "\n Performed {} iterations in {} ns\n Used {} threads; {} possible paths",
+            case_name, 
+            (success) ? "Success!" : "FAILURE",
+            final_path_time,
+            initial_path_time,
+            iterations,
+            duration.count(),
+            threads,
+            possible_paths_num);
     }
+
+
+    static const std::string CSV_header()
+    {
+        return "Test input;Success;Iterations;Duration(ns);Threads;Possible paths;Initial guessed time;Final optained time";
+    }
+
 
     std::string as_CSV() const
     {
-        return std::format("{};{};{};{}",case_name,success,iterations,duration.count());
+        return std::format("{};{};{};{};{};{};{};{}",
+            case_name,
+            success,
+            iterations,
+            duration.count(),
+            threads,
+            possible_paths_num,
+            initial_path_time,
+            final_path_time
+        );
     }
 };
 
@@ -387,6 +417,8 @@ public:
     {
 
         uint N = starts.size();
+        extra.threads = 0;
+        extra.possible_paths_num = max_path_num();
          
 #if defined(DubinsFleetPlanner_ASSERTIONS) && DubinsFleetPlanner_ASSERTIONS > 0
         assert(starts.size() == ends.size());
@@ -408,6 +440,9 @@ public:
         min_sep = std::abs(min_sep);
 
         double target_time = maxmin_dubins_traveltime(starts,ends,stats,delta_t,wind_x,wind_y);
+
+        extra.initial_path_time = target_time;
+
         double max_time = target_time * maximal_relative_duration;
 
         double time_step = max_time/max_iters;
@@ -441,6 +476,7 @@ public:
                     extra.success       = true;
                     extra.duration      = end - start;
                     extra.iterations    = current_iter;
+                    extra.final_path_time = target_time;
                     return sol;
                 }
             }
@@ -458,6 +494,7 @@ public:
         extra.success       = false;
         extra.duration      = end - start;
         extra.iterations    = current_iter;
+        extra.final_path_time = target_time;
         return std::nullopt;
     }
 
@@ -492,20 +529,25 @@ public:
         assert(starts.size() == stats.size());
         assert(starts.size() == delta_t.size() +1);
         #endif
-
-        chrono::process_real_cpu_clock clk;
-        auto start = clk.now();
         
         if (threads == 0)
         {
             threads = std::thread::hardware_concurrency();
         }
 
+        extra.threads = threads;
         min_sep = std::abs(min_sep);
+        extra.possible_paths_num = max_path_num();
+
+        chrono::process_real_cpu_clock clk;
+        auto start = clk.now();
 
         setup_base_model(ref_model,starts.size(),max_path_num(),verbosity);
 
         double target_time = maxmin_dubins_traveltime(starts,ends,stats,delta_t,wind_x,wind_y);
+
+        extra.initial_path_time = target_time;
+
         double max_time = target_time * maximal_relative_duration;
 
         double time_step = max_time/max_iters;
@@ -534,6 +576,7 @@ public:
                 extra.success       = true;
                 extra.duration      = end - start;
                 extra.iterations    = current_iter;
+                extra.final_path_time = target_time;
                 return sol;
             }
 
@@ -546,6 +589,7 @@ public:
         extra.success       = false;
         extra.duration      = end - start;
         extra.iterations    = current_iter;
+        extra.final_path_time = target_time;
         return std::nullopt;
     }
 };
@@ -598,7 +642,48 @@ private:
 
     uint max_path_num() const
     {
-        return DubinsMoveNum*start_lengths.size()*NumberOfBaseDubins*end_lengths.size()*DubinsMoveNum;
+        bool zero_in_starts = false;
+        bool zero_in_ends   = false;
+
+        for(double val : start_lengths)
+        {
+            if (abs(val) < precision_tol)
+            {
+                zero_in_starts = true;
+                break;
+            }
+        }
+
+        for(double val : end_lengths)
+        {
+            if (abs(val) < precision_tol)
+            {
+                zero_in_ends = true;
+                break;
+            }
+        }
+
+        uint nonzero_starts = start_lengths.size()  + ((zero_in_starts) ? (-1) : 0);
+        uint nonzero_ends   = end_lengths.size()    + ((zero_in_ends)   ? (-1) : 0);
+
+        uint nbr_of_possibilities = DubinsMoveNum*nonzero_starts*NumberOfBaseDubins*nonzero_ends*DubinsMoveNum; // Non-zero paths
+
+        if (zero_in_starts)
+        {
+            nbr_of_possibilities += NumberOfBaseDubins*nonzero_ends*DubinsMoveNum; // Starts with 0, ends with non-zero
+        }
+
+        if (zero_in_ends)
+        {
+            nbr_of_possibilities += DubinsMoveNum*nonzero_starts*NumberOfBaseDubins; // Ends with 0, starts with non-zero
+        }
+
+        if (zero_in_starts && zero_in_ends)
+        {
+            nbr_of_possibilities += DubinsMoveNum; // Starts and ends with 0
+        }
+
+        return nbr_of_possibilities;
     } 
 
 public:

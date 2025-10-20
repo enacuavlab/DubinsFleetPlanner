@@ -343,6 +343,7 @@ int main(int argc, char *argv[])
     
     fs::path src_path(args.src_pathname);
     fs::path out_path(args.out_pathname);
+    
 
     if (fs::is_directory(src_path))
     {
@@ -367,6 +368,18 @@ int main(int argc, char *argv[])
             }
         }
 
+        fs::path summary_file_path = out_path / "summary.csv";
+        std::ofstream summary_file(summary_file_path);
+
+        if (summary_file.bad())
+        {
+            std::cerr << "ERROR: Could not create summary output file at: " << summary_file_path << std::endl
+            << "Exiting now..." << std::endl;
+
+            exit(DubinsFleetPlanner_PARSING_FAILURE);
+        }
+
+        summary_file << ExtraPPResults::CSV_header() << std::endl;
         
         for(auto srcfile : fs::directory_iterator(src_path))
         {
@@ -397,8 +410,12 @@ int main(int argc, char *argv[])
                 }
 
                 testcase_count++;
+
+                summary_file << extra.as_CSV() << std::endl;
             }
         }
+
+        summary_file.close();
 
         
         std::cout   << "List of failures:" << std::endl;
@@ -411,8 +428,8 @@ int main(int argc, char *argv[])
         std::cout   << std::endl
                     << "Succes ratio: " << success_count << " / " << testcase_count << std::endl
                     << "Succes rate : " << 100*(static_cast<double>(success_count)/static_cast<double>(testcase_count)) << " %" << std::endl 
-                    << "Average time per case (s)       : " << chrono::duration<double>(total_cpu_time)/(1000000000 * testcase_count) << std::endl
-                    << "Average time per iteration (s)  : " << chrono::duration<double>(total_cpu_time)/(1000000000 * total_iterations) << std::endl
+                    << "Average time per case (s)       : " << chrono::duration<double>(total_cpu_time)/(testcase_count) << std::endl
+                    << "Average time per iteration (s)  : " << chrono::duration<double>(total_cpu_time)/(total_iterations) << std::endl
                     << std::endl;
     }
     else
