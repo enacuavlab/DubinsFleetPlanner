@@ -47,17 +47,7 @@ include_directories(${Boost_INCLUDE_DIRS})
 
 ### Eigen ###
 
-FetchContent_Declare(
-  Eigen
-  GIT_REPOSITORY https://gitlab.com/libeigen/eigen.git
-  GIT_TAG master
-  GIT_SHALLOW TRUE
-  GIT_PROGRESS TRUE)
-
-  
 add_subdirectory(libs)
-  
-FetchContent_MakeAvailable(Eigen)
 
 set(libs_dir "${PROJECT_SOURCE_DIR}/libs")
 

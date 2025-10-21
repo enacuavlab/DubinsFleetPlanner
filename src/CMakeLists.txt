@@ -47,7 +47,7 @@ set(DubinsFleetPlannerLib_INCL
 if(DubinsFleetPlanner_PARALLEL)
     ### HiGHS Solver ###
 
-    set(HIGHS_DIR /usr/local/lib/cmake/highs)
+    set(HIGHS_DIR ${libs_dir}/HiGHS/build)
     find_package(HIGHS REQUIRED)
 
     set(DubinsFleetPlannerLib_SRC

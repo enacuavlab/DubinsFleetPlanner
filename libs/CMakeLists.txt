@@ -20,9 +20,9 @@ add_subdirectory(csv_reader)
 
 ### Eigen setup ###
 
-# if (NOT TARGET Eigen3::Eigen)
-#     add_subdirectory(eigen)
-# endif()
+if (NOT TARGET Eigen3::Eigen)
+    add_subdirectory(eigen)
+endif()
 
 set(EIGEN_BUILD_DEMOS OFF)
 set(EIGEN_BUILD_DOC OFF)
