@@ -17,7 +17,7 @@
 
 
 #include "BaseDubins.hpp"
-#include "FleetPathPlanner.hpp"
+#include "FleetPlanner.hpp"
 #include "ioUtils.hpp"
 
 #include "randomPathShape.hpp"
@@ -83,16 +83,24 @@ int main()
 
     std::vector<AircraftStats> stats_vec(stats.cbegin(),stats.cend());
 
-    std::array<double,N-1> delta_t = {0.};
+    std::vector<double> delta_t(N-1);
+    std::fill(delta_t.begin(),delta_t.end(),0.);
 
     // -------------------- Test solver -------------------- //
+    auto solver = BasicDubinsFleetPlanner(1e-3,5.);
+
     for(uint i = 0; i < list_of_checkpoints.size(); i++)
     {
-        std::array<Pose3D,N>& starts = list_of_checkpoints[i];
-        std::array<Pose3D,N>& ends = list_of_checkpoints[(i+1) % list_of_checkpoints.size()];
+        std::array<Pose3D,N>& starts_arr = list_of_checkpoints[i];
+        std::array<Pose3D,N>& ends_arr = list_of_checkpoints[(i+1) % list_of_checkpoints.size()];
 
-        auto opt_result = DubinsPP::BasicDubins::synchronised_XY_checks<N>(starts,ends,stats,min_sep,delta_t,wind_x,wind_y,
-            5.,1e-6,500);
+        std::vector<Pose3D> starts(starts_arr.cbegin(),starts_arr.cend());
+        std::vector<Pose3D> ends(ends_arr.cbegin(),ends_arr.cend());
+
+
+        ExtraPPResults extra;
+
+        auto opt_result = solver.solve<Dubins::are_XY_separated>(extra,starts,ends,stats_vec,min_sep,delta_t,wind_x,wind_y,500);
 
         if (!opt_result.has_value())
         {

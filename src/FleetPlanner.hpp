@@ -535,6 +535,11 @@ public:
             threads = std::thread::hardware_concurrency();
         }
 
+        if (verbosity > 0)
+        {
+            std::cout << "Solving using " << threads << " threads" << std::endl << std::endl;
+        }
+
         extra.threads = threads;
         min_sep = std::abs(min_sep);
         extra.possible_paths_num = max_path_num();

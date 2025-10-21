@@ -116,7 +116,7 @@ std::pair<double,double> SLS_possible_d(double alpha, double beta);
  * @brief The three possible moves for Dubins: Straight, Left turn and Right turn
  * 
  */
-enum DubinsMove {
+short enum DubinsMove {
     STRAIGHT = 0,
     LEFT     = 1,
     RIGHT    = 2
