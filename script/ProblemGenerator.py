@@ -240,6 +240,7 @@ DEBUG = False
 
 if __name__ == '__main__' and not DEBUG:
     import argparse,time,pathlib,os
+    import multiprocessing
     
     parser = argparse.ArgumentParser('Random Path Planning Problem Generator',
                                      description="Generate random path planning problems by sampling points uniformly "
@@ -253,7 +254,10 @@ if __name__ == '__main__' and not DEBUG:
                                      "Lab fixed wing:\n"
                                      " - Airspeed       : 15 m/s\n"
                                      " - Turn radius    : 40 m\n"
-                                     " - Min separation : 80 m",
+                                     " - Min separation : 80 m\n\n"
+                                     "When generating fully random cases, the minimal test case separation should be "
+                                     "the requested minimal separation plus twice the minimal turn radius of each aircraft, "
+                                     "as it allows waiting in circle without generating conflicts.",
                                      formatter_class=argparse.RawTextHelpFormatter)
     
     parser.add_argument('N',type=int,help='Number of Poses/Aircraft in the case')
@@ -299,10 +303,16 @@ if __name__ == '__main__' and not DEBUG:
                         help="Number of test cases to generate (repeat the arguments, increment the seed). Default to 1.",
                         default=1)
     
+    parser.add_argument('-p','--processes',dest='processes',
+                        type=int,help="Number of processes used to generate cases. Default to 0 (i.e. use as many as possible).",
+                        default=0)
+    
+    
     args = parser.parse_args()
     
     N = abs(args.N)
     mdist = abs(args.mdist)
+    processes = abs(args.processes)
     
     xrange = (float(args.x_range[0]),float(args.x_range[1]))
     yrange = (float(args.y_range[0]),float(args.y_range[1]))
@@ -316,8 +326,7 @@ if __name__ == '__main__' and not DEBUG:
     if not path.exists():
         os.mkdir(path)
     
-    for m in range(args.M):
-        
+    def problem_gen(m:int):
         print(f"Generating case number {m}... ")
         
         gen = RandomPathPlanningGenerator(seed+m,verbose=1)
@@ -344,8 +353,8 @@ if __name__ == '__main__' and not DEBUG:
         
         print("Done!\n")
         
-           
-    
+    with multiprocessing.Pool(processes if processes > 0 else None) as p:
+        p.map(problem_gen,range(args.M))
 
     
 if __name__ == '__main__' and DEBUG:

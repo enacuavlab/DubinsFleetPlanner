@@ -15,7 +15,6 @@
 # You should have received a copy of the GNU General Public License
 # along with DubinsFleetPlanner.  If not, see <https://www.gnu.org/licenses/>.
 
-import numpy as np
 import json,csv
 
 from Dubins import Pose3D,ACStats,Path,BasicPath,FleetPlan,ListOfTimedPoses,TimedPosesLine,DictOfPoseTrajectories
@@ -119,7 +118,7 @@ def transpose_list_of_trajectories(l:ListOfTimedPoses) -> DictOfPoseTrajectories
     
     return output
 
-def make_header(dataline:TimedPosesLine) -> list[str]:
+def make_CSV_trajectories_header(dataline:TimedPosesLine) -> list[str]:
     ac_count = len(dataline[1])
     output = ["time"]
     for i in range(ac_count):
@@ -132,7 +131,7 @@ def print_trajectories_to_CSV(output_file,data:ListOfTimedPoses,time_offset:floa
         writer = csv.writer(outcsv,delimiter=';')
         
         # Write header
-        header = make_header(data[0])
+        header = make_CSV_trajectories_header(data[0])
         writer.writerow(header)
         
         for line in data:
@@ -151,10 +150,10 @@ def join_trajectories_CSVs(output_file,*input_files):
         for file in input_files:
             data = parse_trajectories_from_CSV(file)
             if previous_header is None:
-                previous_header = make_header(data[0])
+                previous_header = make_CSV_trajectories_header(data[0])
                 writer.writerow(previous_header)
             else:
-                assert previous_header == make_header(data[0])
+                assert previous_header == make_CSV_trajectories_header(data[0])
                 
             for line in data:
                 row = [line[0]+last_time]
