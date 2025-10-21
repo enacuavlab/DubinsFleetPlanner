@@ -118,10 +118,11 @@ public:
 
     /****** Getters ******/
 
-    // constexpr const std::string& get_type_name() const
-    // {
-    //     return class_name;
-    // }
+    size_t type_hash() const
+    {
+        boost::hash<std::tuple<short,short,short>> hasher;
+        return hasher(std::make_tuple(fst,snd,trd));
+    }
 
     static const std::tuple<DubinsMove,DubinsMove,DubinsMove> class_id()
     {

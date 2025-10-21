@@ -5,7 +5,7 @@
 
 include(FetchContent)
 
-find_package(Boost CONFIG REQUIRED COMPONENTS program_options chrono system)
+find_package(Boost CONFIG REQUIRED COMPONENTS program_options chrono system container_hash)
 
 #################### General configuration #################### 
 
@@ -32,7 +32,6 @@ set(DubinsFleetPlannerLib_SRC
     Dubins.cpp
     ExtendedDubins.cpp
     Fitting.cpp
-    FleetPathPlanner.cpp
     FleetPlanner.cpp
     ioUtils.cpp
     Primitives.cpp 

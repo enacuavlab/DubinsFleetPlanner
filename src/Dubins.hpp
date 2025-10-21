@@ -23,6 +23,8 @@
 #include <string>
 #include <memory>
 
+#include <boost/container_hash/hash.hpp>
+
 #include "ProjectHeader.h"
 
 #include "utils.hpp"
@@ -99,6 +101,8 @@ public:
     // virtual constexpr const std::string& get_type_name() const = 0;
     virtual const std::string get_type_abbr() const = 0;
     virtual const std::vector<DubinsMove> get_all_sections() const = 0;
+
+    virtual size_t type_hash() const = 0;
 
     void set_start(const Pose3D& _start) {start = _start; recompute();}
     Pose3D get_start() const {return start;}

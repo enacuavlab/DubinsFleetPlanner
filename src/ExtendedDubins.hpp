@@ -80,6 +80,21 @@ public:
 
     /****** Setters and getters ******/
 
+    size_t type_hash() const
+    {
+        boost::hash<std::pair<short,double>> hasher;
+        size_t begin_hash = hasher(std::make_pair(beginMove,begin_length));
+        size_t end_hash = hasher(std::make_pair(endMove,end_length));
+        size_t underlying_hash = underlying->type_hash();
+
+        size_t output_hash = 0;
+        boost::hash_combine(output_hash,begin_hash);
+        boost::hash_combine(output_hash,underlying_hash);
+        boost::hash_combine(output_hash,end_hash);
+
+        return output_hash;
+    }
+
     const std::string get_type_abbr() const
     {
         std::string output;

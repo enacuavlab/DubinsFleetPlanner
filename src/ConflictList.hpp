@@ -40,6 +40,9 @@ typedef std::tuple<unsigned short, unsigned short, unsigned short, unsigned shor
 typedef std::vector<std::vector<std::unique_ptr<Dubins>>> ListOfPossibilities;
 typedef std::vector<std::vector<std::shared_ptr<Dubins>>> SharedListOfPossibilities;
 
+uint number_of_valid_paths(const ListOfPossibilities& list);
+size_t list_hash(const ListOfPossibilities& list);
+
 std::vector<Conflict_T> compute_XY_separations(ListOfPossibilities&, const std::vector<AircraftStats>&, double);
 
 std::vector<Conflict_T> parallel_compute_XY_separations(SharedListOfPossibilities&, const std::vector<AircraftStats>&, double, 

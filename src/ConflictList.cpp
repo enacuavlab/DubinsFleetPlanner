@@ -19,6 +19,42 @@
 
 // ---------------------------------------- Util functions ---------------------------------------- //
 
+uint number_of_valid_paths(ListOfPossibilities& list)
+{
+    uint output = 0;
+    for (auto& v : list)
+    {
+        for(const std::unique_ptr<Dubins>& d : v)
+        {
+            if (d->is_valid())
+            {
+                output++;
+            }
+        }
+    }
+
+    return output;
+}
+
+size_t list_hash(const ListOfPossibilities& list)
+{
+    size_t output = 0;
+    for (auto& v : list)
+    {
+        for(const std::unique_ptr<Dubins>& d : v)
+        {
+            if (d->is_valid())
+            {
+                boost::hash_combine(output,d->type_hash());
+            }
+        }
+    }
+
+    return output;
+
+}
+
+
 template<Dubins::DubinsSeparationFunction separation_function>
 static inline bool generic_check_compatibility(const Dubins& d1, const Dubins& d2, const AircraftStats& s1, const AircraftStats& s2, double sep)
 {
