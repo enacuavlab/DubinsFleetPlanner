@@ -1,13 +1,15 @@
 # Copyright (c) 2025 Mael FEURGARD <mael.feurgard@enac.fr>
-# 
+#
 # This software is released under the MIT License.
 # https://opensource.org/licenses/MIT
 
 include(FetchContent)
 
 find_package(Boost CONFIG REQUIRED COMPONENTS program_options chrono system container_hash)
+set(Boost_DEBUG ON)
 
-#################### General configuration #################### 
+
+#################### General configuration ####################
 
 if(DubinsFleetPlanner_ENABLE_ASSERTIONS)
     set(ASSERTIONS 1)
@@ -34,11 +36,11 @@ set(DubinsFleetPlannerLib_SRC
     Fitting.cpp
     FleetPlanner.cpp
     ioUtils.cpp
-    Primitives.cpp 
+    Primitives.cpp
     utils.cpp)
 
 set(DubinsFleetPlannerLib_INCL
-    ${CMAKE_CURRENT_BINARY_DIR} 
+    ${CMAKE_CURRENT_BINARY_DIR}
     ${libs_dir}/eigen
     ${libs_dir}/ScalarMin
     ${libs_dir}/csv_reader)
