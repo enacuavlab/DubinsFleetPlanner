@@ -19,6 +19,8 @@
 
 #include <vector>
 #include <tuple>
+#include <list>
+
 #include <memory>
 #include <optional>
 #include <format>
@@ -28,16 +30,17 @@
 #include "Dubins.hpp"
 #include "BaseDubins.hpp"
 #include "ExtendedDubins.hpp"
+#include "BaseExtendedDubins.hpp"
 
 #include "ConflictList.hpp"
 
-/********************************************************************************/
-/********************************************************************************/
+/*************************************************************************************/
+/*************************************************************************************/
 
-/**                                     Helpers                                 */
+/**                                     Helpers                                     **/
 
-/********************************************************************************/
-/********************************************************************************/
+/*************************************************************************************/
+/*************************************************************************************/
 
 // ---------- Imports and typedefs ---------- //
 
@@ -109,6 +112,102 @@ std::vector<double> compute_arrival_times(const std::vector<double>& dts, double
 
 std::tuple<uint,uint> count_min_number_of_valid_paths(const ListOfPossibilities& all_paths);
 
+
+// ---------- Smart sampling ---------- //
+
+struct SampleCase
+{
+    double val;
+    bool done       = false;
+    bool success    = false;
+};
+
+void print_samples(const std::list<SampleCase>& l)
+{
+    for(const SampleCase& c : l)
+    {
+        std::cout << c.val << " ; ";
+    }
+    std::cout << std::endl;
+}
+
+std::list<SampleCase> generate_linspace(double start, double end, uint samples, bool include_start = true, bool include_end=true)
+{
+    assert(end > start);
+    std::list<SampleCase> output;
+
+    double delta = end-start;
+
+    if (include_start && include_end)
+    {
+        assert(samples >= 2);
+
+        double step = delta/(samples-1);
+        for(uint i = 0; i < samples; i++)
+        {
+            output.push_back(SampleCase{start+i*step});
+        }
+        return output;
+    }
+    else if (include_start && !include_end)
+    {
+        assert(samples >= 1);
+
+        double step = delta/(samples);
+        for(uint i = 0; i < samples; i++)
+        {
+            output.push_back(SampleCase{start+i*step});
+        }
+        return output;
+    }
+    else if (!include_start && include_end)
+    {
+        assert(samples >= 1);
+
+        double step = delta/(samples);
+        for(uint i = 1; i <= samples; i++)
+        {
+            output.push_back(SampleCase{start+i*step});
+        }
+        return output;
+    }
+    else // (!include_start && !include_end)
+    {
+        double step = delta/(samples+1);
+        for(uint i = 1; i <= samples; i++)
+        {
+            output.push_back(SampleCase{start+i*step});
+        }
+        return output;
+    }
+}
+
+/**
+ * @brief Assuming the input is sorted (by val), weave points, that is add points between the existing ones
+ * 
+ * @param q     List of SampleCase, sorted by val
+ * @param weave Number of points to add between each two samples
+ */
+void weave_samples(std::list<SampleCase>& l, uint weave=1)
+{
+    assert(l.size() > 1);
+    print_samples(l);
+
+    auto next = l.begin(); next++;
+    auto iter = l.begin();
+
+    while(next != l.end())
+    {
+        auto new_values = generate_linspace(iter->val,next->val,weave,false,false);
+        std::cout << "Adding: ";
+        print_samples(new_values);
+        l.splice(next,new_values);
+        iter = next;
+        next++;
+        std::cout << "Result: ";
+        print_samples(l);
+    }
+}
 
 class AbstractFleetPlanner 
 {
@@ -390,6 +489,68 @@ public:
     AbstractFleetPlanner(double _prec, double _max_r_dur) :
         precision_tol(_prec), maximal_relative_duration(_max_r_dur), verbosity(1) {}
 
+    template<Dubins::DubinsSeparationFunction separation_function>
+    UniqueDubinsResults solve_once(
+        ExtraPPResults& extra,
+        const std::vector<Pose3D>& starts, const std::vector<Pose3D>& ends,
+        const std::vector<AircraftStats>& stats, double min_sep,
+        const std::vector<double>& times,
+        double wind_x = 0., double wind_y = 0.
+    ) const
+    {
+        uint N = starts.size();
+        extra.threads = 0;
+        extra.possible_paths_num = max_path_num();
+         
+#if defined(DubinsFleetPlanner_ASSERTIONS) && DubinsFleetPlanner_ASSERTIONS > 0
+        assert(starts.size() == ends.size());
+        assert(starts.size() == stats.size());
+        assert(starts.size() == delta_t.size() +1);
+
+        for(uint i = 0; i < N; i++)
+        {
+            for(uint j = i+1; j < N; j++)
+            {
+                assert(pose_dist_XY(starts[i],starts[j]) > min_sep);
+            }
+        }
+#endif
+
+        chrono::process_real_cpu_clock clk;
+        auto start = clk.now();
+
+        min_sep = std::abs(min_sep);
+
+        ListOfPossibilities possibilities = list_all_possibilities(starts,ends,stats,times,wind_x,wind_y);
+
+        uint min_valid_paths,min_loc;
+        std::tie(min_valid_paths,min_loc) = count_min_number_of_valid_paths(possibilities);
+
+        std::optional<std::vector<std::unique_ptr<Dubins>>> sol;
+
+        if (min_valid_paths > 0)
+        {
+            sol = find_solution<separation_function>(possibilities,stats,min_sep);
+            extra.success       = true;
+        } 
+        else
+        {
+            sol = std::nullopt;
+            extra.success       = false;
+
+            if (verbosity > 0)
+            {
+                std::cout   << "AC number " << min_loc << " has no path available..." << std::endl;
+            }
+        }
+
+        auto end = clk.now();
+        
+        extra.duration = end - start;
+
+        return sol;
+    }
+
     /**
      * @brief Solve the pathfinding problem using a monothread solver
      * 
@@ -403,6 +564,7 @@ public:
      * @param wind_x    X component of the wind vector. Default to no wind.
      * @param wind_y    Y component of the wind vector. Default to no wind.
      * @param max_iters Maximal number of iterations before aborting research. Default to 300
+     * @param weave_iters Number of iterations to add between two failed samples. Default to 2
      * @return UniqueDubinsResults
      */
     template<Dubins::DubinsSeparationFunction separation_function>
@@ -412,7 +574,7 @@ public:
         const std::vector<AircraftStats>& stats, double min_sep,
         const std::vector<double>& delta_t,
         double wind_x = 0., double wind_y = 0.,
-        uint max_iters = 300
+        uint max_iters = 300, uint weave_iters = 2
     ) const
     {
 
@@ -439,63 +601,180 @@ public:
 
         min_sep = std::abs(min_sep);
 
-        double target_time = maxmin_dubins_traveltime(starts,ends,stats,delta_t,wind_x,wind_y);
+        double min_time = maxmin_dubins_traveltime(starts,ends,stats,delta_t,wind_x,wind_y);
 
-        extra.initial_path_time = target_time;
+        extra.initial_path_time = min_time;
 
-        double max_time = target_time * maximal_relative_duration;
+        double max_time = min_time * maximal_relative_duration;
 
-        double time_step = max_time/max_iters;
+        std::list<SampleCase> samples = generate_linspace(min_time,max_time,weave_iters,true,true);
+        auto iter = samples.begin();
 
-        uint current_iter = 0;
+        uint iter_count = 0;
+        UniqueDubinsResults sol;
 
-        while(current_iter < max_iters)
+        while(iter_count < max_iters)
         {
+            // Remove cases already done
+            while(iter != samples.end() && iter->done)
+            {
+                iter++;
+            }
+
+            // If nothing left, regenerate
+            if (iter == samples.end())
+            {
+                if (verbosity > 1)
+                {
+                    std::cout << "Adding new samples, going from " << samples.size() << " to ";
+                }
+
+                weave_samples(samples,weave_iters);
+
+                if (verbosity > 1)
+                {
+                    std::cout << samples.size() << std::endl;
+                }
+
+                iter = samples.begin();
+                continue;
+            }
+
+            // Found a valid sample to test!
+
+            double target_time = iter->val;
 
             if (verbosity > 0)
             {
-                std::cout   << "Starting iteration number " << current_iter 
+                std::cout   << "Starting iteration number " << iter_count 
                             << " (target time: " << target_time << " )" << std::endl;
             }
 
+            // Compute arrival time for each AC and solve
             std::vector<double> times = compute_arrival_times(delta_t,target_time);
 
-            ListOfPossibilities possibilities = list_all_possibilities(starts,ends,stats,times,wind_x,wind_y);
+            sol = solve_once<separation_function>(extra,starts,ends,stats,min_sep,times,wind_x,wind_y);
 
-            uint min_possible_paths,min_loc;
-            std::tie(min_possible_paths,min_loc) = count_min_number_of_valid_paths(possibilities);
+            iter->done = true;
 
-            if (min_possible_paths > 0)
+            if (sol.has_value())
             {
-                std::optional<std::vector<std::unique_ptr<Dubins>>> sol = find_solution<separation_function>(possibilities,stats,min_sep);
+                iter->success = true;
 
-                if (sol.has_value())
-                {
-                    auto end = clk.now();
+                auto end = clk.now();
+                extra.success       = true;
+                extra.duration      = end - start;
+                extra.iterations    = iter_count;
+                extra.final_path_time = target_time;
 
-                    extra.success       = true;
-                    extra.duration      = end - start;
-                    extra.iterations    = current_iter;
-                    extra.final_path_time = target_time;
-                    return sol;
-                }
+                return sol;
             }
-            else if (verbosity > 0)
+            else
             {
-                std::cout   << "AC number " << min_loc << " has no path available..." << std::endl;
+                iter->success = false;
             }
 
-            current_iter++;
-            target_time += time_step;
+            iter_count++;
+            iter++;
         }
         
         auto end = clk.now();
 
         extra.success       = false;
         extra.duration      = end - start;
-        extra.iterations    = current_iter;
-        extra.final_path_time = target_time;
+        extra.iterations    = iter_count;
+        extra.final_path_time = max_time;
         return std::nullopt;
+    }
+
+
+    /**
+     * @brief  Solve the pathfinding problem for given target times using a multithread solver
+     * 
+     * @tparam separation_function  Function to assert if two paths are separated or not
+     * @param extra     Extra info regarding the solving process
+     * @param starts    List of starting poses 
+     * @param ends      List of ending poses
+     * @param stats     Statistics for aircraft
+     * @param min_sep   Minimal required separation
+     * @param times     Target time for each aircraft
+     * @param wind_x    X component of the wind vector. Default to no wind.
+     * @param wind_y    Y component of the wind vector. Default to no wind.
+     * @param threads   Number of threads to use for solving. Default to half of `std::thread::hardware_concurrency()`
+     * @param init_ref_model If true, initialize the `ref_model` attribute (required for using the HiGHS solver)
+     * @return SharedDubinsResults 
+     */
+    template<Dubins::DubinsSeparationFunction separation_function>
+    SharedDubinsResults solve_parallel_once(
+        ExtraPPResults& extra,
+        const std::vector<Pose3D>& starts, const std::vector<Pose3D>& ends,
+        const std::vector<AircraftStats>& stats, double min_sep,
+        const std::vector<double>& times,
+        double wind_x = 0., double wind_y = 0.,
+        uint threads = 0, bool init_ref_model=true
+    ) const
+    {
+
+        uint N = starts.size();
+         
+#if defined(DubinsFleetPlanner_ASSERTIONS) && DubinsFleetPlanner_ASSERTIONS > 0
+        assert(starts.size() == ends.size());
+        assert(starts.size() == stats.size());
+        assert(starts.size() == delta_t.size() +1);
+
+        for(uint i = 0; i < N; i++)
+        {
+            for(uint j = i+1; j < N; j++)
+            {
+                assert(pose_dist_XY(starts[i],starts[j]) > min_sep);
+            }
+        }
+#endif
+
+        chrono::process_real_cpu_clock clk;
+        auto start = clk.now();
+
+        if (threads == 0)
+        {
+            threads = std::thread::hardware_concurrency();
+        }
+
+        
+        extra.threads = threads;
+        extra.possible_paths_num = max_path_num();
+
+        if (init_ref_model)
+        {
+            setup_base_model(ref_model,starts.size(),max_path_num(),verbosity);
+        }
+
+        min_sep = std::abs(min_sep);
+
+        ListOfPossibilities possibilities = list_all_possibilities(starts,ends,stats,times,wind_x,wind_y);
+
+        int min_valid_paths,min_loc;
+        std::tie(min_valid_paths,min_loc) = count_min_number_of_valid_paths(possibilities);
+        std::optional<std::vector<std::shared_ptr<Dubins>>> sol;
+
+        if (min_valid_paths > 0)
+        {
+            sol = find_solution_parallel<separation_function>(possibilities,stats,min_sep,threads);
+            extra.success = true;
+        } 
+        else
+        {
+            sol = std::nullopt;
+            extra.success = false;
+
+            if (verbosity > 0)
+            {
+                std::cout   << "AC number " << min_loc << " has no path available..." << std::endl;
+            }
+        }
+
+        auto end = clk.now();
+        extra.duration      = end - start;
+        return sol;
     }
 
     /**
@@ -511,6 +790,7 @@ public:
      * @param wind_x    X component of the wind vector. Default to no wind.
      * @param wind_y    Y component of the wind vector. Default to no wind.
      * @param max_iters Maximal number of iterations before aborting research. Default to 300
+     * @param weave_iters Number of iterations to add between two failed samples. Default to 2
      * @param threads   Number of threads to use for solving. Default to half of `std::thread::hardware_concurrency()`
      * @return SharedDubinsResults
      */
@@ -521,7 +801,8 @@ public:
         const std::vector<AircraftStats>& stats, double min_sep,
         const std::vector<double>& delta_t,
         double wind_x = 0., double wind_y = 0.,
-        uint max_iters = 300, uint threads = std::thread::hardware_concurrency()/2
+        uint max_iters = 300, uint weave_iters = 2,
+        uint threads = std::thread::hardware_concurrency()/2
     ) const
     {
         #if defined(DubinsFleetPlanner_ASSERTIONS) && DubinsFleetPlanner_ASSERTIONS > 0
@@ -549,52 +830,88 @@ public:
 
         setup_base_model(ref_model,starts.size(),max_path_num(),verbosity);
 
-        double target_time = maxmin_dubins_traveltime(starts,ends,stats,delta_t,wind_x,wind_y);
+        double min_time = maxmin_dubins_traveltime(starts,ends,stats,delta_t,wind_x,wind_y);
 
-        extra.initial_path_time = target_time;
+        extra.initial_path_time = min_time;
 
-        double max_time = target_time * maximal_relative_duration;
+        double max_time = min_time * maximal_relative_duration;
 
-        double time_step = max_time/max_iters;
+        std::list<SampleCase> samples = generate_linspace(min_time,max_time,weave_iters,true,true);
+        auto iter = samples.begin();
 
-        uint current_iter = 0;
+        uint iter_count = 0;
+        UniqueDubinsResults sol;
 
-        while(current_iter < max_iters)
+        while(iter_count < max_iters)
         {
+            // Remove cases already done
+            while(iter != samples.end() && iter->done)
+            {
+                iter++;
+            }
+
+            // If nothing left, regenerate
+            if (iter == samples.end())
+            {
+                if (verbosity > 1)
+                {
+                    std::cout << "Adding new samples, going from " << samples.size() << " to ";
+                }
+
+                weave_samples(samples,weave_iters);
+
+                if (verbosity > 1)
+                {
+                    std::cout << samples.size() << std::endl;
+                }
+
+                iter = samples.begin();
+                continue;
+            }
+
+            // Found a valid sample to test!
+
+            double target_time = iter->val;
 
             if (verbosity > 0)
             {
-                std::cout   << "Starting iteration number " << current_iter 
+                std::cout   << "Starting iteration number " << iter_count 
                             << " (target time: " << target_time << " )" << std::endl;
             }
 
             std::vector<double> times = compute_arrival_times(delta_t,target_time);
 
-            ListOfPossibilities possibilities = list_all_possibilities(starts,ends,stats,times,wind_x,wind_y);
+            std::optional<std::vector<std::shared_ptr<Dubins>>> sol = solve_parallel_once<separation_function>(
+                extra,starts,ends,stats,min_sep,times,wind_x,wind_y,threads,false);
 
-            std::optional<std::vector<std::shared_ptr<Dubins>>> sol = find_solution_parallel<separation_function>(possibilities,stats,min_sep,threads);
+            iter->done = true;
 
             if (sol.has_value())
             {
+                iter->success = true;
                 auto end = clk.now();
 
                 extra.success       = true;
                 extra.duration      = end - start;
-                extra.iterations    = current_iter;
+                extra.iterations    = iter_count;
                 extra.final_path_time = target_time;
                 return sol;
             }
+            else
+            {
+                iter->success = false;
+            }
 
-            current_iter++;
-            target_time += time_step;
+            iter_count++;
+            iter++;
         }
 
         auto end = clk.now();
 
         extra.success       = false;
         extra.duration      = end - start;
-        extra.iterations    = current_iter;
-        extra.final_path_time = target_time;
+        extra.iterations    = iter_count;
+        extra.final_path_time = max_time;
         return std::nullopt;
     }
 };
@@ -697,6 +1014,77 @@ public:
         : AbstractFleetPlanner(_prec,_max_r_dur), start_lengths(_slens), end_lengths(_elens) {}
 
     ExtendedDubinsFleetPlanner(double _prec, double _max_r_dur,
+        const std::vector<double>& _slens, const std::vector<double>& _elens, int verb)
+        : AbstractFleetPlanner(_prec,_max_r_dur,verb), start_lengths(_slens), end_lengths(_elens) {}
+
+};
+
+/**
+ * @brief Plannification based on the 8 basic Dubins paths extended by basic primitives
+ * 
+ */
+class BaseExtendedDubinsFleetPlanner : public AbstractFleetPlanner
+{
+private:
+    std::vector<double> start_lengths,end_lengths; // Finite list of possible lengths for starting and ending extra path
+
+    std::vector<std::unique_ptr<Dubins>> generate_possible_paths(const Pose3D& start, const Pose3D& end, const AircraftStats& stats, double target_len) const
+    {
+        return generate_all_fitted_base_extended(start,end,start_lengths,end_lengths,stats.climb,stats.turn_radius,target_len,precision_tol);
+    }
+
+    uint max_path_num() const
+    {
+        bool zero_in_starts = false;
+        bool zero_in_ends   = false;
+
+        for(double val : start_lengths)
+        {
+            if (abs(val) < precision_tol)
+            {
+                zero_in_starts = true;
+                break;
+            }
+        }
+
+        for(double val : end_lengths)
+        {
+            if (abs(val) < precision_tol)
+            {
+                zero_in_ends = true;
+                break;
+            }
+        }
+
+        uint nonzero_starts = start_lengths.size()  + ((zero_in_starts) ? (-1) : 0);
+        uint nonzero_ends   = end_lengths.size()    + ((zero_in_ends)   ? (-1) : 0);
+
+        uint nbr_of_possibilities = DubinsMoveNum*nonzero_starts*NumberOfBaseDubins*nonzero_ends*DubinsMoveNum; // Non-zero paths
+
+        if (zero_in_starts)
+        {
+            nbr_of_possibilities += NumberOfBaseDubins*nonzero_ends*DubinsMoveNum; // Starts with 0, ends with non-zero
+        }
+
+        if (zero_in_ends)
+        {
+            nbr_of_possibilities += DubinsMoveNum*nonzero_starts*NumberOfBaseDubins; // Ends with 0, starts with non-zero
+        }
+
+        if (zero_in_starts && zero_in_ends)
+        {
+            nbr_of_possibilities += DubinsMoveNum; // Starts and ends with 0
+        }
+
+        return nbr_of_possibilities;
+    } 
+
+public:
+    BaseExtendedDubinsFleetPlanner(double _prec, double _max_r_dur,
+        const std::vector<double>& _slens, const std::vector<double>& _elens)
+        : AbstractFleetPlanner(_prec,_max_r_dur), start_lengths(_slens), end_lengths(_elens) {}
+
+    BaseExtendedDubinsFleetPlanner(double _prec, double _max_r_dur,
         const std::vector<double>& _slens, const std::vector<double>& _elens, int verb)
         : AbstractFleetPlanner(_prec,_max_r_dur,verb), start_lengths(_slens), end_lengths(_elens) {}
 

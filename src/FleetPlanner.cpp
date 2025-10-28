@@ -82,7 +82,7 @@ std::vector<double> compute_arrival_times(const std::vector<double>& dts, double
 std::tuple<uint,uint> count_min_number_of_valid_paths(const ListOfPossibilities& all_paths)
 {
     uint output = all_paths[0].size();
-    uint output_loc;
+    uint output_loc = 0;
 
     uint i = 0;
 

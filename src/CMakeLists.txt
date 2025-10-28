@@ -30,6 +30,7 @@ configure_file(ProjectHeader.h.in ProjectHeader.h)
 set(DubinsFleetPlannerLib_SRC
     Aircraft.cpp
     BaseDubins.cpp
+    BaseExtendedDubins.cpp
     ConflictDetection.cpp
     Dubins.cpp
     ExtendedDubins.cpp

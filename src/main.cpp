@@ -54,11 +54,12 @@ struct program_arguments
     double wind_x,wind_y;
     vector<double> length_extensions;
     int thread_num;
-    int max_iters;
+    int max_iters,weave_iters;
     int samples;
     int verbosity;
     double precision;
     double max_r_length;
+    bool legacy;
 };
 
 
@@ -103,10 +104,13 @@ bool process_command_line(int argc, char* argv[], program_arguments& parsed_args
                     ,"Maximal relative length. Default to 3.")
     ("max-iters,I"  , po::value<int>(&parsed_args.max_iters)->default_value(300)
                     ,"Maximal number of iterations. Default to 300.")
+    ("weave,w"      , po::value<int>(&parsed_args.weave_iters)->default_value(2)
+                    ,"Number of samples to add when resampling between two points. Default to 2.")
 
     ("help", "Produce help message")
     ("verbose,v"    , po::value<int>(&parsed_args.verbosity)->default_value(1)
                     , "Set verbosity, from 0 (silent), to 3 (very very verbose). Default to 1.")
+    ("legacy,l"     , "Use a previous implementation (if possible). May decrease performances.")
     
     ;
     
@@ -146,6 +150,11 @@ bool process_command_line(int argc, char* argv[], program_arguments& parsed_args
     {
         std::cerr << "Unknown error!" << std::endl;
         return false;
+    }
+
+    if (vm.count("legacy"))
+    {
+        parsed_args.legacy = true;
     }
     
     return true;
@@ -226,10 +235,20 @@ std::tuple<int,SharedDubinsResults,ExtraPPResults> solve_case(const fs::path& in
     
     if (args.length_extensions.size())
     {
-        planner = std::make_unique<ExtendedDubinsFleetPlanner>(
-            args.precision, args.max_r_length,
-            args.length_extensions, args.length_extensions,
-            args.verbosity); 
+        if (args.legacy)
+        {
+            planner = std::make_unique<ExtendedDubinsFleetPlanner>(
+                args.precision, args.max_r_length,
+                args.length_extensions, args.length_extensions,
+                args.verbosity); 
+        }
+        else
+        {
+            planner = std::make_unique<BaseExtendedDubinsFleetPlanner>(
+                args.precision, args.max_r_length,
+                args.length_extensions, args.length_extensions,
+                args.verbosity); 
+        }
     }
     else
     {
@@ -259,7 +278,7 @@ std::tuple<int,SharedDubinsResults,ExtraPPResults> solve_case(const fs::path& in
 
             ExtraPPResults _backup;
             UniqueDubinsResults tmp_sols_bis = planner->solve<Dubins::are_XY_separated>(_backup,starts,ends,stats,0.,
-                dt,args.wind_x,args.wind_y,args.max_iters);
+                dt,args.wind_x,args.wind_y,args.max_iters,args.weave_iters);
 
             if (tmp_sols_bis.has_value())
             {
@@ -274,7 +293,7 @@ std::tuple<int,SharedDubinsResults,ExtraPPResults> solve_case(const fs::path& in
     else
     {
         sols = planner->solve_parallel<Dubins::are_XY_separated>(extra,starts,ends,stats,args.separation,
-            dt,args.wind_x,args.wind_y,args.max_iters,args.thread_num);
+            dt,args.wind_x,args.wind_y,args.max_iters,args.weave_iters,args.thread_num);
 
         if (!sols.has_value()) // If no solution, retry without separation
         {
