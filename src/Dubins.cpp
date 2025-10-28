@@ -35,7 +35,7 @@
  * @return true Path elements are separated
  * @return false Path are not separated
  */
-template<DubinsMove m1, DubinsMove m2, bool geometric_filtering, bool use_derivatives=false>
+template<DubinsMove m1, DubinsMove m2, bool geometric_filtering, bool use_derivatives=true>
 static bool check_XY_separation(const PathShape<m1>& p1, const PathShape<m2>& p2, double duration, double min_sep, double tol)
 {
     if (duration < tol)

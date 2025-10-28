@@ -179,7 +179,7 @@ struct PathShape
     double p1;  ///< For a Straight: horizontal x speed | For a turn: Radius
     double p2;  ///< For a Straight: horizontal y speed | For a turn: signed angular speed; positive when LEFT, negative when RIGHT
     double p3;  ///< Vertical speed
-    double p4;  ///< For a Straight: unused | For a turn: initial angle
+    double p4;  ///< For a Straight: unused, set to 0   | For a turn: initial angle
 };
 
 /**

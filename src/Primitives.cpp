@@ -678,6 +678,7 @@ PathShape<STRAIGHT> compute_params<STRAIGHT>(const Pose3D& start, const Pose3D& 
     output.p1 = h_speed*dx/d_norm;
     output.p2 = h_speed*dy/d_norm;
     output.p3 = v_speed*dz/d_norm;
+    output.p4 = 0.;
 
     return output;
 }

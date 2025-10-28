@@ -411,9 +411,6 @@ std::optional<std::vector<std::shared_ptr<Dubins>>> find_pathplanning_LP_solutio
 
     model.getICrashInfo();
 
-    ;
-
-
     if (highs_ret != HighsStatus::kOk)
     {
         std::cerr   << "ERROR: HiGHS Failure" << std::endl
