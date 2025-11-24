@@ -108,3 +108,29 @@ std::tuple<uint,uint> count_min_number_of_valid_paths(const ListOfPossibilities&
 
     return {output,output_loc};
 }
+
+std::set<uint> acs_without_paths(const ListOfPossibilities& all_paths)
+{
+    std::set<uint> output;
+    uint ac_id = 0;
+    for(const std::vector<std::unique_ptr<Dubins>>& v : all_paths)
+    {
+        uint count = 0;
+        for(auto& d : v)
+        {
+            if (d->is_valid())
+            {
+                count++;
+            }
+        }
+
+        if (count == 0)
+        {
+            output.insert(ac_id);
+        }
+
+        ac_id++;
+    }
+    
+    return output;
+}

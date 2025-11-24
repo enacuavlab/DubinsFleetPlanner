@@ -231,7 +231,7 @@ std::tuple<int,SharedDubinsResults,ExtraPPResults> solve_case(const fs::path& in
     // ----- Start optimization ----- //
     
     std::unique_ptr<AbstractFleetPlanner> planner;
-    bool good_solution = false;
+    bool good_solution = true;
     
     if (args.length_extensions.size())
     {
@@ -257,56 +257,17 @@ std::tuple<int,SharedDubinsResults,ExtraPPResults> solve_case(const fs::path& in
             args.verbosity);
     }
     
-    SharedDubinsResults sols;
-    
-    
-    if (args.thread_num < 0)
-    {
-        UniqueDubinsResults tmp_sols = planner->solve<Dubins::are_XY_separated>(extra,starts,ends,stats,args.separation,
-            dt,args.wind_x,args.wind_y,args.max_iters);
-            
-        if (tmp_sols.has_value())
-        {
-            sols = make_shared(tmp_sols.value());
-            good_solution = true;
-        }
-        else // If no solution, retry without separation
-        {
-            sols = std::nullopt;
-
-            std::cerr << "WARNING: Could not find a solution; retrying with SEPARATION DISABLED" << std::endl;
-
-            ExtraPPResults _backup;
-            UniqueDubinsResults tmp_sols_bis = planner->solve<Dubins::are_XY_separated>(_backup,starts,ends,stats,0.,
-                dt,args.wind_x,args.wind_y,args.max_iters,args.weave_iters);
-
-            if (tmp_sols_bis.has_value())
-            {
-                sols = make_shared(tmp_sols_bis.value());
-            }
-            else
-            {
-                sols = std::nullopt;
-            }
-        }
-    }
-    else
-    {
-        sols = planner->solve_parallel<Dubins::are_XY_separated>(extra,starts,ends,stats,args.separation,
+    SharedDubinsResults sols = planner->solve<Dubins::are_XY_separated>(extra,starts,ends,stats,args.separation,
             dt,args.wind_x,args.wind_y,args.max_iters,args.weave_iters,args.thread_num);
-
-        if (!sols.has_value()) // If no solution, retry without separation
-        {
-            ExtraPPResults _backup;
-            std::cerr << "WARNING: Could not find a solution; retrying with SEPARATION DISABLED" << std::endl;
-            
-            sols = planner->solve_parallel<Dubins::are_XY_separated>(_backup,starts,ends,stats,0.,
-                dt,args.wind_x,args.wind_y,args.max_iters,args.thread_num);
-        }
-        else
-        {
-            good_solution = true;
-        }
+    
+    if (!sols.has_value()) // If no solution, retry without separation
+    {
+        ExtraPPResults _backup;
+        good_solution = false;
+        std::cerr << "WARNING: Could not find a solution; retrying with SEPARATION DISABLED" << std::endl;
+        
+        sols = planner->solve<Dubins::are_XY_separated>(_backup,starts,ends,stats,0.,
+            dt,args.wind_x,args.wind_y,args.max_iters,args.thread_num);
     }
         
     if (!sols.has_value())

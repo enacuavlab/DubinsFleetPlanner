@@ -176,8 +176,7 @@ int main()
 
     ExtraPPResults extra;
 
-    // auto opt_result = basic_planner.solve<Dubins::are_XY_separated>(starts_vec,ends_vec,stats_vec,min_sep,delta_t_vec,wind_x,wind_y);
-    auto opt_result = basic_planner.solve_parallel<Dubins::are_XY_separated>(extra,starts_vec,ends_vec,stats_vec,min_sep,delta_t_vec,wind_x,wind_y);
+    auto opt_result = basic_planner.solve<Dubins::are_XY_separated>(extra,starts_vec,ends_vec,stats_vec,min_sep,delta_t_vec,wind_x,wind_y);
     
     // auto opt_result = extended_planner.solve<Dubins::are_XY_separated>(extra,starts_vec,ends_vec,stats_vec,min_sep,delta_t_vec,wind_x,wind_y);
     // auto opt_result = extended_planner.solve_parallel<Dubins::are_XY_separated>(extra,starts_vec,ends_vec,stats_vec,min_sep,delta_t_vec,wind_x,wind_y);

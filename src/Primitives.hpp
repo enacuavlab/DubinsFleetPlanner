@@ -110,6 +110,18 @@ double SLS_total_distance(double alpha, double beta, double d);
 std::pair<double,double> SLS_possible_d(double alpha, double beta);
 
 
+/********************  Extra: Dubins interception with wind  ********************/
+/**
+ * We aim to solve the shortest Dubins path to a final pose while taking in
+ * account a constant drift. 
+ * The paper [Rapid path planning for Dubins vehicles under environmental currents](https://doi.org/10.1016/j.robot.2020.103646)
+ * shows how to get solutions analytically for LSL and RSR paths (allowing multiple turns).
+ * These solutions can then be used as an upper bound for an optimisation-based solver (a  lower bound can be computed
+ * by using straight line interception)
+ */
+
+
+
 /********************  General templates for Dubins functions  ********************/
 
 /**

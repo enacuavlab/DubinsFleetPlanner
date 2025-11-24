@@ -539,6 +539,159 @@ double SLS_total_distance(double alpha, double beta, double d)
         + SLS_last_distance(alpha,beta,d); 
 }
 
+/********************  Extra: Dubins interception with wind  ********************/
+
+[[gnu::const]]
+std::pair<double,double> min_line_interception(double x_i, double y_i, double speed, double x_T, double y_T, double vx_T, double vy_T)
+{
+    double dx = x_i - x_T;
+    double dy = y_i - y_T;
+    
+    double v = speed;
+
+    double v_norm2 = vx_T*vx_T + vy_T*vy_T;
+    double w = sqrt(v_norm2);
+    double v_angle = atan2(vy_T,vx_T);
+
+    double x = cos(v_angle)*dx - sin(v_angle)*dy;
+    double y = sin(v_angle)*dx + cos(v_angle)*dy;
+
+
+    // They are already overlapping
+    if (x < 1e-9 && y < 1e-9)
+    {
+        return std::make_pair(0.,0.);
+    }
+
+    double b = w*x;
+    double denom = v*v - w*w;
+    double discr = v*v*x*x+(v*v-w*w)*y*y;
+
+    if (discr < 0)
+    {
+        return std::make_pair(NAN,NAN);
+    }
+        
+    double tau_1 = (b - sqrt(discr))/denom;
+    double tau_2 = (b + sqrt(discr))/denom;
+
+    double tau = 0;
+
+    if (tau_1 < 0 && tau_2 < 0)
+    {
+        return std::make_pair(NAN,NAN);
+    }
+    else if (tau_1 < 0 && tau_2 > 0)
+    {
+        tau = tau_2;
+    }
+    else if (tau_1 > 0 && tau_2 < 0)
+    {
+        tau = tau_1;
+    }
+    else
+    {
+        tau = std::min(tau_1,tau_2);
+    }
+
+    double A = y/(tau * v);
+    double B = (x + tau * w)/(tau * v);
+
+    double delta = atan2(A,B);
+
+    double alpha = delta + v_angle;
+
+    return std::make_pair(tau,alpha);
+}
+/*
+double intercept_LSL(double x_f, double y_f, double theta_f, double wx, double wy, double rho, double speed)
+{
+    double vw = sqrt(wx*wx + wy*wy)/speed;
+
+    auto A_f = [&](int k)
+    {
+        return x_f - rho * sin(theta_f) - wx * rho*(theta_f + 2*k*M_PI);
+    };
+
+    auto B_f = [&](int k)
+    {
+        return y_f - rho * (1 - cos(theta_f)) - wy * rho*(theta_f + 2*k*M_PI);
+    };
+
+    auto beta_p = [&](double A, double B)
+    {
+        return (sqrt((A*wx + B*wy)*(A*wx + B*wy) + (A*A+B*B)*(1-vw*vw)) - (A*wx + B*wy))/(1-vw*vw);
+    };
+
+    auto beta_m = [&](double A, double B)
+    {
+        return (-sqrt((A*wx + B*wy)*(A*wx + B*wy) + (A*A+B*B)*(1-vw*vw)) - (A*wx + B*wy))/(1-vw*vw);
+    };
+
+    auto alpha = [&](double A, double B, double beta)
+    {
+        return atan2(B-beta*wy, A-beta*wx);
+    };
+
+    auto gamma = [&](int k, double a)
+    {
+        return 2*k*M_PI + theta_f - a;
+    };
+}
+
+double intercept_RSR(double x_f, double y_f, double theta_f, double wx, double wy, double rho, double speed)
+{
+    double vw = sqrt(wx*wx + wy*wy)/speed;
+
+    auto A_f = [&](int k)
+    {
+        return x_f + rho * sin(theta_f) + wx * rho * (theta_f + 2*k*M_PI);
+    };
+
+    auto B_f = [&](int k)
+    {
+        return y_f + rho * (1 - cos(theta_f)) + wy * rho * (theta_f + 2*k*M_PI);
+    };
+
+    auto beta_p = [&](double A, double B)
+    {
+        return (sqrt((A*wx + B*wy)*(A*wx + B*wy) + (A*A+B*B)*(1-vw*vw)) - (A*wx + B*wy))/(1-vw*vw);
+    };
+
+    auto beta_m = [&](double A, double B)
+    {
+        return (-sqrt((A*wx + B*wy)*(A*wx + B*wy) + (A*A+B*B)*(1-vw*vw)) - (A*wx + B*wy))/(1-vw*vw);
+    };
+
+    auto alpha = [&](double A, double B, double b)
+    {
+        return atan2(-B+b*wy, A-b*wx);
+    };
+
+    auto gamma = [&](int k, double a)
+    {
+        return - 2*k*M_PI - theta_f - a;
+    };
+}
+
+double fast_line_interception(const Pose3D& start, const Pose3D& end, double rho, double wx, double wy, double speed)
+{
+    double vw = sqrt(wx*wx + wy*wy)/speed;
+
+    // Change of referential
+    Pose3D target;
+    double dx = end.x - start.x;
+    double dy = end.y - start.y;
+    double dz = end.z - start.z;
+
+    target.theta = end.theta - start.theta;
+    
+    target.x = cos(-start.theta)*dx - sin(-start.theta)*dy;
+    target.y = sin(-start.theta)*dx + cos(-start.theta)*dy;
+    target.z = dz;
+
+}
+*/
 
 /******************** Template specialization for Dubins moves ********************/
 
