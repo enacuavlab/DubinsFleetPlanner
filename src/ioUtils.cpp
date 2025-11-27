@@ -17,6 +17,8 @@
 
 #include "ioUtils.hpp"
 
+using json = nlohmann::json;
+
 // ---------------------------------------- Misc function ---------------------------------------- //
 
 static double compute_plan_duration(
@@ -35,6 +37,80 @@ static double compute_plan_duration(
     }
 
     return max_time;
+}
+
+// ---------- nlohmann (De)Serialization (JSON) ---------- //
+
+namespace {
+
+    NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(Pose3D,x,y,z,theta);
+
+    template<DubinsMove m>
+    void to_json(json& j, const PathShape<m>& p)
+    {
+        j = json{
+            {"x"    ,p.x},
+            {"y"    ,p.y},
+            {"z"    ,p.z},
+            {"p1"   ,p.p1},
+            {"p2"   ,p.p2},
+            {"p3"   ,p.p3},
+            {"p4"   ,p.p4},
+            {"type" ,get_DubinsMove_name(m)},
+            {"m"    ,m}
+        };
+    }
+
+    void to_json(json& j, const DynamicPathShape& p)
+    {
+        j = json{
+            {"x"    ,p.x},
+            {"y"    ,p.y},
+            {"z"    ,p.z},
+            {"p1"   ,p.p1},
+            {"p2"   ,p.p2},
+            {"p3"   ,p.p3},
+            {"p4"   ,p.p4},
+            {"type" ,get_DubinsMove_name(p.m)},
+            {"m"    ,p.m}
+        };
+    }
+
+    void from_json(const json& j, DynamicPathShape& p)
+    {
+        p.x     = j.at("x");
+        p.y     = j.at("y");
+        p.z     = j.at("z");
+        p.p1    = j.at("p1");
+        p.p2    = j.at("p2");
+        p.p3    = j.at("p3");
+        p.p4    = j.at("p4");
+        p.m     = j.at("m");
+    }
+
+    NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(AircraftStats,id,airspeed,climb,turn_radius);
+
+    void to_json_RichConflict(json& j, const RichConflict_T& t)
+    {
+        j = json{
+            {"AC_id1"  ,std::get<0>(t)},
+            {"Path_id1",std::get<1>(t)},
+            {"AC_id2"  ,std::get<2>(t)},
+            {"Path_id2",std::get<3>(t)},
+            {"min_loc" ,std::get<4>(t)},
+            {"min_val" ,std::get<5>(t)}
+        };
+    }
+
+    void from_json_RichConflict(const json& j, RichConflict_T& t)
+    {
+        std::get<0>(t) = j.at("AC_id1"  );
+        std::get<1>(t) = j.at("Path_id1");
+        std::get<2>(t) = j.at("AC_id2"  );
+        std::get<3>(t) = j.at("Path_id2");
+        std::get<4>(t) = j.at("min_loc" );
+        std::get<5>(t) = j.at("min_val" );
+    }
 }
 
 // ---------------------------------------- Input handling ---------------------------------------- //
@@ -198,7 +274,44 @@ CaseData DubinsPP::InputParser::parse_data_csv(std::istream& stream)
 
 }
 
+// ---------- nlohmann Deserialization (JSON) ---------- //
+
+void parse_paths_as_ModernJSON(std::istream& s, 
+    std::vector<std::shared_ptr<Dubins>>& paths,
+    std::vector<AircraftStats>& stats,
+    double& min_sep,
+    double& wind_x, double& wind_y,
+    double& z_alpha)
+{
+    throw std::invalid_argument("This function is not yet fully implemented!");
+
+    json j;
+
+    s >> j;
+
+    min_sep         = j.at("separation");
+    z_alpha         = j.at("z_alpha");
+    wind_x          = j.at("wind_x");
+    wind_y          = j.at("wind_y");
+    double duration = j.at("duration");
+    uint N          = j.at("AC_num");
+
+    {
+        std::vector<json> trajectories = j.at("trajectories");
+
+        assert(N == trajectories.size());
+
+        for(uint i = 0; i < N; i++)
+        {
+            json j_trajectory;
+        }
+
+    }
+}
+
 // ---------------------------------------- Output handling ---------------------------------------- //
+
+// ---------- Handmade Serialization (JSON) ---------- //
 
 template<typename T>
 void print_field(std::ostream& s, const std::string& name, const T& value, bool trailing, uint indent_lvl)
@@ -269,7 +382,7 @@ void print_field<std::string>(std::ostream& s, const std::string& name, const st
 
 
 template<DubinsMove m>
-static inline void print_pathShape_fields(std::ostream& s, PathShape<m> p, uint indent_lvl=6)
+static inline void print_pathShape_fields(std::ostream& s, const PathShape<m>& p, uint indent_lvl=6)
 {
     print_field(s,"x",p.x,true,indent_lvl);
     print_field(s,"y",p.y,true,indent_lvl);
@@ -399,6 +512,144 @@ void DubinsPP::OutputPrinter::print_paths_as_JSON(std::ostream& s,
     s << "}" << std::endl;
 }
 
+// ----- Conflicts ----- //
+
+void DubinsPP::OutputPrinter::append_rich_conflicts(std::ostream& s,
+        double time,
+        const std::vector<RichConflict_T>& vec)
+{
+
+    json j;
+
+    j["time"] = time;
+
+    std::vector<json> conflicts;
+
+    for(auto v: vec)
+    {
+        json j_conflict;
+        to_json_RichConflict(j_conflict,v);
+        conflicts.push_back(j_conflict);
+    }
+
+    j["conflicts"] = conflicts;
+
+    s << j;
+}
+
+// ---------- nlohmann Serialization (JSON) ---------- //
+
+void to_json_ModernTrajectory(json& j, 
+    const std::shared_ptr<Dubins>& path,
+    const AircraftStats& stats,
+    double wind_x, double wind_y, double duration)
+{
+
+    json j_stats;
+    to_json(j_stats,stats);
+
+    j["stats"] = j_stats;
+
+    json j_path;
+    
+    j_path["total_length"]      = path->get_length();
+    j_path["sections_count"]    = path->get_all_sections().size();
+
+    json j_start,j_end;
+    to_json(j_start,path->get_start());
+    to_json(j_end,path->get_end());
+
+    j_path["start"] = j_start;
+    j_path["end"]   = j_end;
+
+    std::vector<json> sections;
+
+    {
+        std::vector<double> endpoints_locs = path->get_endpoints_locs();
+        std::vector<Pose3D> endpoints = path->get_endpoints();
+        uint sections_N = endpoints.size()-1;
+
+        for(uint i = 0; i < sections_N; i++)
+        {
+            double sec_len = endpoints_locs[i+1]-endpoints_locs[i];
+            double sec_middle = (endpoints_locs[i+1]+endpoints_locs[i])/2;
+            DubinsMove sec_type = path->get_section_type(sec_middle);
+            Pose3D& sec_start = endpoints[i];
+            Pose3D& sec_end   = endpoints[i+1];
+
+            json j_section;
+            j_section["length"] = sec_len;
+
+            switch (sec_type)
+            {
+            case STRAIGHT:
+                to_json<STRAIGHT>(j_section,
+                    compute_params<STRAIGHT>(sec_start,sec_end,stats.airspeed,path->get_turn_radius(),path->get_climb()));
+                break;
+            case LEFT:
+                to_json<LEFT>(j_section,
+                    compute_params<LEFT>(sec_start,sec_end,stats.airspeed,path->get_turn_radius(),path->get_climb()));
+                break;
+            case RIGHT:
+                to_json<RIGHT>(j_section,
+                    compute_params<RIGHT>(sec_start,sec_end,stats.airspeed,path->get_turn_radius(),path->get_climb()));
+                break;
+            
+            default:
+                // Unreachable
+                exit(EXIT_FAILURE);
+            }
+
+            sections.push_back(j_section);
+        }
+
+        j_path["sections"] = sections;
+    }
+
+    j["path"] = j_path;
+}
+
+void DubinsPP::OutputPrinter::print_paths_as_ModernJSON(std::ostream& s, 
+            const std::vector<std::shared_ptr<Dubins>>& paths,
+            const std::vector<AircraftStats>& stats,
+            double min_sep,
+            double wind_x, double wind_y,
+            double z_alpha)
+{
+    using json = nlohmann::json;
+
+    assert(paths.size() == stats.size());
+
+    double duration = compute_plan_duration(paths,stats);
+    uint N = paths.size();
+
+    json j;
+
+    j["separation"] = min_sep;
+    j["z_alpha"]    = z_alpha;
+    j["wind_x"]     = wind_x;
+    j["wind_y"]     = wind_y;
+    j["duration"]   = duration;
+    j["AC_num"]     = N;
+
+    {
+        std::vector<json> trajectories;
+        
+        for(uint i = 0; i < N; i++)
+        {
+            json j_trajectory;
+            to_json_ModernTrajectory(j_trajectory,paths[i],stats[i],wind_x,wind_y,duration);
+            trajectories.push_back(j_trajectory);
+        }
+
+        j["trajectories"] = trajectories;
+    }
+
+    s << j;
+}
+
+// ---------- Handmade Serialization (CSV) ---------- //
+
 void DubinsPP::OutputPrinter::print_paths_as_CSV(std::ostream& s, 
     const std::vector<std::shared_ptr<Dubins>>& paths,
     const std::vector<AircraftStats>& stats,
@@ -459,3 +710,7 @@ void DubinsPP::OutputPrinter::print_paths_as_CSV(std::ostream& s,
         s << std::endl;
     }
 }
+
+
+
+

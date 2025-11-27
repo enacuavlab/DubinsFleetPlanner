@@ -93,7 +93,8 @@
                   A BasicPath object:
                   {
                      "length": (Float Number: Length of this section)
-                     "type"  : (String      : Either "LEFT","RIGHT" or "STRAIGHT", for describing a turn or a straight line movement),
+                     "type"  : (String      : Either "LEFT","RIGHT" or "STRAIGHT", for describing a turn or a straight line movement)
+                     "m"     : (Int         : Either 0,1 or 2, the enum integer maching the type)
                      "x"     : (Float Number: X coordinate of the refence point; For a Straight: Starting point | For a turn: Circle center)
                      "y"     : (Float Number: Y coordinate of the refence point)
                      "z"     : (Float Number: Z coordinate of the refence point)

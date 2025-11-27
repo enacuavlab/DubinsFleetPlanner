@@ -8,3 +8,6 @@
 [submodule "libs/HiGHS"]
 	path = libs/HiGHS
 	url = git@github.com:ERGO-Code/HiGHS.git
+[submodule "libs/json"]
+	path = libs/json
+	url = https://github.com/nlohmann/json.git

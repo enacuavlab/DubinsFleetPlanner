@@ -47,6 +47,18 @@ include_directories(${Boost_INCLUDE_DIRS})
 
 ### Eigen ###
 
+set(EIGEN_BUILD_DEMOS OFF)
+set(EIGEN_BUILD_DOC OFF)
+set(EIGEN_BUILD_SPBENCH OFF)
+set(EIGEN_BUILD_TESTING OFF)
+set(EIGEN_LEAVE_TEST_IN_ALL_TARGET OFF)
+
+### JSON ###
+
+option(DubinsFleetPlanner_USE_EXTERNAL_JSON "Use an external JSON library (if none found, will download using FetchContent)" OFF)
+
+### Add lib subdirectory ###
+
 add_subdirectory(libs)
 
 set(libs_dir "${PROJECT_SOURCE_DIR}/libs")
@@ -56,7 +68,6 @@ set(libs_dir "${PROJECT_SOURCE_DIR}/libs")
 option(DubinsFleetPlanner_PARALLEL "Enable parallel solver (Requires HiGHS Library)" ON)
 
 option(DubinsFleetPlanner_ENABLE_ASSERTIONS "Enable assertion checks" ON)
-
 
 option(DubinsFleetPlanner_TESTING "Enable testing for path planning (will download GTest)" ON)
 

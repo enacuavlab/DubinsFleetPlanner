@@ -15,20 +15,29 @@
 # You should have received a copy of the GNU General Public License
 # along with DubinsFleetPlanner.  If not, see <https://www.gnu.org/licenses/>.
 
-add_subdirectory(combinations)
-add_subdirectory(csv_reader)
-
 ### Eigen setup ###
 
 if (NOT TARGET Eigen3::Eigen)
     add_subdirectory(eigen)
 endif()
 
-set(EIGEN_BUILD_DEMOS OFF)
-set(EIGEN_BUILD_DOC OFF)
-set(EIGEN_BUILD_SPBENCH OFF)
-set(EIGEN_BUILD_TESTING OFF)
-set(EIGEN_LEAVE_TEST_IN_ALL_TARGET OFF)
+### nhomann JSON ###
 
-# add_subdirectory(HiGHS)
+if(DubinsFleetPlanner_USE_EXTERNAL_JSON)
+    include(FetchContent)
+    FetchContent_Declare(nlohmann_json
+        URL https://github.com/nlohmann/json/releases/download/v3.12.0/json.tar.xz
+        FIND_PACKAGE_ARGS NAMES nlohmann_json json)
+    FetchContent_MakeAvailable(nlohmann_json)
+else()
+    set(JSON_BuildTests OFF CACHE INTERNAL "")
+    add_subdirectory(json)
+endif()
+
+### Others ### 
+
+add_subdirectory(combinations)
+add_subdirectory(csv_reader)
+
+# add_subdirectory(HiGHS) # Bruteforced adding Highs by pre-compiling it
 add_subdirectory(ScalarMin)
