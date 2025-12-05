@@ -150,9 +150,22 @@ namespace DubinsPP
             const std::vector<AircraftStats>& stats,
             double wind_x, double wind_y, uint samples);
 
-        void append_rich_conflicts(std::ostream&,
+        /**
+         * @brief Format conflicts in JSON and add them to the stream
+         * 
+         * @param os                Output stream
+         * @param time              Reference time for the conflicts (in defined)
+         * @param conflicts         List of conflicts to register
+         * @param possibilities     Possible paths. Used to convert path id into path abbrev (for portability)
+         * @param stats             AC data, for better logging
+         * @param prepend_comma     Add a comma before printing to JSON
+         */
+        void append_rich_conflicts(std::ostream& os,
             double time,
-            const std::vector<RichConflict_T>&);
+            const std::vector<RichConflict_T>& conflicts,
+            const SharedListOfPossibilities& possibilities,
+            const std::vector<AircraftStats>& stats,
+            bool prepend_comma);
     } // namespace OutputPrinter
     
 } // namespace DubinsPP

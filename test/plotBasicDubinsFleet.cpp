@@ -176,17 +176,10 @@ int main()
 
     ExtraPPResults extra;
 
-    auto opt_result = basic_planner.solve<Dubins::are_XY_separated>(extra,starts_vec,ends_vec,stats_vec,min_sep,delta_t_vec,wind_x,wind_y);
+    auto opt_result = basic_planner.solve<Dubins::are_XY_separated,Dubins::compute_XY_distance>(extra,starts_vec,ends_vec,stats_vec,min_sep,delta_t_vec,wind_x,wind_y);
     
     // auto opt_result = extended_planner.solve<Dubins::are_XY_separated>(extra,starts_vec,ends_vec,stats_vec,min_sep,delta_t_vec,wind_x,wind_y);
     // auto opt_result = extended_planner.solve_parallel<Dubins::are_XY_separated>(extra,starts_vec,ends_vec,stats_vec,min_sep,delta_t_vec,wind_x,wind_y);
-
-    // auto opt_result = DubinsPP::BasicDubins::synchronised_XY_checks<N>(starts,ends,stats,min_sep,delta_t,wind_x,wind_y,
-        // TEST_MAX_R_LENGTH,TEST_PRECISION,500);
-
-    // auto opt_result = DubinsPP::BasicDubins::synchronised_XY_checks_parallel(starts_vec,ends_vec,stats_vec,min_sep,delta_t_vec,wind_x,wind_y,
-        // 5.,1e-6,500,10);
-
 
     if (!opt_result.has_value())
     {

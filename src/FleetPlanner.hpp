@@ -17,11 +17,13 @@
 
 #pragma once
 
+#include <algorithm>
 #include <vector>
 #include <tuple>
 #include <list>
 #include <set>
 
+#include <iostream>
 #include <memory>
 #include <optional>
 #include <format>
@@ -34,6 +36,7 @@
 #include "BaseExtendedDubins.hpp"
 
 #include "ConflictList.hpp"
+#include "ioUtils.hpp"
 
 /*************************************************************************************/
 /*************************************************************************************/
@@ -49,6 +52,8 @@ namespace chrono = boost::chrono;
 
 typedef std::optional<std::vector<std::unique_ptr<Dubins>>> UniqueDubinsResults;
 typedef std::optional<std::vector<std::shared_ptr<Dubins>>> SharedDubinsResults;
+
+namespace oprint = DubinsPP::OutputPrinter;
 
 // ---------- Metadata processing ---------- //
 
@@ -68,13 +73,13 @@ public:
     {
         return std::format(
             "Case: {}\n -> {}\n  Found path of duration {} (baseline is {})"
-            "\n Performed {} iterations in {} ns\n Used {} threads; {} possible paths",
+            "\n Performed {} iterations in {:.4f} ms\n Used {} threads; {} possible paths per AC",
             case_name, 
             (success) ? "Success!" : "FAILURE",
             final_path_time,
             initial_path_time,
             iterations,
-            duration.count(),
+            static_cast<double>(duration.count())/1000000.,
             threads,
             possible_paths_num);
     }
@@ -146,6 +151,7 @@ struct SampleCase
     double val;
     bool done       = false;
     bool success    = false;
+    std::set<uint> NoPathsACs;
 };
 
 void print_samples(const std::list<SampleCase>& l)
@@ -209,30 +215,47 @@ std::list<SampleCase> generate_linspace(double start, double end, uint samples, 
 }
 
 /**
- * @brief Assuming the input is sorted (by val), weave points, that is add points between the existing ones
+ * @brief Assuming the input is sorted (by val), weave points, that is add points between the existing ones. 
+ * Returns whether points have been successfully added or not.
  * 
  * @param q     List of SampleCase, sorted by val
  * @param weave Number of points to add between each two samples
+ * @param min_weave_delta   Minimal value between two iterations for weaving between them.
+ * @return true     New points have been added
+ * @return false    No new samples
  */
-void weave_samples(std::list<SampleCase>& l, uint weave=1)
+bool weave_samples(std::list<SampleCase>& l, uint weave, double min_weave_delta)
 {
     assert(l.size() > 1);
     // print_samples(l);
 
     auto next = l.begin(); next++;
     auto iter = l.begin();
+    bool output = false;
 
     while(next != l.end())
     {
-        auto new_values = generate_linspace(iter->val,next->val,weave,false,false);
-        // std::cout << "Adding: ";
-        // print_samples(new_values);
-        l.splice(next,new_values);
+        if (next->val - iter->val >= min_weave_delta)
+        {
+            std::set<uint> intersect;
+            std::set_intersection(
+                iter->NoPathsACs.begin(),iter->NoPathsACs.end(),
+                next->NoPathsACs.begin(),next->NoPathsACs.end(),
+                std::inserter(intersect,intersect.begin())
+            );
+
+            if (intersect.size() == 0)
+            {
+                auto new_values = generate_linspace(iter->val,next->val,weave,false,false);
+                l.splice(next,new_values);
+                output = true;
+            }
+        }
         iter = next;
         next++;
-        // std::cout << "Result: ";
-        // print_samples(l);
     }
+
+    return output;
 }
 
 class AbstractFleetPlanner 
@@ -247,8 +270,8 @@ protected:
 
     double precision_tol;               // Precision when looking for collisions
     double maximal_relative_duration;   // Maximum distance (as a multiplicative factor from the lowest possible distance)
-    mutable Highs ref_model;                    // Reference HiGHS model for fast init
-
+    mutable Highs ref_model;            // Reference HiGHS model for fast init
+    mutable bool first_log = true;      // When logging, state whether it is the first log or not
 
     /*******************************************************************************/
     /*                                                                             */
@@ -456,27 +479,73 @@ protected:
      * @brief Generic function for multithread solution finding (may be overloaded)
      * 
      * @tparam separation_function  Function to assert if two paths are separated or not
+     * @tparam distance_function    Function computing the distance between two path (usually underline the separation one)
      * @param all_paths List of all possible path for each agent
      * @param stats     Statistics of each agent
      * @param min_sep   Minimal distance required
      * @param threads   Number of threads to use
      * @return SharedDubinsResults
      */
-    template<Dubins::DubinsSeparationFunction separation_function>
+    template<Dubins::DubinsSeparationFunction separation_function, Dubins::DubinsDistanceFunction distance_function>
     SharedDubinsResults find_solution_parallel(
-        ListOfPossibilities& possibilites, const std::vector<AircraftStats>& stats, double min_sep, uint threads=0) const
+        ListOfPossibilities& possibilites, const std::vector<AircraftStats>& stats, double min_sep, uint threads=0,
+        bool list_conflicts=true, double timetag=0.) const
     {
         SharedListOfPossibilities shared_list;
         for(auto& vd: possibilites)
         {
             shared_list.push_back(make_shared(vd));
         }
+        
+        std::vector<Conflict_T> conflicts;
 
-        std::vector<Conflict_T> conflicts = parallel_compute_XY_separations(shared_list,stats,min_sep,threads);
+        if (list_conflicts)
+        {
+            std::vector<RichConflict_T> r_conflicts = generic_parallel_compute_distances<distance_function>(
+                threads,shared_list,stats,min_sep,
+                Conflict_Map_T(),true);
+
+            if (verbosity > 1)
+            {
+                oprint::append_rich_conflicts(datalog,timetag,r_conflicts,shared_list,stats,!first_log);
+                first_log = false;
+            }
+            
+            // std::cout << "Going from " << r_conflicts.size() << " rich conflicts to ";
+
+
+            conflicts = drop_conflict_details(r_conflicts,min_sep);
+
+            // std::cout << conflicts.size() << " std ones " << std::endl;
+
+            
+        }
+        else
+        {
+            conflicts = generic_parallel_compute_separations<separation_function>(threads,shared_list,stats,min_sep);
+        }
+
+        
+
+
+        // conflicts = generic_parallel_compute_separations<separation_function>(threads,shared_list,stats,min_sep);
+        // std::cout << "(Ref is " << conflicts.size() << ")" << std::endl;
+        
 
         return find_pathplanning_LP_solution(shared_list,stats,conflicts,max_path_num(),threads);
     }
 
+    /**
+     * @brief List all possible paths for a fleet given their arrival times
+     * 
+     * @param starts    Starting poses
+     * @param ends      Ending poses (ground referential)
+     * @param stats     Aircraft statistics
+     * @param times     Time of arrival for each aircraft
+     * @param wind_x    Wind, X component
+     * @param wind_y    Wind, Y component
+     * @return ListOfPossibilities List of possible paths per aircraft
+     */
     ListOfPossibilities list_all_possibilities(
         const std::vector<Pose3D>& starts, const std::vector<Pose3D>& ends,
         const std::vector<AircraftStats>& stats, const std::vector<double>& times, double wind_x, double wind_y) const
@@ -506,19 +575,72 @@ protected:
         return output;
     }
 
+    /**
+     * @brief List all possible paths for a fleet given their arrival times
+     * 
+     * @param starts    Starting poses
+     * @param ends      Ending poses (ground referential)
+     * @param stats     Aircraft statistics
+     * @param timeslots Several possible times of arrival for each aircraft
+     * @param wind_x    Wind, X component
+     * @param wind_y    Wind, Y component
+     * @return ListOfPossibilities List of possible paths per aircraft
+     */
+    ListOfPossibilities list_all_possibilities(
+        const std::vector<Pose3D>& starts, const std::vector<Pose3D>& ends,
+        const std::vector<AircraftStats>& stats, const std::vector<std::vector<double>>& timeslots, double wind_x, double wind_y) const
+    {
+#if defined(DubinsFleetPlanner_ASSERTIONS) && DubinsFleetPlanner_ASSERTIONS > 0
+        assert(starts.size() == ends.size());
+        assert(starts.size() == stats.size());
+        assert(starts.size() == timeslots.size());
+#endif
+        uint N = starts.size();
+
+        ListOfPossibilities output(N);
+
+        for(uint i = 0; i < N; i++)
+        {
+            
+            Pose3D base_end = ends[i];
+            std::vector<double> possible_times = timeslots[i];
+            for(double target_time : possible_times)
+            {
+                // Modify target according to estimated travel time
+                base_end.x -= target_time*wind_x;
+                base_end.y -= target_time*wind_y;
+                double target_len = target_time*stats[i].airspeed;
+
+                // Add possibilities to aircraft i
+                auto possibilities = generate_possible_paths(starts[i],base_end,stats[i],target_len);
+                output[i].insert(output[i].end(),
+                    std::make_move_iterator(possibilities.begin()),
+                    std::make_move_iterator(possibilities.end()));
+            }
+        }
+
+        return output;
+    }
+
 
 public:
     int verbosity;
-    AbstractFleetPlanner(double _prec, double _max_r_dur, int verb) : 
-        precision_tol(_prec), maximal_relative_duration(_max_r_dur), verbosity(verb) {}
+    std::ostream& datalog;
+
+    AbstractFleetPlanner(double _prec, double _max_r_dur, int verb, std::ostream& output_stream) : 
+        precision_tol(_prec), maximal_relative_duration(_max_r_dur), verbosity(verb), datalog(output_stream) {}
+
+    AbstractFleetPlanner(double _prec, double _max_r_dur, int verb) :
+        precision_tol(_prec), maximal_relative_duration(_max_r_dur), verbosity(verb), datalog(std::cout) {}
 
     AbstractFleetPlanner(double _prec, double _max_r_dur) :
-        precision_tol(_prec), maximal_relative_duration(_max_r_dur), verbosity(1) {}
+        precision_tol(_prec), maximal_relative_duration(_max_r_dur), verbosity(1), datalog(std::cout) {}
 
     /**
      * @brief  Solve the pathfinding problem for given target times
      * 
      * @tparam separation_function  Function to assert if two paths are separated or not
+     * @tparam distance_function    Function computing the distance between two path (usually underline the separation one)
      * @param extra     Extra info regarding the solving process
      * @param starts    List of starting poses 
      * @param ends      List of ending poses
@@ -532,10 +654,11 @@ public:
      *                      If 1, set the number of threads to std::thread::hardware_concurrency()
      *                      Otherwise, use the given value
      * @param init_ref_model If true, initialize the `ref_model` attribute (required for using the HiGHS solver)
-     * @return SharedDubinsResults 
+     * @return std::pair<SharedDubinsResults,std::set<uint>> Returns a pair, with first a solution (if it exists) and second
+     *  the set of aircraft IDs with no possible paths
      */
-    template<Dubins::DubinsSeparationFunction separation_function>
-    SharedDubinsResults solve_once(
+    template<Dubins::DubinsSeparationFunction separation_function, Dubins::DubinsDistanceFunction distance_function>
+    std::pair<SharedDubinsResults,std::set<uint>> solve_once(
         ExtraPPResults& extra,
         const std::vector<Pose3D>& starts, const std::vector<Pose3D>& ends,
         const std::vector<AircraftStats>& stats, double min_sep,
@@ -550,7 +673,7 @@ public:
 
         // Init variables
         uint N = starts.size();
-        if (threads == 1)
+        if (threads == 0)
         {
             threads = std::thread::hardware_concurrency();
         }
@@ -563,6 +686,7 @@ public:
 #if defined(DubinsFleetPlanner_ASSERTIONS) && DubinsFleetPlanner_ASSERTIONS > 0
         assert(starts.size() == ends.size());
         assert(starts.size() == stats.size());
+        assert(starts.size() == times.size());
 
         for(uint i = 0; i < N; i++)
         {
@@ -575,21 +699,21 @@ public:
 
         ListOfPossibilities possibilities = list_all_possibilities(starts,ends,stats,times,wind_x,wind_y);
 
-        uint min_valid_paths,min_loc;
-        std::tie(min_valid_paths,min_loc) = count_min_number_of_valid_paths(possibilities);
+        std::set<uint> nopaths_acs = acs_without_paths(possibilities);
 
         SharedDubinsResults sol;
 
-        if (min_valid_paths > 0)
+        if (nopaths_acs.size() == 0)
         {
-            if (threads > 0)
+            if (threads > 1)
             {
                 if (init_ref_model)
                 {
                     setup_base_model(ref_model,starts.size(),max_path_num(),verbosity);
                 }
 
-                sol = find_solution_parallel<separation_function>(possibilities,stats,min_sep,threads);
+                sol = find_solution_parallel<separation_function,distance_function>(possibilities,stats,min_sep,threads,
+                    verbosity > 1, *times.begin());
             }
             else
             {
@@ -611,7 +735,12 @@ public:
 
             if (verbosity > 0)
             {
-                std::cout   << "AC number " << min_loc << " has no path available..." << std::endl;
+                std::cout   << "AC numbers : ";
+                for(uint id : nopaths_acs)
+                {
+                    std::cout << id << ", ";
+                } 
+                std::cout << " have no path available..." << std::endl;
             }
         }
 
@@ -620,13 +749,15 @@ public:
         extra.success = sol.has_value();
         extra.duration = end - start;
 
-        return sol;
+        return std::make_pair(sol,nopaths_acs);
     }
 
     /**
-     * @brief Solve the pathfinding problem using
+     * @brief Solve the pathfinding problem using Dubins paths with known differences between time of arrivals, over a range of
+     * possible times
      * 
      * @tparam separation_function  Function to assert if two paths are separated or not
+     * @tparam distance_function    Function computing the minimal distance location and value between two trajectories
      * @param extra         Extra information regarding the solving process
      * @param starts        List of starting poses 
      * @param ends          List of ending poses
@@ -637,13 +768,14 @@ public:
      * @param wind_y        Y component of the wind vector. Default to no wind.
      * @param max_iters     Maximal number of iterations before aborting research. Default to 300
      * @param weave_iters   Number of iterations to add between two failed samples. Default to 2
+     * @param min_weave_delta   Minimal value between two iterations for weaving between them. Default to 1.
      * @param threads       Number of threads to use for solving. 
      *                          If nonpositive, disable threading
      *                          If 1, set the number of threads to std::thread::hardware_concurrency()
      *                          Otherwise, use the given value
      * @return SharedDubinsResults
      */
-    template<Dubins::DubinsSeparationFunction separation_function>
+    template<Dubins::DubinsSeparationFunction separation_function, Dubins::DubinsDistanceFunction distance_function>
     SharedDubinsResults solve(
         ExtraPPResults& extra,
         const std::vector<Pose3D>& starts, const std::vector<Pose3D>& ends,
@@ -651,6 +783,7 @@ public:
         const std::vector<double>& delta_t,
         double wind_x = 0., double wind_y = 0.,
         uint max_iters = 300, uint weave_iters = 2,
+        double min_weave_delta =1.,
         int threads = -1
     ) const
     {
@@ -667,6 +800,11 @@ public:
         
         extra.threads = std::max(threads,0);
         extra.possible_paths_num = max_path_num();
+
+        if (verbosity > 1)
+        {
+            std::cout << "Using " << extra.threads << " threads" << std::endl;
+        }
 
         min_sep = std::abs(min_sep);
          
@@ -714,11 +852,20 @@ public:
                     std::cout << "Adding new samples, going from " << samples.size() << " to ";
                 }
 
-                weave_samples(samples,weave_iters);
+                bool new_samples = weave_samples(samples,weave_iters,min_weave_delta);
 
                 if (verbosity > 1)
                 {
                     std::cout << samples.size() << std::endl;
+                }
+
+                if (!new_samples)
+                {
+                    if (verbosity > 0)
+                    {
+                        std::cout << "No new samples added; terminating early" << std::endl;
+                    }
+                    break;
                 }
 
                 iter = samples.begin();
@@ -739,13 +886,16 @@ public:
             std::vector<double> times = compute_arrival_times(delta_t,target_time);
 
 
-            SharedDubinsResults sol = solve_once<separation_function>(
+            SharedDubinsResults sol;
+            std::set<uint> nopaths_acs;
+            std::tie(sol,nopaths_acs) = solve_once<separation_function,distance_function>(
                 extra,starts,ends,
                 stats,
                 min_sep,times,
                 wind_x,wind_y,
                 threads,false);
 
+            iter->NoPathsACs = nopaths_acs;
             iter->done = true;
 
             if (sol.has_value())
@@ -777,7 +927,7 @@ public:
                 }
 
                 // Weave
-                weave_samples(samples,weave_iters);
+                bool new_samples = weave_samples(samples,weave_iters,min_weave_delta);
 
                 if (verbosity > 0)
                 {
@@ -804,6 +954,115 @@ public:
         extra.iterations        = iter_count;
         extra.final_path_time   = best_time;
         return best_sol;
+    }
+
+    /**
+     * @brief Solve the pathfinding problem using Dubins paths with fixed arrival times
+     * 
+     * @tparam separation_function  Function to assert if two paths are separated or not
+     * @tparam distance_function    Function computing the minimal distance location and value between two trajectories
+     * @param extra         Extra information regarding the solving process
+     * @param starts        List of starting poses 
+     * @param ends          List of ending poses
+     * @param stats         Statistics for aircraft
+     * @param timeslots     For each aircraft, its possible arrival times (should be sorted by preferred arrival time)
+     * @param delta_t       Wanted time separation between arrivals.
+     * @param wind_x        X component of the wind vector. Default to no wind.
+     * @param wind_y        Y component of the wind vector. Default to no wind.
+     * @param threads       Number of threads to use for solving. 
+     *                          If nonpositive, disable threading
+     *                          If 1, set the number of threads to std::thread::hardware_concurrency()
+     *                          Otherwise, use the given value
+     * @return SharedDubinsResults
+     */
+    template<Dubins::DubinsSeparationFunction separation_function, Dubins::DubinsDistanceFunction distance_function>
+    std::pair<SharedDubinsResults,std::set<uint>> solve_with_timeslots(
+        ExtraPPResults& extra,
+        const std::vector<Pose3D>& starts, const std::vector<Pose3D>& ends,
+        const std::vector<AircraftStats>& stats, double min_sep,
+        const std::vector<std::vector<double>>& timeslots,
+        double wind_x = 0., double wind_y = 0.,
+        int threads = -1
+    ) const
+    {
+        // Timing
+        chrono::process_real_cpu_clock clk;
+        auto start = clk.now();
+
+        // Init variables
+        uint N = starts.size();
+        if (threads == 0)
+        {
+            threads = std::thread::hardware_concurrency();
+        }
+
+        extra.threads = std::max(threads,0);
+        extra.possible_paths_num = max_path_num();
+        min_sep = std::abs(min_sep);
+
+        
+        // Check safety
+    #if defined(DubinsFleetPlanner_ASSERTIONS) && DubinsFleetPlanner_ASSERTIONS > 0
+        assert(starts.size() == ends.size());
+        assert(starts.size() == stats.size());
+        assert(starts.size() == timeslots.size());
+    #endif
+
+        size_t max_timeslots = timeslots[0].size();
+        for(auto ts : timeslots)
+        {
+            max_timeslots = std::max(max_timeslots,ts.size());
+        }
+
+        ListOfPossibilities possibilities = list_all_possibilities(starts,ends,stats,timeslots,wind_x,wind_y);
+
+        std::set<uint> nopaths_acs = acs_without_paths(possibilities);
+
+        SharedDubinsResults sol;
+
+        if (nopaths_acs.size() == 0)
+        {
+            if (threads > 1)
+            {
+                setup_base_model(ref_model,starts.size(),max_timeslots*max_path_num(),verbosity);
+
+                sol = find_solution_parallel<separation_function,distance_function>(possibilities,stats,min_sep,threads, verbosity > 1);
+            }
+            else
+            {
+                UniqueDubinsResults tmp_sol = find_solution<separation_function>(possibilities,stats,min_sep);
+
+                if (tmp_sol.has_value())
+                {
+                    sol = make_shared(tmp_sol.value());
+                }
+                else
+                {
+                    sol = std::nullopt;
+                }
+            }
+        } 
+        else
+        {
+            sol = std::nullopt;
+
+            if (verbosity > 0)
+            {
+                std::cout   << "AC numbers : ";
+                for(uint id : nopaths_acs)
+                {
+                    std::cout << id << ", ";
+                } 
+                std::cout << " have no path available..." << std::endl;
+            }
+        }
+
+        auto end = clk.now();
+
+        extra.success = sol.has_value();
+        extra.duration = end - start;
+
+        return std::make_pair(sol,nopaths_acs);
     }
     
 };
@@ -838,6 +1097,9 @@ public:
 
     BasicDubinsFleetPlanner(double _prec, double _max_r_dur, int verb) :
         AbstractFleetPlanner(_prec,_max_r_dur,verb) {}
+
+    BasicDubinsFleetPlanner(double _prec, double _max_r_dur, int verb, std::ostream& output_stream) :
+        AbstractFleetPlanner(_prec,_max_r_dur,verb, output_stream) {}
 };
 
 /**
@@ -909,6 +1171,10 @@ public:
         const std::vector<double>& _slens, const std::vector<double>& _elens, int verb)
         : AbstractFleetPlanner(_prec,_max_r_dur,verb), start_lengths(_slens), end_lengths(_elens) {}
 
+    ExtendedDubinsFleetPlanner(double _prec, double _max_r_dur,
+        const std::vector<double>& _slens, const std::vector<double>& _elens, int verb, std::ostream& output_stream)
+        : AbstractFleetPlanner(_prec,_max_r_dur,verb, output_stream), start_lengths(_slens), end_lengths(_elens) {}
+
 };
 
 /**
@@ -979,5 +1245,9 @@ public:
     BaseExtendedDubinsFleetPlanner(double _prec, double _max_r_dur,
         const std::vector<double>& _slens, const std::vector<double>& _elens, int verb)
         : AbstractFleetPlanner(_prec,_max_r_dur,verb), start_lengths(_slens), end_lengths(_elens) {}
+
+    BaseExtendedDubinsFleetPlanner(double _prec, double _max_r_dur,
+        const std::vector<double>& _slens, const std::vector<double>& _elens, int verb, std::ostream& output_stream)
+        : AbstractFleetPlanner(_prec,_max_r_dur,verb, output_stream), start_lengths(_slens), end_lengths(_elens) {}
 
 };

@@ -22,6 +22,10 @@ from Dubins import Pose3D,ACStats,Path,BasicPath,FleetPlan,ListOfTimedPoses,Time
 ######################################## JSON parsing ########################################
 
 def parse_section_from_dict(d:dict) -> BasicPath:
+    try:
+        del d["m"]
+    except KeyError:
+        pass
     return BasicPath(**d)
 
 def parse_trajectory_from_dict(d:dict) -> tuple[ACStats,Path]:

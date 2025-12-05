@@ -38,6 +38,49 @@ std::vector<std::shared_ptr<T>> make_shared(std::vector<std::unique_ptr<T>>& v)
     return output;
 }
 
+/**
+ * @brief Assuming vec is in increasing order, find the index i such that vec[i] <= val <= vec[i+1]
+ * If vec.front() > val, returns 0
+ * If vec.back() < val, returns vec.size()-1
+ * 
+ * @tparam T type of the vector, should by comparable
+ * @param vec Vector of values, in increasing order
+ * @param val Value to search in the vector
+ * @return size_t index of the 'insertion location' in vec
+ */
+template<typename T>
+size_t binary_search(std::vector<T> vec, T val)
+{
+    
+    size_t start = 0;
+    size_t end = vec.size()-1;
+
+    if (val < vec[start])
+    {
+        return start;
+    }
+    else if (val >= vec[end])
+    {
+        return end;
+    }
+
+    do
+    {
+        size_t mid = (start+end)/2;
+        
+        if (val >= vec[mid])
+        {
+            start = mid;
+        }
+        else
+        {
+            end = mid;
+        }
+
+    } while (end-start > 1);
+    return start;
+}
+
 // -------------------- General maths -------------------- //
 
 /**

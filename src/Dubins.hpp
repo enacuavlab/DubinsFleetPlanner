@@ -229,6 +229,48 @@ public:
 
     virtual DubinsMove get_section_type(double loc) const = 0;
 
+
+    /**
+     * @brief Compute the first point such that 'this' and 'that' breach their minimal separation,
+     * or the minimal distance between the two proving that they are separated
+     * 
+     * 
+     * @param other A second Dubins path
+     * @param this_speed    XY Speed along `this` path (in [L]/s)
+     * @param other_speed   XY Speed along `other` path (in [L]/s)
+     * @param duration Duration for which to look for conflicts (in s)
+     * @param min_dist The minimal distance required for ensuring separation (in [L])
+     * @param tol      Solver tolerance used when looking for the minimal distance
+     * @param hostart  Optional value for hotstarting the search: a place where the minimal separation might fail
+     * @return A pair containing the location and value of either:
+     *                  - The first trajectory part breaching the minimal distance
+     *                  - The global minimal distance between the two
+     */
+    std::pair<double,double> XY_distance_to(const Dubins& other, double this_speed, double other_speed, 
+        double duration, double min_dist, double tol, std::optional<double> hostart = std::nullopt) const;
+
+
+    /**
+     * @brief A static version of `XY_distance_to`
+     *
+     */
+    static std::pair<double,double> compute_XY_distance(const Dubins& first, const Dubins& second, double first_speed, double second_speed, 
+        double duration, double min_dist,
+        double tol=DubinsFleetPlanner_PRECISION, 
+        std::optional<double> hotstart = std::nullopt)
+    {
+        return first.XY_distance_to(second,first_speed,second_speed,duration,min_dist,tol,hotstart);
+    }
+
+    /**
+     * @brief Generic type for distance function
+     * 
+     * The arguments are:
+     * First path, second path, first speed, second speed, duration, minimal distance, computation precision, optional hot start
+     */
+    typedef std::pair<double,double> (*DubinsDistanceFunction)(const Dubins&, const Dubins&, 
+        double, double, double, double, double, std::optional<double>);
+
     /**
      * @brief Check whether `this` and `other` are horitzontaly separated
      * 
@@ -247,9 +289,6 @@ public:
     bool is_XY_separated_from(const Dubins &other, double this_speed, double other_speed,
                               double duration, double min_dist, double tol = DubinsFleetPlanner_PRECISION) const;
 
-    template <bool geometric_filtering>
-    bool apply_to_path_pair(DubinsMove this_type, DubinsMove other_type, Pose3D &this_start, Pose3D &this_end, double this_speed, double this_turn_radius, double this_vspeed, Pose3D &other_start, Pose3D &other_end, double other_speed, double other_turn_radius, double other_vspeed, double &section_duration, double &min_dist, double &tol, bool &retFlag) const;
-
     /**
      * @brief A static version of `is_XY_separated_from`
      *
@@ -261,8 +300,10 @@ public:
         return first.is_XY_separated_from(second,first_speed,second_speed,duration,min_dist,tol);
     }
 
+
+
     /**
-     * @brief Generic type for distance function
+     * @brief Generic type for separation function
      * 
      * The arguments are:
      * First path, second path, first speed, second speed, duration, minimal distance, computation precision

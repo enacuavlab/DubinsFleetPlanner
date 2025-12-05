@@ -516,7 +516,10 @@ void DubinsPP::OutputPrinter::print_paths_as_JSON(std::ostream& s,
 
 void DubinsPP::OutputPrinter::append_rich_conflicts(std::ostream& s,
         double time,
-        const std::vector<RichConflict_T>& vec)
+        const std::vector<RichConflict_T>& vec,
+        const SharedListOfPossibilities& possibilities,
+        const std::vector<AircraftStats>& stats,
+        bool prepend_comma)
 {
 
     json j;
@@ -527,12 +530,29 @@ void DubinsPP::OutputPrinter::append_rich_conflicts(std::ostream& s,
 
     for(auto v: vec)
     {
-        json j_conflict;
-        to_json_RichConflict(j_conflict,v);
+        auto ac_id1     = std::get<0>(v);
+        auto path_id1   = std::get<1>(v);
+        auto ac_id2     = std::get<2>(v);
+        auto path_id2   = std::get<3>(v);
+
+        json j_conflict = json{
+            {"AC_id1"       , stats[ac_id1].id},
+            {"Path_type1"   , possibilities[ac_id1][path_id1]->get_type_abbr()},
+            {"AC_id2"       , stats[ac_id2].id},
+            {"Path_type2"   , possibilities[ac_id2][path_id2]->get_type_abbr()},
+            {"min_loc"      , std::get<4>(v)},
+            {"min_val"      , std::get<5>(v)}
+        };
+
         conflicts.push_back(j_conflict);
     }
 
     j["conflicts"] = conflicts;
+
+    if (prepend_comma)
+    {
+        s << ",";
+    }
 
     s << j;
 }
@@ -578,7 +598,6 @@ void to_json_ModernTrajectory(json& j,
             Pose3D& sec_end   = endpoints[i+1];
 
             json j_section;
-            j_section["length"] = sec_len;
 
             switch (sec_type)
             {
@@ -599,7 +618,8 @@ void to_json_ModernTrajectory(json& j,
                 // Unreachable
                 exit(EXIT_FAILURE);
             }
-
+            
+            j_section["length"] = sec_len;
             sections.push_back(j_section);
         }
 

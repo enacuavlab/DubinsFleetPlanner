@@ -19,6 +19,31 @@
 
 // ---------------------------------------- Util functions ---------------------------------------- //
 
+std::vector<Conflict_T> drop_conflict_details(const std::vector<RichConflict_T>& vec, double min_dist)
+{
+    std::vector<Conflict_T> output;
+    for(size_t i = 0; i < vec.size(); i++)
+    {
+        auto t = vec[i];
+
+        // Only keep significant conflicts
+        if (std::get<5>(t) > min_dist)
+        {
+            continue;
+        }
+        else
+        {
+            output.push_back(std::make_tuple(
+                std::get<0>(t),
+                std::get<1>(t),
+                std::get<2>(t),
+                std::get<3>(t)
+            ));
+        }
+    }
+    return output;
+}
+
 uint number_of_valid_paths(ListOfPossibilities& list)
 {
     uint output = 0;
@@ -51,7 +76,6 @@ size_t list_hash(const ListOfPossibilities& list)
     }
 
     return output;
-
 }
 
 
@@ -62,7 +86,29 @@ static inline bool generic_check_compatibility(const Dubins& d1, const Dubins& d
     return d1.is_valid() && d2.is_valid() && separation_function(d1,d2,s1.airspeed,s2.airspeed,duration,sep,DubinsFleetPlanner_PRECISION);
 }
 
+template<Dubins::DubinsDistanceFunction distance_function>
+static inline std::pair<double,double> generic_compute_distance(
+    const Dubins& d1, const Dubins& d2, 
+    const AircraftStats& s1, const AircraftStats& s2, 
+    double sep,
+    std::optional<double> hotstart = std::nullopt)
+{
+    double duration = std::min(d1.get_duration(s1.airspeed),d2.get_duration(s2.airspeed));
+    if (!(d1.is_valid() && d2.is_valid()))
+    {
+        return std::make_pair(0.,INFINITY);
+    }
+    else
+    {
+        return distance_function(d1,d2,s1.airspeed,s2.airspeed,duration,sep,DubinsFleetPlanner_PRECISION,hotstart);
+    }
+}
+
+
+
 // ---------------------------------------- Single thread functions ---------------------------------------- //
+
+// -------------------- Only separation -------------------- //
 
 template<Dubins::DubinsSeparationFunction separation_function>
 std::vector<Conflict_T> generic_compute_separations(const ListOfPossibilities& list_of_possibilites, const std::vector<AircraftStats>& stats, double sep)
@@ -110,7 +156,81 @@ std::vector<Conflict_T> generic_compute_separations(const ListOfPossibilities& l
     return output;
 }
 
+// -------------------- Separation and distance -------------------- //
+
+
+template<Dubins::DubinsDistanceFunction distance_function>
+std::vector<RichConflict_T> generic_compute_distances(
+    const ListOfPossibilities& list_of_possibilites, const std::vector<AircraftStats>& stats,
+    double sep, const Conflict_Map_T& map, bool all_values)
+{
+    uint N = list_of_possibilites.size();
+
+#if defined(DubinsFleetPlanner_ASSERTIONS) && DubinsFleetPlanner_ASSERTIONS > 0
+    assert(list_of_possibilites.size() == stats.size());
+#endif
+
+    std::vector<RichConflict_T> output;
+
+    for(uint i = 0; i < N; i++)
+    {
+        for(uint j = i+1; j < N; j++)
+        {
+            const std::vector<std::unique_ptr<Dubins>>& d1_paths = list_of_possibilites[i];
+            const std::vector<std::unique_ptr<Dubins>>& d2_paths = list_of_possibilites[j];
+
+            const AircraftStats& d1_stats = stats[i];
+            const AircraftStats& d2_stats = stats[j];
+
+            uint P1 = d1_paths.size();
+            uint P2 = d2_paths.size();
+
+            for(uint p1 = 0; p1 < P1; p1++)
+            {
+                for(uint p2 = 0; p2 < P2; p2++)
+                {
+                    const Dubins& d1 = *d1_paths[p1];
+                    const Dubins& d2 = *d1_paths[p2];
+
+                    std::optional<double> hotstart;
+                    auto search = map.find({i,p1,j,p2});
+                    if (search == map.end())
+                    {
+                        hotstart = std::nullopt;
+                    }
+                    else
+                    {
+                        hotstart = search->second.first;
+                    }
+
+                    std::pair<double,double> cvals = generic_compute_distance<distance_function>(d1,d2,d1_stats,d2_stats,sep,hotstart);
+                    if (all_values)
+                    {
+                        output.push_back({
+                            i,p1,j,p2,cvals.first,cvals.second
+                        });
+                    }
+                    else
+                    {
+                        if (cvals.second < sep)
+                        {
+                            output.push_back({
+                                i,p1,j,p2,cvals.first,cvals.second
+                            });
+                        }
+                    }
+                }
+            }
+
+        }
+    }
+
+    return output;
+}
+
 // ---------------------------------------- Multi thread functions ---------------------------------------- //
+
+// -------------------- Only separation -------------------- //
 
 template<Dubins::DubinsSeparationFunction separation_function>
 std::vector<Conflict_T> _subtask_compute_separations(
@@ -248,6 +368,170 @@ std::vector<Conflict_T> generic_parallel_compute_separations(uint THREADS, const
     return output;
 }
 
+// -------------------- Separation and distance -------------------- //
+
+template<Dubins::DubinsDistanceFunction distance_function>
+std::vector<RichConflict_T> _subtask_compute_distances(
+    const SharedListOfPossibilities& list_of_possibilites, const std::vector<AircraftStats>& stats,
+    double sep, uint start_i, uint start_j, uint ac_num, const Conflict_Map_T& map, bool all_values)
+{
+
+    uint N = list_of_possibilites.size();
+    uint done = 0;
+
+    uint i = start_i;
+    uint j = start_j;
+
+    // std::cout << "Thread " << std::this_thread::get_id() << " : ( " << start_i << " , " << start_j << " , " << ac_num << " )" << std::endl;
+
+    std::vector<RichConflict_T> output;
+
+    while(i < N)
+    {
+        while(j < N)
+        {
+            const std::vector<std::shared_ptr<Dubins>>& d1_paths = list_of_possibilites[i];
+            const std::vector<std::shared_ptr<Dubins>>& d2_paths = list_of_possibilites[j];
+
+            const AircraftStats& d1_stats = stats[i];
+            const AircraftStats& d2_stats = stats[j];
+
+            uint P1 = d1_paths.size();
+            uint P2 = d2_paths.size();
+
+            if (i == j)
+            {
+                std::cout << "NANIIII: " << i << " (" << start_i << " , " << start_j << ")" << std::endl;
+            }
+
+            for(uint p1 = 0; p1 < P1; p1++)
+            {
+                for(uint p2 = 0; p2 < P2; p2++)
+                {
+                    const Dubins& d1 = *d1_paths[p1];
+                    const Dubins& d2 = *d2_paths[p2];
+
+                    std::optional<double> hotstart;
+                    auto search = map.find({i,p1,j,p2});
+                    if (search == map.end())
+                    {
+                        hotstart = std::nullopt;
+                    }
+                    else
+                    {
+                        hotstart = search->second.first;
+                    }
+
+                    std::pair<double,double> cvals = generic_compute_distance<distance_function>(d1,d2,d1_stats,d2_stats,sep,hotstart);
+                    if (all_values)
+                    {
+                        output.push_back({
+                            i,p1,j,p2,cvals.first,cvals.second
+                        });
+                    }
+                    else
+                    {
+                        if (cvals.second < sep)
+                        {
+                            output.push_back({
+                                i,p1,j,p2,cvals.first,cvals.second
+                            });
+                        }
+                    }
+                }
+            }
+
+            done++;
+            if (done >= ac_num)
+            {
+                return output;
+            }
+
+            j++;
+        }
+
+        i++;
+        j = i+1;
+    }
+
+    return output;
+}
+
+
+template<Dubins::DubinsDistanceFunction distance_function>
+std::vector<RichConflict_T> generic_parallel_compute_distances(
+    uint THREADS, const SharedListOfPossibilities& list_of_possibilites, 
+    const std::vector<AircraftStats>& stats, double sep,
+    const Conflict_Map_T& map, bool all_values)
+{
+    assert(THREADS > 0);
+
+    uint N = list_of_possibilites.size();
+
+#if defined(DubinsFleetPlanner_ASSERTIONS) && DubinsFleetPlanner_ASSERTIONS > 0
+    assert(list_of_possibilites.size() == stats.size());
+#endif
+
+    uint tasks_to_do = N*(N-1)/2;
+    std::vector<RichConflict_T> output;
+
+    uint tasks_per = tasks_to_do/THREADS;
+    uint thread_started = 0;
+    uint tasks_given = 0;
+
+    uint start_i = 0;
+    uint start_j = 1;
+
+    std::vector<std::future<std::vector<RichConflict_T>>> futures;
+
+    for(uint i = 0; i < N; i++)
+    {
+        for(uint j = i+1; j < N; j++)
+        {
+            if (tasks_given >= tasks_per)
+            {
+                futures.push_back(
+                    std::async(
+                        std::launch::async,
+                        _subtask_compute_distances<distance_function>,
+                        list_of_possibilites,stats,sep,
+                        start_i,start_j,tasks_given,
+                        map, all_values
+                    )
+                );
+                tasks_to_do -= tasks_given;
+                thread_started++;
+                tasks_given = 0;
+            }
+
+            if (tasks_given == 0)
+            {
+                start_i = i;
+                start_j = j;
+            }
+
+            tasks_given++;
+
+        }
+    }
+
+    if (tasks_given > 0)
+    {
+        output = _subtask_compute_distances<distance_function>(
+            list_of_possibilites,stats,
+            sep,start_i,start_j,tasks_given,
+            map, all_values);
+    }
+
+    for(auto& res : futures)
+    {
+        res.wait();
+        auto res_val = res.get();
+        output.insert(output.end(),res_val.begin(), res_val.end());
+    }
+
+    return output;
+}
 
 // ---------------------------------------- Specialized implementations ---------------------------------------- //
 
@@ -261,6 +545,25 @@ std::vector<Conflict_T> parallel_compute_XY_separations(SharedListOfPossibilitie
     return generic_parallel_compute_separations<Dubins::are_XY_separated<true>>(
         THREADS,
         list_of_possibilites,stats,sep
+    );
+}
+
+
+std::vector<RichConflict_T> compute_XY_distances(
+    ListOfPossibilities& list_of_possibilites, const std::vector<AircraftStats>& stats,
+    double sep, const Conflict_Map_T& map, bool all_values)
+{
+    return generic_compute_distances<Dubins::compute_XY_distance>(list_of_possibilites,stats,sep,map,all_values);
+}
+
+std::vector<RichConflict_T> parallel_compute_XY_distances(
+    SharedListOfPossibilities& list_of_possibilites, const std::vector<AircraftStats>& stats,
+    double sep, uint THREADS, const Conflict_Map_T& map, bool all_values)
+{
+    return generic_parallel_compute_distances<Dubins::compute_XY_distance>(
+        THREADS,
+        list_of_possibilites,stats,sep,
+        map,all_values
     );
 }
 

@@ -31,11 +31,35 @@
 #include "Dubins.hpp"
 #include "Primitives.hpp"
 
+// ---------- Util functions ---------- //
+
 /**
  * @brief Represent a conflict in the form (ac_id1,path_id1,ac_id2,path_id2)
  * 
  */
 typedef std::tuple<unsigned short, unsigned short, unsigned short, unsigned short> Conflict_T;
+
+/**
+ * @brief Represent a conflict with its information in the form
+ *  (ac_id1,path_id1,ac_id2,path_id2,location,value)
+ * 
+ */
+typedef std::tuple<unsigned short, unsigned short, unsigned short, unsigned short, double, double> RichConflict_T;
+
+/**
+ * @brief Convert a vector of RichConflict_T into a vector of Conflict_T while dropping irrelevant conflicts (distance higher than given bound)
+ * 
+ * @param vec Vector of RichConflict_T
+ * @param min_dist Minimal separation distance
+ * @return std::vector<Conflict_T> 
+ */
+std::vector<Conflict_T> drop_conflict_details(const std::vector<RichConflict_T>& vec, double min_dist);
+
+/**
+ * @brief Log the characteristics of a conflict (location,distance)
+ * 
+ */
+typedef std::map<Conflict_T,std::pair<double,double>> Conflict_Map_T;
 
 typedef std::vector<std::vector<std::unique_ptr<Dubins>>> ListOfPossibilities;
 typedef std::vector<std::vector<std::shared_ptr<Dubins>>> SharedListOfPossibilities;
@@ -43,10 +67,92 @@ typedef std::vector<std::vector<std::shared_ptr<Dubins>>> SharedListOfPossibilit
 uint number_of_valid_paths(const ListOfPossibilities& list);
 size_t list_hash(const ListOfPossibilities& list);
 
-std::vector<Conflict_T> compute_XY_separations(ListOfPossibilities&, const std::vector<AircraftStats>&, double);
+// ---------- Separation functions ---------- //
 
-std::vector<Conflict_T> parallel_compute_XY_separations(SharedListOfPossibilities&, const std::vector<AircraftStats>&, double, 
-    uint THREADS = std::thread::hardware_concurrency()/2);
+// ----- Generic functions ----- //
+
+/**
+ * @brief Given a separation function, possible paths, aircraft characteristics and a minimal separation,
+ * compute the list of conflicting paths
+ * 
+ * @tparam separation_function Given two paths with their aircarft stats and a minimum separation, returns if there is a conflict or not
+ * @param list_of_possibilites  List of possible paths for each aircraft
+ * @param stats                 Aircraft stats
+ * @param sep                   Minimal separation required
+ * @return std::vector<Conflict_T>  List of conflicting aircraft + paths combination
+ */
+template<Dubins::DubinsSeparationFunction separation_function>
+std::vector<Conflict_T> generic_compute_separations(const ListOfPossibilities& list_of_possibilites, 
+    const std::vector<AircraftStats>& stats, double sep);
+
+/**
+ * @brief Given a separation function, possible paths, aircraft characteristics and a minimal separation,
+ * compute the list of conflicting paths using multiple threads
+ * 
+ * @tparam separation_function  Given two paths with their aircarft stats and a minimum separation, returns if there is a conflict or not
+ * @param THREADS               Number of threads to use
+ * @param list_of_possibilites  List of possible paths for each aircraft
+ * @param stats                 Aircraft stats
+ * @param sep                   Minimal separation required
+ * @return std::vector<Conflict_T>  List of conflicting aircraft + paths combination
+ */
+template<Dubins::DubinsSeparationFunction separation_function>
+std::vector<Conflict_T> generic_parallel_compute_separations(uint THREADS, const SharedListOfPossibilities& list_of_possibilites, 
+    const std::vector<AircraftStats>& stats, double sep);
+
+
+// std::vector<Conflict_T> compute_XY_separations(ListOfPossibilities&, const std::vector<AircraftStats>&, double);
+
+// std::vector<Conflict_T> parallel_compute_XY_separations(SharedListOfPossibilities&, const std::vector<AircraftStats>&, double,
+//     uint THREADS = std::thread::hardware_concurrency()/2);
+    
+// ---------- Distance functions ---------- //
+
+/**
+ * @brief Given a distance function, possible paths, aircraft characteristics and a minimal separation,
+ * compute the list of conflicting paths with the conflict location and evaluation
+ * 
+ * @tparam distance_function    Given two paths with their aircarft stats and a minimum separation, 
+ *  returns the closest point separating them with associated distance
+ * @param list_of_possibilites  List of possible paths for each aircraft
+ * @param stats                 Aircraft stats
+ * @param sep                   Minimal separation required
+ * @param map                   A map containing hints for the solver trying to find conflicts
+ * @param all_values            Whether to returns all evaluations or only the ones generating conflicts
+ * @return std::vector<RichConflict_T>  List of conflicting aircraft + paths combination with the location and distance
+ */
+template<Dubins::DubinsDistanceFunction distance_function>
+std::vector<RichConflict_T> generic_compute_distances(
+    const ListOfPossibilities& list_of_possibilites, const std::vector<AircraftStats>& stats,
+    double sep, const Conflict_Map_T& map, bool all_values);
+
+/**
+ * @brief Given a distance function, possible paths, aircraft characteristics and a minimal separation,
+ * compute the list of conflicting paths with the conflict location and evaluation using multiple threads
+ * 
+ * @tparam distance_function    Given two paths with their aircarft stats and a minimum separation, 
+ *  returns the closest point separating them with associated distance
+ * @param THREADS               Number of threads to use
+ * @param list_of_possibilites  List of possible paths for each aircraft
+ * @param stats                 Aircraft stats
+ * @param sep                   Minimal separation required
+ * @param map                   A map containing hints for the solver trying to find conflicts
+ * @param all_values            Whether to returns all evaluations or only the ones generating conflicts
+ * @return std::vector<RichConflict_T>  List of conflicting aircraft + paths combination with the location and distance
+ */
+template<Dubins::DubinsDistanceFunction distance_function>
+std::vector<RichConflict_T> generic_parallel_compute_distances(
+    uint THREADS, const SharedListOfPossibilities& list_of_possibilites, 
+    const std::vector<AircraftStats>& stats, double sep,
+    const Conflict_Map_T& map, bool all_values);
+
+// std::vector<RichConflict_T> compute_XY_distances(
+//     ListOfPossibilities& list_of_possibilites, const std::vector<AircraftStats>& stats,
+//     double sep, const Conflict_Map_T& map, bool all_values);
+
+// std::vector<RichConflict_T> parallel_compute_XY_distances(
+//     SharedListOfPossibilities& list_of_possibilites, const std::vector<AircraftStats>& stats,
+//     double sep, uint THREADS, const Conflict_Map_T& map, bool all_values);
 
 // TODO: Compute the full matrix of separations, in order to find the best global separation
 

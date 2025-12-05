@@ -55,6 +55,7 @@ struct program_arguments
     vector<double> length_extensions;
     int thread_num;
     int max_iters,weave_iters;
+    double min_weave_dist;
     int samples;
     int verbosity;
     double precision;
@@ -78,7 +79,7 @@ bool process_command_line(int argc, char* argv[], program_arguments& parsed_args
                     , "REQUIRED, positional. Either a CSV file describing a problem, or a folder containing such files. See 'USAGE.md' for the format description")
     ("output"       , po::value<string>(&parsed_args.out_pathname)->required()
                     , "REQUIRED, positional. Output file/folder (if input is a folder). Format is deduced by extension type, either JSON or CSV."
-                        "Format is described in 'USAGE.md'." )
+                        " Format is described in 'USAGE.md'." )
 
     ("separation"   , po::value<double>(&parsed_args.separation)->required()
                     ,"REQUIRED, positional. Minimal required XY separation between aircraft")
@@ -106,6 +107,8 @@ bool process_command_line(int argc, char* argv[], program_arguments& parsed_args
                     ,"Maximal number of iterations. Default to 300.")
     ("weave,w"      , po::value<int>(&parsed_args.weave_iters)->default_value(2)
                     ,"Number of samples to add when resampling between two points. Default to 2.")
+    ("weave-dist,wd", po::value<double>(&parsed_args.min_weave_dist)->default_value(0.1)
+                    ,"Minimal value required between two time-points for ressampling between them (no ressampling if below). Default to 0.1")
 
     ("help", "Produce help message")
     ("verbose,v"    , po::value<int>(&parsed_args.verbosity)->default_value(1)
@@ -192,7 +195,13 @@ void write_result(const fs::path& out_filepath, vector<std::shared_ptr<Dubins>>&
     }
     else
     {
-        DubinsPP::OutputPrinter::print_paths_as_JSON(out_data,sol,stats,args.separation,args.wind_x,args.wind_y);
+        DubinsPP::OutputPrinter::print_paths_as_ModernJSON(out_data,sol,stats,args.separation,args.wind_x,args.wind_y);
+
+        // fs::path outbis_filepath = out_filepath.string()+".bis.json";
+        // std::cout << "Also printing at:" << std::endl << outbis_filepath.string() << std::endl;
+        // std::ofstream outbis_data(outbis_filepath);
+
+        // DubinsPP::OutputPrinter::print_paths_as_ModernJSON(outbis_data,sol,stats,args.separation,args.wind_x,args.wind_y);
     }
 }
 
@@ -232,6 +241,11 @@ std::tuple<int,SharedDubinsResults,ExtraPPResults> solve_case(const fs::path& in
     
     std::unique_ptr<AbstractFleetPlanner> planner;
     bool good_solution = true;
+
+    string output_log_pathname = output_path.string() + ".log.json";
+    std::ofstream output_log(output_log_pathname);
+
+    output_log << "[";
     
     if (args.length_extensions.size())
     {
@@ -240,25 +254,27 @@ std::tuple<int,SharedDubinsResults,ExtraPPResults> solve_case(const fs::path& in
             planner = std::make_unique<ExtendedDubinsFleetPlanner>(
                 args.precision, args.max_r_length,
                 args.length_extensions, args.length_extensions,
-                args.verbosity); 
+                args.verbosity, output_log);
         }
         else
         {
             planner = std::make_unique<BaseExtendedDubinsFleetPlanner>(
                 args.precision, args.max_r_length,
                 args.length_extensions, args.length_extensions,
-                args.verbosity); 
+                args.verbosity, output_log);
         }
     }
     else
     {
         planner = std::make_unique<BasicDubinsFleetPlanner>(
             args.precision ,args.max_r_length,
-            args.verbosity);
+            args.verbosity, output_log);
     }
     
-    SharedDubinsResults sols = planner->solve<Dubins::are_XY_separated>(extra,starts,ends,stats,args.separation,
-            dt,args.wind_x,args.wind_y,args.max_iters,args.weave_iters,args.thread_num);
+    SharedDubinsResults sols = planner->solve<Dubins::are_XY_separated,Dubins::compute_XY_distance>(extra,starts,ends,stats,args.separation,
+            dt,args.wind_x,args.wind_y,args.max_iters,args.weave_iters,args.min_weave_dist,args.thread_num);
+
+    output_log << "]";
     
     if (!sols.has_value()) // If no solution, retry without separation
     {
@@ -266,8 +282,8 @@ std::tuple<int,SharedDubinsResults,ExtraPPResults> solve_case(const fs::path& in
         good_solution = false;
         std::cerr << "WARNING: Could not find a solution; retrying with SEPARATION DISABLED" << std::endl;
         
-        sols = planner->solve<Dubins::are_XY_separated>(_backup,starts,ends,stats,0.,
-            dt,args.wind_x,args.wind_y,args.max_iters,args.thread_num);
+        sols = planner->solve<Dubins::are_XY_separated,Dubins::compute_XY_distance>(_backup,starts,ends,stats,0.,
+            dt,args.wind_x,args.wind_y,args.max_iters,args.weave_iters,args.min_weave_dist,args.thread_num);
     }
         
     if (!sols.has_value())

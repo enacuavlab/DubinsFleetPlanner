@@ -195,6 +195,35 @@ struct PathShape
 };
 
 /**
+ * @brief A relaxed version of PathShape, with the Dubins path type is stored as a dynamic variable
+ * 
+ */
+struct DynamicPathShape
+{
+    double x,y,z;   ///< A reference point. For a Straight: the initial point | For a turn: the circle center
+    double p1;      ///< For a Straight: horizontal x speed | For a turn: Radius
+    double p2;      ///< For a Straight: horizontal y speed | For a turn: signed angular speed; positive when LEFT, negative when RIGHT
+    double p3;      ///< Vertical speed
+    double p4;      ///< For a Straight: unused, set to 0   | For a turn: initial angle
+    DubinsMove m;   ///< Type of the path shape, as a variable
+};
+
+template<DubinsMove m>
+DynamicPathShape to_dynamic_PathShape(const PathShape<m>& p)
+{
+    return {
+        .x  = p.x,
+        .y  = p.y,
+        .z  = p.z,
+        .p1 = p.p1,
+        .p2 = p.p2,
+        .p3 = p.p3,
+        .p4 = p.p4,
+        .m  = m
+    };
+}
+
+/**
  * @brief Get the XY speed absolute value for the given structure 
  * 
  * @tparam m Structure type (either STRAIGHT or a turn, LEFT or RIGHT)

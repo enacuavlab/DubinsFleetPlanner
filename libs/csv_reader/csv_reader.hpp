@@ -62,7 +62,7 @@ class CSVRow
         std::vector<int>    m_data;
 };
 
-std::istream& operator>>(std::istream& str, CSVRow& data)
+inline std::istream& operator>>(std::istream& str, CSVRow& data)
 {
     data.readNextRow(str);
     return str;

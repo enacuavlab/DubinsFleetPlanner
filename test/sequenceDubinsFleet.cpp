@@ -100,7 +100,7 @@ int main()
 
         ExtraPPResults extra;
 
-        auto opt_result = solver.solve<Dubins::are_XY_separated>(extra,starts,ends,stats_vec,min_sep,delta_t,wind_x,wind_y,500);
+        auto opt_result = solver.solve<Dubins::are_XY_separated,Dubins::compute_XY_distance>(extra,starts,ends,stats_vec,min_sep,delta_t,wind_x,wind_y,500);
 
         if (!opt_result.has_value())
         {

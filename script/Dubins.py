@@ -202,6 +202,10 @@ class Path:
         self.junctions.extend(o_junctions)
         
         self.sections.extend(other.sections)
+        
+        
+    def abbr(self) -> str:
+        return ''.join(s.type.abbr() for s in self.sections)
                 
 
 @dataclass
@@ -266,7 +270,7 @@ class FleetPlan:
     def generate_id_name_dict(self) -> dict[int,str]:
         output = dict()
         for s,p in self.trajectories:
-            output[s.id] = ''.join(sec.type.abbr() for sec in p.sections)
+            output[s.id] = p.abbr()
         return output
     
     def asdict(self) -> dict[str,typing.Any]:
