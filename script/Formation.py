@@ -23,8 +23,12 @@ import enum
 
 import numpy as np
 
+from ProblemGenerator import Pose3D
+
 import matplotlib.pyplot as plt
 from matplotlib.axes import Axes
+
+from scipy.spatial import distance_matrix
 
 
 class SidePoint(enum.Enum):
@@ -61,10 +65,17 @@ class Corner:
 class Formation:
     """ Represent a formation as a set of 3D poses (stored in a numpy array) in a local referential
     """
+    name:str                # Formation name, for labelling
     positions:np.ndarray    # Formations positions with respect to the centerpoint. List of points, 4D (x,y,z,theta), theta being the XY orientation
+    symmetry_lr:bool    = False     # Present a Left-Right symmetry, meaning that a right turn can be used to solve a left turn by mirroring. Default to False
     center:np.ndarray   = field(default_factory=lambda:np.zeros(3))     # Center point location in the global referential
     orientation:float   = 0.                                            # Formation XY orientation with respect to the global referential
     
+    
+    @property
+    def agent_num(self) -> int:
+        """ Number of agents in the formation """
+        return self.positions.shape[0]
     
     def reorder(self,indices:np.ndarray) -> typing.Self:
         """ Reorder the positions in the formation given a permutation
@@ -169,6 +180,14 @@ class Formation:
         
         # Add them to formation
         return self.add_poses(new_poses)
+    
+    def move(self,p:Pose3D) -> typing.Self:
+        self.positions[:,0] += p.x
+        self.positions[:,1] += p.y
+        self.positions[:,2] += p.z
+        self.orientation += p.theta
+        
+        return self
         
     
 def plot_formation(ax:Axes, form:Formation, title:str, label:str=''):
@@ -177,11 +196,25 @@ def plot_formation(ax:Axes, form:Formation, title:str, label:str=''):
     xs = positions[:,0]
     ys = positions[:,1]
     
+    
+    
+    distances = distance_matrix(positions[:,:2],positions[:,:2])
+    min_dist = np.inf
+    min_pair = (None,None)
+    for i in range(len(positions)):
+        for j in range(i+1,len(positions)):
+            if distances[i,j] < min_dist:
+                min_dist = distances[i,j]
+                min_pair = (i,j)
+    
     dxs = np.cos(positions[:,-1])
     dys = np.sin(positions[:,-1])
     
     ax.set_title(title)
     ax.set_aspect('equal')
+    ax.plot([xs[min_pair[0]],xs[min_pair[1]]],
+            [ys[min_pair[0]],ys[min_pair[1]]],
+            linestyle='--',color='k',label=f"Minimal distance: {min_dist:.3f}")
     
     return ax.quiver(xs,ys,dxs,dys,
               angles='xy',
@@ -201,7 +234,9 @@ def circle_formation_from_radius(N:int,radius:float,clockwise:bool=False) -> For
     ys  = radius*np.sin(angular_pos)
     zs  = np.zeros(N)
     
-    return Formation(np.vstack([xs,ys,zs,orientations]).T)
+    return Formation("Circle_"+("Clockwise" if clockwise else "Anticlockwise"),
+                     np.vstack([xs,ys,zs,orientations]).T,
+                     False)
 
 
 def circle_formation_from_sep(N:int,sep:float,clockwise:bool=False) -> Formation:
@@ -227,7 +262,7 @@ def general_line_formation(N:int,sep:float,orientation:float) -> Formation:
     zs = np.zeros(N)
     orientations = np.repeat(orientation,N)
     
-    return Formation(np.vstack([xs,ys,zs,orientations]).T,orientation=-orientation)
+    return Formation("GenericLine", np.vstack([xs,ys,zs,orientations]).T,False,orientation=-orientation,)
 
 def line_formation(N:int,sep:float) -> Formation:
     """ Putting aircraft in line formation (flying parallel, side by side)
@@ -242,7 +277,10 @@ def line_formation(N:int,sep:float) -> Formation:
     Returns:
         Formation
     """
-    return general_line_formation(N,sep,np.pi/2)
+    output = general_line_formation(N,sep,np.pi/2)
+    output.name = "Line"
+    output.symmetry_lr = True
+    return output
 
 def column_formation(N:int,sep:float) -> Formation:
     """ Putting aircraft in column (or trail), following one another
@@ -256,7 +294,10 @@ def column_formation(N:int,sep:float) -> Formation:
     Returns:
         Formation
     """
-    return general_line_formation(N,sep,0.)
+    output = general_line_formation(N,sep,0.)
+    output.name = "Column"
+    output.symmetry_lr = True
+    return output
 
 def echelon_left_formation(N:int,sep:float,angle:float=np.pi/4) -> Formation:
     """Putting aircraft in left echelon, that is on diagonal with the 'leader' being rightmost
@@ -282,8 +323,9 @@ def echelon_left_formation(N:int,sep:float,angle:float=np.pi/4) -> Formation:
         Formation
     """
     
-    
-    return general_line_formation(N,sep,np.pi-angle)
+    output = general_line_formation(N,sep,np.pi-angle)
+    output.name = "LeftEchelon"
+    return output
 
 def echelon_right_formation(N:int,sep:float,angle:float=np.pi/4) -> Formation:
     """ Putting aircraft in right echelon, that is on diagonal with the 'leader being leftmost
@@ -308,7 +350,10 @@ def echelon_right_formation(N:int,sep:float,angle:float=np.pi/4) -> Formation:
     Returns:
         Formation
     """
-    return general_line_formation(N,sep,angle)
+    
+    output = general_line_formation(N,sep,angle)
+    output.name = "RightEchelon"
+    return output
 
 
 def v_formation(N:int,sep:float,angle:float=np.pi/4,N_right:int|None=None) -> Formation:
@@ -344,6 +389,11 @@ def v_formation(N:int,sep:float,angle:float=np.pi/4,N_right:int|None=None) -> Fo
     ech_left = echelon_left_formation(left_N,sep,angle)
     ech_right = echelon_right_formation(right_N,sep,angle)
     
+    if ech_left.agent_num == ech_right.agent_num+1:
+        symmetric = True
+    else:
+        symmetric = False
+    
     ech_left.apply_rotation()
     ech_right.apply_rotation()
     
@@ -354,6 +404,9 @@ def v_formation(N:int,sep:float,angle:float=np.pi/4,N_right:int|None=None) -> Fo
     
     ech_left.join_poses(ech_right.positions,left_junc,right_junc,shift_vec)
     ech_left.to_barycentric_coords(False)
+    
+    ech_left.name = "Vee"
+    ech_left.symmetry_lr = symmetric
     
     return ech_left
 
@@ -392,6 +445,11 @@ def chevron_formation(N:int,sep:float,angle:float=np.pi/4,N_right:int|None=None)
     ech_left = echelon_left_formation(right_N,sep,angle)
     ech_right = echelon_right_formation(left_N,sep,angle)
     
+    if ech_left.agent_num == ech_right.agent_num+1:
+        symmetric = True
+    else:
+        symmetric = False
+    
     ech_left.apply_rotation()
     ech_right.apply_rotation()
     
@@ -402,6 +460,9 @@ def chevron_formation(N:int,sep:float,angle:float=np.pi/4,N_right:int|None=None)
     
     ech_left.join_poses(ech_right.positions,left_junc,right_junc,shift_vec)
     ech_left.to_barycentric_coords(False)
+    
+    ech_left.name = "Chevron"
+    ech_left.symmetry_lr = symmetric
     
     return ech_left
 
@@ -427,15 +488,21 @@ def generic_rectangle_formation(lines:int,columns:int,Xsep:float,Ysep:float,orie
     
     orientations = np.repeat(orientation,N)
     
-    return Formation(np.vstack([xs,ys,zs,orientations]).T,orientation=-orientation)
+    return Formation("GenericBattle",np.vstack([xs,ys,zs,orientations]).T,orientation=-orientation)
 
 def rectangle_formation(lines:int,columns:int,sep:float,orientation:float) -> Formation:
     
-    return generic_rectangle_formation(lines,columns,sep,sep,orientation)
+    output = generic_rectangle_formation(lines,columns,sep,sep,orientation)
+    output.name = "Rectangle"
+    output.symmetry_lr = True
+    return output
 
 
 def diamond_formation(N_side:int,sep:float) -> Formation:
-    return rectangle_formation(N_side,N_side,sep,np.pi/4)
+    output = rectangle_formation(N_side,N_side,sep,np.pi/4)
+    output.name = "Diamond"
+    output.symmetry_lr = True
+    return output
 
 
 def staggered_formation(lines:int,columns:int,sep:float,orientation:float) -> Formation:    
@@ -450,11 +517,16 @@ def staggered_formation(lines:int,columns:int,sep:float,orientation:float) -> Fo
     shift = np.array([-np.sqrt(3)*sep/2,-sep/2,0.])
     # shift= np.zeros(3)
     
-    return fair_rect.join_poses(stag_rect.positions,topleft,topleft,shift)
+    output = fair_rect.join_poses(stag_rect.positions,topleft,topleft,shift)
+    output.name = "Staggered"
+    output.symmetry_lr = True
+    return output
 
 def stacked_chevrons_formation(lines:int,columns:int,chev_sep:float,stack_sep:float,angle:float=np.pi/4) -> Formation:
     
     std_formation = chevron_formation(columns,chev_sep,angle)
+    
+    symmetry = std_formation.symmetry_lr
     
     output_formation = copy.deepcopy(std_formation)
     
@@ -467,11 +539,16 @@ def stacked_chevrons_formation(lines:int,columns:int,chev_sep:float,stack_sep:fl
         
         output_formation.join_poses(std_formation.positions,rightmid,rightmid,shift)
     
+    output_formation.name = "StackedChevrons"
+    output_formation.symmetry_lr = symmetry
     return output_formation
 
 def stacked_echelon_formation(lines:int,columns:int,chev_sep:float,stack_sep:float,angle:float=np.pi/4,right:bool=True) -> Formation:
     
     std_formation = echelon_right_formation(columns,chev_sep,angle) if right else echelon_left_formation(columns,chev_sep,angle)
+
+    symmetry = std_formation.symmetry_lr
+    
     
     output_formation = copy.deepcopy(std_formation)
     
@@ -485,9 +562,91 @@ def stacked_echelon_formation(lines:int,columns:int,chev_sep:float,stack_sep:flo
         
         output_formation.join_poses(std_formation.positions,corner,corner,shift)
     
+    output_formation.name = "StackedChevrons"
+    output_formation.symmetry_lr = symmetry
     return output_formation
 
 
+def list_all_formations(ncols:int,nlines:int,sep:float) -> list[Formation]:
+    output = []
+    
+    N = ncols*nlines
+    
+    circ_clockwise = circle_formation_from_sep(N,sep,True)
+    output.append(circ_clockwise)
+    circ_anticlock = circle_formation_from_sep(N,sep,False)
+    output.append(circ_anticlock)
+    
+    
+    hline       = line_formation(N,sep)
+    output.append(hline)
+    column      = column_formation(N,sep)
+    output.append(column)
+    right_ech   = echelon_right_formation(N,sep)
+    output.append(right_ech)
+    left_ech    = echelon_left_formation(N,sep)
+    output.append(left_ech)
+    
+    
+    right_ech_trd   = echelon_right_formation(N,sep,np.pi/3)
+    right_ech_trd.name += "Trd"
+    output.append(right_ech_trd)
+    left_ech_trd    = echelon_left_formation(N,sep,np.pi/3)
+    left_ech_trd.name += "Trd"
+    output.append(left_ech_trd)
+
+
+    vee     = v_formation(N,sep)
+    output.append(vee)
+    vee_p1  = v_formation(N+1,sep)
+    vee_p1.name += "PlusOne"
+    output.append(vee_p1)
+    vee_leftmost    = v_formation(ncols,sep,N_right=nlines)
+    vee_leftmost.name += "LeanLeft"
+    output.append(vee_leftmost)
+    vee_rightmost   = v_formation(nlines,sep,N_right=ncols)
+    vee_rightmost.name += "LeanRight"
+    output.append(vee_rightmost)
+
+
+    chevron     = chevron_formation(N,sep)
+    output.append(chevron)
+    chevron_p1  = chevron_formation(N+1,sep)
+    chevron_p1.name += "PlusOne"
+    output.append(chevron_p1)
+    chevron_leftmost    = chevron_formation(ncols,sep,N_right=nlines)
+    chevron_leftmost.name += "LeanLeft"
+    output.append(chevron_leftmost)
+    chevron_rightmost   = chevron_formation(nlines,sep,N_right=ncols)
+    chevron_rightmost.name += "LeanRight"
+    output.append(chevron_rightmost)
+
+
+    rectangle   = rectangle_formation(nlines,ncols,sep,0.).to_barycentric_coords()
+    output.append(rectangle)
+    co_rect     = rectangle_formation(nlines,ncols,sep,np.pi/2).to_barycentric_coords()
+    co_rect.name += "Bis"
+    output.append(co_rect)
+    diamond     = rectangle_formation(nlines,ncols,sep,np.pi/4).to_barycentric_coords()
+    diamond.name = "Diamond"
+    output.append(diamond)
+    diamond_pi3rd = rectangle_formation(nlines,ncols,sep,np.pi/3).to_barycentric_coords()
+    diamond_pi3rd.name += "Trd"
+    output.append(diamond_pi3rd)
+
+
+    staggered   = staggered_formation(nlines,ncols,sep,0.).to_barycentric_coords()
+    output.append(staggered)
+    stacked_chevrons = stacked_chevrons_formation(nlines,ncols,sep,2*sep).to_barycentric_coords()
+    output.append(stacked_chevrons)
+    stacked_right_echelon = stacked_echelon_formation(nlines,ncols,sep,2*sep).to_barycentric_coords()
+    stacked_right_echelon.name += "Right"
+    output.append(stacked_right_echelon)
+    stacked_left_echelon = stacked_echelon_formation(nlines,ncols,sep,2*sep,right=False).to_barycentric_coords()
+    stacked_left_echelon.name += "Left"
+    output.append(stacked_left_echelon)
+
+    return output
 
 if __name__ == '__main__':
     import argparse
@@ -516,13 +675,13 @@ if __name__ == '__main__':
     
     ## Parameters
     
-    cols    = args.cols
-    lines   = args.lines
+    ncols    = args.cols
+    nlines   = args.lines
     
-    N = cols * lines
+    N = ncols * nlines
     
     sep     = args.sep
-    ysep    = args.ysep if args.ysep > 0 else 2*sep
+    sep    = args.ysep if args.ysep > 0 else 2*sep
     
     ## Formation generation
     
@@ -539,6 +698,8 @@ if __name__ == '__main__':
         plot_formation(ax[0],circ_clockwise,"Clockwise circle")
         plot_formation(ax[1],circ_anticlock,"Anti-clockwise circle")
         
+        ax[0].legend()
+        ax[1].legend()
         fig.suptitle("Circle-like formations")
     
         plt.show()
@@ -567,6 +728,10 @@ if __name__ == '__main__':
         plot_formation(ax[0][2],right_ech_trd   ,"Echelon right, 30°")
         plot_formation(ax[1][2],left_ech_trd    ,"Echelon left, 30°")
         
+        for l in ax:
+            for a in l:
+                a.legend()
+                
         fig.suptitle("Line-like formations")
     
         plt.show()
@@ -576,13 +741,13 @@ if __name__ == '__main__':
     
     vee     = v_formation(N,sep)
     vee_p1  = v_formation(N+1,sep)
-    vee_leftmost    = v_formation(cols,sep,N_right=lines)
-    vee_rightmost   = v_formation(lines,sep,N_right=cols)
+    vee_leftmost    = v_formation(ncols,sep,N_right=nlines)
+    vee_rightmost   = v_formation(nlines,sep,N_right=ncols)
     
     chevron     = chevron_formation(N,sep)
     chevron_p1  = chevron_formation(N+1,sep)
-    chevron_leftmost    = chevron_formation(cols,sep,N_right=lines)
-    chevron_rightmost   = chevron_formation(lines,sep,N_right=cols)
+    chevron_leftmost    = chevron_formation(ncols,sep,N_right=nlines)
+    chevron_rightmost   = chevron_formation(nlines,sep,N_right=ncols)
     
     if plotChevrons:
         fig,ax = plt.subplots(2,4,sharex='all',sharey='all')
@@ -590,13 +755,17 @@ if __name__ == '__main__':
         
         plot_formation(ax[0][0],vee     ,f"V, {N} agents")
         plot_formation(ax[0][1],vee_p1  ,f"V, {N+1} agents")
-        plot_formation(ax[0][2],vee_leftmost    ,f"V, {cols} left for {lines} right")
-        plot_formation(ax[0][3],vee_rightmost   ,f"V, {lines} left for {cols} right")
+        plot_formation(ax[0][2],vee_leftmost    ,f"V, {ncols} left for {nlines} right")
+        plot_formation(ax[0][3],vee_rightmost   ,f"V, {nlines} left for {ncols} right")
         
         plot_formation(ax[1][0],chevron     ,f"Chevron, {N} agents")
         plot_formation(ax[1][1],chevron_p1  ,f"Chevron, {N+1} agents")
-        plot_formation(ax[1][2],chevron_leftmost    ,f"Chevron, {cols} left for {lines} right")
-        plot_formation(ax[1][3],chevron_rightmost   ,f"Chevron, {lines} left for {cols} right")
+        plot_formation(ax[1][2],chevron_leftmost    ,f"Chevron, {ncols} left for {nlines} right")
+        plot_formation(ax[1][3],chevron_rightmost   ,f"Chevron, {nlines} left for {ncols} right")
+        
+        for l in ax:
+            for a in l:
+                a.legend()
         
         fig.suptitle("Chevron-like formations")
     
@@ -605,28 +774,32 @@ if __name__ == '__main__':
     # Multi-lines formations
     plotRectangles = args.fall if args.fall else args.fsquare
     
-    rectangle   = rectangle_formation(lines,cols,sep,0.).to_barycentric_coords()
-    co_rect     = rectangle_formation(lines,cols,sep,np.pi/2).to_barycentric_coords()
-    diamond     = rectangle_formation(lines,cols,sep,np.pi/4).to_barycentric_coords()
-    diamond_pi3rd = rectangle_formation(lines,cols,sep,np.pi/3).to_barycentric_coords()
+    rectangle   = rectangle_formation(nlines,ncols,sep,0.).to_barycentric_coords()
+    co_rect     = rectangle_formation(nlines,ncols,sep,np.pi/2).to_barycentric_coords()
+    diamond     = rectangle_formation(nlines,ncols,sep,np.pi/4).to_barycentric_coords()
+    diamond_pi3rd = rectangle_formation(nlines,ncols,sep,np.pi/3).to_barycentric_coords()
     
-    staggered   = staggered_formation(lines,cols,sep,0.).to_barycentric_coords()
-    stacked_chevrons = stacked_chevrons_formation(lines,cols,sep,ysep).to_barycentric_coords()
-    stacked_right_echelon = stacked_echelon_formation(lines,cols,sep,ysep).to_barycentric_coords()
-    stacked_left_echelon = stacked_echelon_formation(lines,cols,sep,ysep,right=False).to_barycentric_coords()
+    staggered   = staggered_formation(nlines,ncols,sep,0.).to_barycentric_coords()
+    stacked_chevrons = stacked_chevrons_formation(nlines,ncols,sep,sep).to_barycentric_coords()
+    stacked_right_echelon = stacked_echelon_formation(nlines,ncols,sep,sep).to_barycentric_coords()
+    stacked_left_echelon = stacked_echelon_formation(nlines,ncols,sep,sep,right=False).to_barycentric_coords()
     
     if plotRectangles:
         fig,ax = plt.subplots(2,4,sharex='all',sharey='all')
         ax:list[list[Axes]]
         
-        plot_formation(ax[0][0],rectangle               ,f"Rectangle, {lines}x{cols}")
-        plot_formation(ax[0][1],co_rect                 ,f"Rectangle, {cols}x{lines}")
-        plot_formation(ax[0][2],diamond                 ,f"Diamond, {lines} left, {cols} right")
-        plot_formation(ax[0][3],diamond_pi3rd           ,f"Diamond (pi/3), {lines} left, {cols} right")
-        plot_formation(ax[1][0],staggered               ,f"Staggered rows, {lines}x{cols}")
-        plot_formation(ax[1][1],stacked_chevrons        ,f"Stacked chevrons, {lines}x{cols}")
-        plot_formation(ax[1][2],stacked_right_echelon   ,f"Stacked right echelons, {lines}x{cols}")
-        plot_formation(ax[1][3],stacked_left_echelon    ,f"Stacked left echelons, {lines}x{cols}")
+        plot_formation(ax[0][0],rectangle               ,f"Rectangle, {nlines}x{ncols}")
+        plot_formation(ax[0][1],co_rect                 ,f"Rectangle, {ncols}x{nlines}")
+        plot_formation(ax[0][2],diamond                 ,f"Diamond, {nlines} left, {ncols} right")
+        plot_formation(ax[0][3],diamond_pi3rd           ,f"Diamond (pi/3), {nlines} left, {ncols} right")
+        plot_formation(ax[1][0],staggered               ,f"Staggered rows, {nlines}x{ncols}")
+        plot_formation(ax[1][1],stacked_chevrons        ,f"Stacked chevrons, {nlines}x{ncols}")
+        plot_formation(ax[1][2],stacked_right_echelon   ,f"Stacked right echelons, {nlines}x{ncols}")
+        plot_formation(ax[1][3],stacked_left_echelon    ,f"Stacked left echelons, {nlines}x{ncols}")
+        
+        for l in ax:
+            for a in l:
+                a.legend()
         
         fig.suptitle("Square-like formations")
     

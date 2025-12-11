@@ -46,6 +46,10 @@ class Pose3D:
     def to_numpy(self) -> np.ndarray:
         return np.array([self.x,self.y,self.z,self.theta])
     
+    @staticmethod
+    def from_array(array:typing.Sequence[float]) -> Pose3D:
+        return Pose3D(array[0],array[1],array[2],array[3])
+    
     def asdict(self) -> dict[str,float]:
         return asdict(self)
     
@@ -108,9 +112,10 @@ class BasicPath:
     
     def speed(self) -> float:
         if self.type == DubinsMove.STRAIGHT:
-            return np.sqrt(self.p1*self.p1 + self.p2*self.p2)
+            output = np.sqrt(self.p1*self.p1 + self.p2*self.p2)
         else:
-            return abs(self.p1*self.p2)
+            output = abs(self.p1*self.p2)
+        return output
         
     def pose_at(self,t:float) -> Pose3D:
         z = self.z + t*self.p3
@@ -136,7 +141,10 @@ class BasicPath:
         return self.pose_at(self.length/self.speed())
     
     def duration(self) -> float:
-        return self.length/self.speed()
+        if self.length == 0.:
+            return 0.
+        else:
+            return self.length/self.speed()
     
     def asdict(self) -> dict[str,float|DubinsMove]:
         output = asdict(self)
