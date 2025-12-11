@@ -333,7 +333,7 @@ double BaseDubins<DubinsMove::STRAIGHT,DubinsMove::LEFT,DubinsMove::STRAIGHT>::a
     turn_radius = radius;
     length = valid ? target_length : NAN;
 
-
+    
     return radius;
 }
 

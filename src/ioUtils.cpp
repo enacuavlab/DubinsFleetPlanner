@@ -593,7 +593,17 @@ void to_json_ModernTrajectory(json& j,
         {
             double sec_len = endpoints_locs[i+1]-endpoints_locs[i];
             double sec_middle = (endpoints_locs[i+1]+endpoints_locs[i])/2;
-            DubinsMove sec_type = path->get_section_type(sec_middle);
+            DubinsMove sec_type;
+
+            if (sec_len < 1e-9)
+            {
+                sec_type = STRAIGHT;
+            }
+            else
+            {
+                sec_type = path->get_section_type(sec_middle);
+            }
+            
             Pose3D& sec_start = endpoints[i];
             Pose3D& sec_end   = endpoints[i+1];
 

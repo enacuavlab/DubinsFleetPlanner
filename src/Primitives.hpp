@@ -337,3 +337,16 @@ Pose3D initial_pose(const PathShape<m>& s)
 {
     return follow_dubins(s,0.);
 }
+
+/**
+ * @brief Compute an equivalent path shape by shifting the starting point to the location after the given duration
+ * 
+ * @tparam m        Type of move (Straight, Left turn, Right turn)
+ * @param s         Structure describing the shape to follow (including speed and starting point)
+ * @param duration  Duration of path following shifting the start
+ * @return          New structure with shifted start
+ */
+template<DubinsMove m>
+[[gnu::pure]]
+PathShape<m> shift_start(const PathShape<m>& s, double duration);
+

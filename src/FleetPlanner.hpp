@@ -376,7 +376,7 @@ protected:
                             dubin->get_length()/this_speed,
                             other->get_length()/other_speed);
 
-                        conflict_with_existing = !separation_function(*dubin,*other,this_speed,other_speed,duration,min_sep,precision_tol);
+                        conflict_with_existing = !separation_function(*dubin,*other,this_speed,other_speed,duration,min_sep,precision_tol,DubinsDistDefaultRec);
                         conflicts_memo.insert({ccase,conflict_with_existing});
                     }
                     else    // Otherwise, simply retrieve the value
@@ -499,6 +499,12 @@ protected:
         
         std::vector<Conflict_T> conflicts;
 
+        // If the minimum separation is too small, assume it is null and return no conflicts
+        if (min_sep < DubinsFleetPlanner_PRECISION) 
+        {
+            return find_pathplanning_LP_solution(shared_list,stats,conflicts,max_path_num(),threads);
+        } 
+
         if (list_conflicts)
         {
             std::vector<RichConflict_T> r_conflicts = generic_parallel_compute_distances<distance_function>(
@@ -524,13 +530,6 @@ protected:
         {
             conflicts = generic_parallel_compute_separations<separation_function>(threads,shared_list,stats,min_sep);
         }
-
-        
-
-
-        // conflicts = generic_parallel_compute_separations<separation_function>(threads,shared_list,stats,min_sep);
-        // std::cout << "(Ref is " << conflicts.size() << ")" << std::endl;
-        
 
         return find_pathplanning_LP_solution(shared_list,stats,conflicts,max_path_num(),threads);
     }
@@ -784,10 +783,12 @@ public:
         double wind_x = 0., double wind_y = 0.,
         uint max_iters = 300, uint weave_iters = 2,
         double min_weave_delta =1.,
-        int threads = -1
+        int threads = -1,
+        double max_time_s = 120
     ) const
     {
         // Timing
+        chrono::milliseconds max_dur_s(static_cast<long int>(max_time_s*1000));
         chrono::process_real_cpu_clock clk;
         auto start = clk.now();
 
@@ -836,7 +837,7 @@ public:
         SharedDubinsResults best_sol;
         double best_time = max_time;
 
-        while(iter_count < max_iters && samples.size() > 1)
+        while(iter_count < max_iters && samples.size() > 1 && (clk.now() - start) < max_dur_s)
         {
             // Remove cases already done
             while(iter != samples.end() && iter->done)
@@ -852,6 +853,10 @@ public:
                     std::cout << "Adding new samples, going from " << samples.size() << " to ";
                 }
 
+                if (samples.size() <= 1)
+                {
+                    break;
+                }
                 bool new_samples = weave_samples(samples,weave_iters,min_weave_delta);
 
                 if (verbosity > 1)
@@ -927,6 +932,10 @@ public:
                 }
 
                 // Weave
+                if (samples.size() <= 1)
+                {
+                    break;
+                }
                 bool new_samples = weave_samples(samples,weave_iters,min_weave_delta);
 
                 if (verbosity > 0)
@@ -947,7 +956,13 @@ public:
         }
 
         auto end = clk.now();
+
         extra.duration = end - start;
+
+        if (verbosity > 0 && extra.duration > max_dur_s)
+        {
+            std::cout << "WARNING: Timeout stop!" << std::endl;
+        }
 
         extra.success = best_sol.has_value();
 
@@ -1249,5 +1264,47 @@ public:
     BaseExtendedDubinsFleetPlanner(double _prec, double _max_r_dur,
         const std::vector<double>& _slens, const std::vector<double>& _elens, int verb, std::ostream& output_stream)
         : AbstractFleetPlanner(_prec,_max_r_dur,verb, output_stream), start_lengths(_slens), end_lengths(_elens) {}
+
+};
+
+/**
+ * @brief Plannification based on the 6 fundamental Dubins paths using the minimal turn radius,
+ * extended by well-chosen straight at the start and end
+ * 
+ */
+class LineExtendedDubinsFleetPlanner : public AbstractFleetPlanner
+{
+private:
+    std::vector<double> ratios;
+
+    std::vector<std::unique_ptr<Dubins>> generate_possible_paths(const Pose3D& start, const Pose3D& end, const AircraftStats& stats, double target_len) const
+    {
+        std::vector<std::unique_ptr<Dubins>> output = generate_line_extended_base(start,end,stats.climb,stats.turn_radius,target_len,precision_tol);
+        std::vector<std::unique_ptr<Dubins>> curvature_extended = fit_possible_baseDubins(stats.climb,stats.turn_radius,start,end,target_len,precision_tol);
+        
+        for(auto &c : curvature_extended)
+        {
+            output.push_back(std::move(c));
+        }
+
+        return output;
+    }
+
+    uint max_path_num() const
+    {
+        return 3*6+8; // Three types of extensions: start,end,boths for the 6 original Dubins paths, as well as the 8 curvature adjusted Dubins
+    } 
+
+public:
+    LineExtendedDubinsFleetPlanner(double _prec, double _max_r_dur, const std::vector<double>& rs)
+        : AbstractFleetPlanner(_prec,_max_r_dur),ratios(rs){}
+
+    LineExtendedDubinsFleetPlanner(double _prec, double _max_r_dur, const std::vector<double>& rs,
+        int verb)
+        : AbstractFleetPlanner(_prec,_max_r_dur,verb),ratios(rs){}
+
+    LineExtendedDubinsFleetPlanner(double _prec, double _max_r_dur, const std::vector<double>& rs,
+        int verb, std::ostream& output_stream)
+        : AbstractFleetPlanner(_prec,_max_r_dur,verb, output_stream),ratios(rs){}
 
 };

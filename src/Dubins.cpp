@@ -26,7 +26,6 @@
  * 
  * @tparam m1 Type of the first element
  * @tparam m2 Type of the second element
- * @tparam geometric_filtering Toggle geometric pre-filtering
  * @param p1 First path
  * @param p2 Second path
  * @param duration Time duration of the section to study
@@ -35,7 +34,7 @@
  * @return true Path elements are separated
  * @return false Path are not separated
  */
-template<DubinsMove m1, DubinsMove m2, bool geometric_filtering, bool use_derivatives=true>
+template<DubinsMove m1, DubinsMove m2>
 static bool check_XY_separation(const PathShape<m1>& p1, const PathShape<m2>& p2, double duration, double min_sep, double tol)
 {
     if (duration < tol)
@@ -47,7 +46,7 @@ static bool check_XY_separation(const PathShape<m1>& p1, const PathShape<m2>& p2
 
     if ((m1 == STRAIGHT) && (m2 == STRAIGHT))
     {
-        auto loc_val_dist = temporal_XY_dist<m1,m2,use_derivatives>(p1,p2,duration,tol);
+        auto loc_val_dist = temporal_XY_dist<m1,m2,true>(p1,p2,duration,tol);
         if (loc_val_dist.second < min_sep)
         {
             return false;
@@ -59,26 +58,19 @@ static bool check_XY_separation(const PathShape<m1>& p1, const PathShape<m2>& p2
     }
     else
     {
-        if (geometric_filtering)
+        double geo_dist;
+        double t1,t2;
+        std::tie(geo_dist,t1,t2) = geometric_XY_dist(p1,p2,duration);
+
+        if (geo_dist < min_sep)
         {
-            double geo_dist = geometric_XY_dist(p1,p2,duration);
-            if (geo_dist < min_sep)
-            {
-                auto loc_val_dist = temporal_XY_dist<m1,m2,use_derivatives>(p1,p2,duration,tol);
-                if (loc_val_dist.second < min_sep)
-                {
-                    return false;
-                }
-            }
-        }
-        else
-        {
-            auto loc_val_dist = temporal_XY_dist<m1,m2,use_derivatives>(p1,p2,duration,tol);
+            auto loc_val_dist = temporal_XY_dist<m1,m2,true>(p1,p2,duration,tol);
             if (loc_val_dist.second < min_sep)
             {
                 return false;
             }
         }
+
         return true;
     }
 }
@@ -95,11 +87,14 @@ static bool check_XY_separation(const PathShape<m1>& p1, const PathShape<m2>& p2
  * @param tol Precision with respect
  * @return A pair: Location and value of the minimal distance between two paths
  */
-template<DubinsMove m1, DubinsMove m2, bool geometric_filtering, bool use_derivatives=true>
-std::pair<double,double> compute_XY_separation(const PathShape<m1>& p1, const PathShape<m2>& p2, double duration, double min_sep, double tol)
+template<DubinsMove m1, DubinsMove m2, bool use_derivatives=true>
+std::pair<double,double> compute_XY_separation(
+    const PathShape<m1>& p1, const PathShape<m2>& p2, double duration, double min_sep, double tol,
+    uint rec=DubinsDistDefaultRec)
 {
     std::pair<double,double> output;
 
+    // Degenerate case: negligible duration -> move to point-point distance
     if (duration < tol)
     {
         Pose3D p1_start = initial_pose(p1);
@@ -109,28 +104,89 @@ std::pair<double,double> compute_XY_separation(const PathShape<m1>& p1, const Pa
         output.second = pose_dist_XY(p1_start,p2_start);
     }
 
+    
+    // In the straight-straight case, analytic exact solution exists
     if ((m1 == STRAIGHT) && (m2 == STRAIGHT))
     {
         output = temporal_XY_dist<m1,m2,use_derivatives>(p1,p2,duration,tol);
     }
     else
     {
-        if (geometric_filtering)
+        double geo_dist;
+        double t1,t2;
+        std::tie(geo_dist,t1,t2) = geometric_XY_dist(p1,p2,duration);
+
+        // If there may be a conflict, do a detailed search
+        if (geo_dist < min_sep)
         {
-            double geo_dist = geometric_XY_dist(p1,p2,duration);
-            if (geo_dist < min_sep)
+            // If recursive computation is enabled, retry computing separation using geometry
+            if (rec > 0)
+            {
+
+                auto shifted_p1 = shift_start(p1,duration/2);
+                auto shifted_p2 = shift_start(p2,duration/2);
+
+
+                // If the geometric test suggests there is a collision in the second half, look at the second half first
+                if (t1 >= duration/2 && t2 >= duration/2)
+                {
+                    output = compute_XY_separation(shifted_p1,shifted_p2,duration/2,min_sep,tol,rec-1);
+                    output.first += duration/2; // Location needs to be corrected due to shifting
+
+                    // If the recursive search found a conflict, output it
+                    if (output.second < min_sep)
+                    {
+                        return output;
+                    }
+                    // Otherwise, explore the other branch and output the smallest distance value
+                    else
+                    {
+                        auto output_bis = compute_XY_separation(p1,p2,duration/2,min_sep,tol,rec-1);
+                        if (output_bis.second < output.second)
+                        {
+                            return output_bis;
+                        }
+                        else
+                        {
+                            return output;
+                        }
+                    }
+                }
+                else
+                {
+                    output = compute_XY_separation(p1,p2,duration/2,min_sep,tol,rec-1);
+
+                    // If the recursive search found a conflict, output it
+                    if (output.second < min_sep)
+                    {
+                        return output;
+                    }
+                    // Otherwise, explore the other branch and output the smallest distance value
+                    else
+                    {
+                        auto output_bis = compute_XY_separation(shifted_p1,shifted_p2,duration/2,min_sep,tol,rec-1);
+                        output_bis.first += duration/2; // Location needs to be corrected due to shifting
+                        if (output_bis.second < output.second)
+                        {
+                            return output_bis;
+                        }
+                        else
+                        {
+                            return output;
+                        }
+                    }
+                }
+            }
+            else // Otherwise, fallback on temporal method
             {
                 output = temporal_XY_dist<m1,m2,use_derivatives>(p1,p2,duration,tol);
             }
-            else
-            {
-                output.first = duration/2.;
-                output.second = geo_dist;
-            }
         }
+        // Otherwise, use the result of the geometric separation
         else
         {
-            output = temporal_XY_dist<m1,m2,use_derivatives>(p1,p2,duration,tol);
+            output.first = duration/2.;
+            output.second = geo_dist;
         }
     }
 
@@ -195,24 +251,25 @@ static std::vector<double> compute_timepoints(const Dubins &p1, const Dubins &p2
     return timepoints;
 }
 
-template<DubinsMove m1, DubinsMove m2, bool geometric_separation>
+template<DubinsMove m1, DubinsMove m2>
 static std::pair<double,double> compute_XY_separation_between_trajectories(
     const Pose3D& start_1, const Pose3D& end_1, double v1, double r1, double h1,
     const Pose3D& start_2, const Pose3D& end_2, double v2, double r2, double h2,
-    double duration, double min_dist, double tol
+    double duration, double min_dist, double tol, uint rec
 )
 {
-    return compute_XY_separation<m1,m2,geometric_separation>(
+    return compute_XY_separation<m1,m2>(
                     compute_params<m1>(start_1,end_1,v1,r1,h1),
                     compute_params<m2>(start_2,end_2,v2,r2,h2),
-                    duration,min_dist,tol);
+                    duration,min_dist,tol,rec);
 }
 
 static std::pair<double,double> _compute_XY_separation_between_Dubins_on_interval(
     const Dubins& curr, double curr_speed,
     const Dubins& other, double other_speed,
     double min_dist, double tol,
-    double t_start, double t_end
+    double t_start, double t_end,
+    uint rec
 )
 {
     double curr_turn_radius = curr.get_turn_radius();
@@ -238,24 +295,24 @@ static std::pair<double,double> _compute_XY_separation_between_Dubins_on_interva
         switch (other_type)
         {
         case STRAIGHT:
-            output = compute_XY_separation_between_trajectories<STRAIGHT,STRAIGHT,true>(
+            output = compute_XY_separation_between_trajectories<STRAIGHT,STRAIGHT>(
                     curr_start,curr_end,curr_speed,curr_turn_radius,curr_vspeed,
                     other_start,other_end,other_speed,other_turn_radius,other_vspeed,
-                    duration,min_dist,tol);
+                    duration,min_dist,tol,rec);
             break;
             
         case LEFT:
-            output = compute_XY_separation_between_trajectories<STRAIGHT,LEFT,true>(
+            output = compute_XY_separation_between_trajectories<STRAIGHT,LEFT>(
                     curr_start,curr_end,curr_speed,curr_turn_radius,curr_vspeed,
                     other_start,other_end,other_speed,other_turn_radius,other_vspeed,
-                    duration,min_dist,tol);
+                    duration,min_dist,tol,rec);
             break;
 
         case RIGHT:
-            output = compute_XY_separation_between_trajectories<STRAIGHT,RIGHT,true>(
+            output = compute_XY_separation_between_trajectories<STRAIGHT,RIGHT>(
                     curr_start,curr_end,curr_speed,curr_turn_radius,curr_vspeed,
                     other_start,other_end,other_speed,other_turn_radius,other_vspeed,
-                    duration,min_dist,tol);
+                    duration,min_dist,tol,rec);
             break;
 
         default:
@@ -267,24 +324,24 @@ static std::pair<double,double> _compute_XY_separation_between_Dubins_on_interva
         switch (other_type)
         {
         case STRAIGHT:
-            output = compute_XY_separation_between_trajectories<LEFT,STRAIGHT,true>(
+            output = compute_XY_separation_between_trajectories<LEFT,STRAIGHT>(
                 curr_start,curr_end,curr_speed,curr_turn_radius,curr_vspeed,
                 other_start,other_end,other_speed,other_turn_radius,other_vspeed,
-                duration,min_dist,tol);
+                duration,min_dist,tol,rec);
             break;
             
         case LEFT:
-            output = compute_XY_separation_between_trajectories<LEFT,LEFT,true>(
+            output = compute_XY_separation_between_trajectories<LEFT,LEFT>(
                 curr_start,curr_end,curr_speed,curr_turn_radius,curr_vspeed,
                 other_start,other_end,other_speed,other_turn_radius,other_vspeed,
-                duration,min_dist,tol);
+                duration,min_dist,tol,rec);
             break;
 
         case RIGHT:
-            output = compute_XY_separation_between_trajectories<LEFT,RIGHT,true>(
+            output = compute_XY_separation_between_trajectories<LEFT,RIGHT>(
                 curr_start,curr_end,curr_speed,curr_turn_radius,curr_vspeed,
                 other_start,other_end,other_speed,other_turn_radius,other_vspeed,
-                duration,min_dist,tol);
+                duration,min_dist,tol,rec);
             break;
 
         default:
@@ -296,24 +353,24 @@ static std::pair<double,double> _compute_XY_separation_between_Dubins_on_interva
         switch (other_type)
         {
         case STRAIGHT:
-            output = compute_XY_separation_between_trajectories<RIGHT,STRAIGHT,true>(
+            output = compute_XY_separation_between_trajectories<RIGHT,STRAIGHT>(
                 curr_start,curr_end,curr_speed,curr_turn_radius,curr_vspeed,
                 other_start,other_end,other_speed,other_turn_radius,other_vspeed,
-                duration,min_dist,tol);
+                duration,min_dist,tol,rec);
             break;
             
         case LEFT:
-            output = compute_XY_separation_between_trajectories<RIGHT,LEFT,true>(
+            output = compute_XY_separation_between_trajectories<RIGHT,LEFT>(
                 curr_start,curr_end,curr_speed,curr_turn_radius,curr_vspeed,
                 other_start,other_end,other_speed,other_turn_radius,other_vspeed,
-                duration,min_dist,tol);
+                duration,min_dist,tol,rec);
             break;
 
         case RIGHT:
-            output = compute_XY_separation_between_trajectories<RIGHT,RIGHT,true>(
+            output = compute_XY_separation_between_trajectories<RIGHT,RIGHT>(
                 curr_start,curr_end,curr_speed,curr_turn_radius,curr_vspeed,
                 other_start,other_end,other_speed,other_turn_radius,other_vspeed,
-                duration,min_dist,tol);
+                duration,min_dist,tol,rec);
             break;
 
         default:
@@ -330,7 +387,7 @@ static std::pair<double,double> _compute_XY_separation_between_Dubins_on_interva
 }
 
 std::pair<double,double> Dubins::XY_distance_to(const Dubins& other, double this_speed, double other_speed, 
-        double duration, double min_dist, double tol, std::optional<double> hotstart) const
+        double duration, double min_dist, double tol, std::optional<double> hotstart, uint rec) const
 {
 #if defined(DubinsFleetPlanner_ASSERTIONS) && DubinsFleetPlanner_ASSERTIONS > 0
     assert((this_speed > 0) && (other_speed > 0));
@@ -354,7 +411,7 @@ std::pair<double,double> Dubins::XY_distance_to(const Dubins& other, double this
     {
         index = binary_search(timepoints,hotstart.value());
         std::pair<double,double> current = _compute_XY_separation_between_Dubins_on_interval(
-            *this,this_speed,other,other_speed,min_dist,tol,timepoints[index],timepoints[index+1]
+            *this,this_speed,other,other_speed,min_dist,tol,timepoints[index],timepoints[index+1],rec
         );
 
         if (current.second < min_dist)
@@ -383,7 +440,7 @@ std::pair<double,double> Dubins::XY_distance_to(const Dubins& other, double this
         }
 
         std::pair<double,double> current = _compute_XY_separation_between_Dubins_on_interval(
-            *this,this_speed,other,other_speed,min_dist,tol,timepoints[i],timepoints[i+1]
+            *this,this_speed,other,other_speed,min_dist,tol,timepoints[i],timepoints[i+1],rec
         );
 
         if (current.second < min_dist)
@@ -400,9 +457,8 @@ std::pair<double,double> Dubins::XY_distance_to(const Dubins& other, double this
     return output;
 }
 
-template<bool geometric_filtering>
 bool Dubins::is_XY_separated_from(const Dubins& other, double this_speed, double other_speed, 
-        double duration, double min_dist, double tol) const
+        double duration, double min_dist, double tol, uint rec) const
 {
 #if defined(DubinsFleetPlanner_ASSERTIONS) && DubinsFleetPlanner_ASSERTIONS > 0
     assert((this_speed > 0) && (other_speed > 0));
@@ -421,7 +477,7 @@ bool Dubins::is_XY_separated_from(const Dubins& other, double this_speed, double
     for(size_t i = 0; i < timepoints.size()-1; i++)
     {
         std::pair<double,double> current = _compute_XY_separation_between_Dubins_on_interval(
-            *this,this_speed,other,other_speed,min_dist,tol,timepoints[i],timepoints[i+1]
+            *this,this_speed,other,other_speed,min_dist,tol,timepoints[i],timepoints[i+1],rec
         );
 
         if (current.second < min_dist)
@@ -432,9 +488,3 @@ bool Dubins::is_XY_separated_from(const Dubins& other, double this_speed, double
 
     return true;
 }
-
-template bool Dubins::is_XY_separated_from<true>(const Dubins& other, double this_speed, double other_speed, 
-        double duration, double min_dist, double tol) const;
-
-template bool Dubins::is_XY_separated_from<false>(const Dubins& other, double this_speed, double other_speed, 
-        double duration, double min_dist, double tol) const;

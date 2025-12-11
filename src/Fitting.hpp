@@ -44,3 +44,35 @@ double fit_RLR(double alpha, double beta, double d, double min_rho, double targe
 double fit_LRL(double alpha, double beta, double d, double min_rho, double target_l, double tol);
 double fit_SRS(double alpha, double beta, double d, double min_rho, double target_l, double tol);
 double fit_SLS(double alpha, double beta, double d, double min_rho, double target_l, double tol);
+
+
+/**
+ * @brief Given end poses, a target length and a tolerance, compute the length of the added line(s)
+ * to achieve the desired value. Assume the turn radius is 1.
+ * 
+ * @param start     Start pose
+ * @param end       End pose
+ * @param target_l  Target length
+ * @param tol       Solver precision tolerance
+ * @return double   Length added in straight lines
+ */
+double fit_shift_LSL_start(Pose3D start, Pose3D end, double target_l, double tol);
+double fit_shift_RSR_start(Pose3D start, Pose3D end, double target_l, double tol);
+double fit_shift_RSL_start(Pose3D start, Pose3D end, double target_l, double tol);
+double fit_shift_LSR_start(Pose3D start, Pose3D end, double target_l, double tol);
+double fit_shift_RLR_start(Pose3D start, Pose3D end, double target_l, double tol);
+double fit_shift_LRL_start(Pose3D start, Pose3D end, double target_l, double tol);
+
+double fit_shift_LSL_end(Pose3D start, Pose3D end, double target_l, double tol);
+double fit_shift_RSR_end(Pose3D start, Pose3D end, double target_l, double tol);
+double fit_shift_RSL_end(Pose3D start, Pose3D end, double target_l, double tol);
+double fit_shift_LSR_end(Pose3D start, Pose3D end, double target_l, double tol);
+double fit_shift_RLR_end(Pose3D start, Pose3D end, double target_l, double tol);
+double fit_shift_LRL_end(Pose3D start, Pose3D end, double target_l, double tol);
+
+double fit_shift_LSL_both(Pose3D start, Pose3D end, double target_l, double tol);
+double fit_shift_RSR_both(Pose3D start, Pose3D end, double target_l, double tol);
+double fit_shift_RSL_both(Pose3D start, Pose3D end, double target_l, double tol);
+double fit_shift_LSR_both(Pose3D start, Pose3D end, double target_l, double tol);
+double fit_shift_RLR_both(Pose3D start, Pose3D end, double target_l, double tol);
+double fit_shift_LRL_both(Pose3D start, Pose3D end, double target_l, double tol);

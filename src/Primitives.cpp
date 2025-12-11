@@ -835,3 +835,40 @@ PathShape<STRAIGHT> compute_params<STRAIGHT>(const Pose3D& start, const Pose3D& 
 
     return output;
 }
+
+/********************  Modify a path by shifting its starting point  ********************/
+
+template<>
+[[gnu::pure]]
+PathShape<STRAIGHT> shift_start(const PathShape<STRAIGHT>& s, double duration)
+{
+    PathShape<STRAIGHT> output(s);
+
+    double sx = s.x;
+    double sy = s.y;
+    double sz = s.z;
+
+    output.x = sx + s.p1*duration;
+    output.y = sy + s.p2*duration;
+    output.z = sz + s.p3*duration;
+
+    return output;
+}
+
+template<DubinsMove m>
+[[gnu::pure]]
+PathShape<m> shift_start(const PathShape<m>& s, double duration)
+{
+    static_assert(m != STRAIGHT);
+
+    PathShape<m> output(s);
+
+    output.z += s.p3*duration;
+
+    output.p4 += s.p2*duration;
+
+    return output;
+}
+
+template PathShape<LEFT> shift_start(const PathShape<LEFT>&, double);
+template PathShape<RIGHT> shift_start(const PathShape<RIGHT>&, double);

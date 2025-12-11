@@ -61,6 +61,7 @@ struct program_arguments
     double precision;
     double max_r_length;
     bool legacy;
+    bool line_fit;
 };
 
 
@@ -113,7 +114,12 @@ bool process_command_line(int argc, char* argv[], program_arguments& parsed_args
     ("help", "Produce help message")
     ("verbose,v"    , po::value<int>(&parsed_args.verbosity)->default_value(1)
                     , "Set verbosity, from 0 (silent), to 3 (very very verbose). Default to 1.")
-    ("legacy,l"     , "Use a previous implementation (if possible). May decrease performances.")
+
+    ("legacy"       , po::bool_switch(&parsed_args.legacy)->default_value(false)
+                    , "Use a previous implementation (if possible). May decrease performances.")
+
+    ("line,l"       , po::bool_switch(&parsed_args.line_fit)->default_value(false)
+                    , "Add paths with minimal turn radius and fitted extra straights at start and end")
     
     ;
     
@@ -249,26 +255,49 @@ std::tuple<int,SharedDubinsResults,ExtraPPResults> solve_case(const fs::path& in
     
     if (args.length_extensions.size())
     {
-        if (args.legacy)
+        if (args.line_fit)
         {
-            planner = std::make_unique<ExtendedDubinsFleetPlanner>(
-                args.precision, args.max_r_length,
-                args.length_extensions, args.length_extensions,
-                args.verbosity, output_log);
+            planner = std::make_unique<LineExtendedDubinsFleetPlanner>(
+                args.precision, args.max_r_length,args.length_extensions,
+                args.verbosity, output_log
+            );
         }
         else
         {
-            planner = std::make_unique<BaseExtendedDubinsFleetPlanner>(
-                args.precision, args.max_r_length,
-                args.length_extensions, args.length_extensions,
-                args.verbosity, output_log);
+            if (args.legacy)
+            {
+                planner = std::make_unique<ExtendedDubinsFleetPlanner>(
+                    args.precision, args.max_r_length,
+                    args.length_extensions, args.length_extensions,
+                    args.verbosity, output_log);
+            }
+            else
+            {
+                planner = std::make_unique<BaseExtendedDubinsFleetPlanner>(
+                    args.precision, args.max_r_length,
+                    args.length_extensions, args.length_extensions,
+                    args.verbosity, output_log);
+            }
         }
+        
     }
     else
     {
-        planner = std::make_unique<BasicDubinsFleetPlanner>(
-            args.precision ,args.max_r_length,
-            args.verbosity, output_log);
+        if (args.line_fit)
+        {
+            std::vector<double> default_ratios = {0.,0.5,1.};
+
+            planner = std::make_unique<LineExtendedDubinsFleetPlanner>(
+                args.precision, args.max_r_length,default_ratios,
+                args.verbosity, output_log
+            );
+        }
+        else
+        {
+            planner = std::make_unique<BasicDubinsFleetPlanner>(
+                args.precision ,args.max_r_length,
+                args.verbosity, output_log);
+        }
     }
     
     SharedDubinsResults sols = planner->solve<Dubins::are_XY_separated,Dubins::compute_XY_distance>(extra,starts,ends,stats,args.separation,

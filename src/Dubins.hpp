@@ -32,6 +32,8 @@
 #include "Primitives.hpp"
 #include "Fitting.hpp"
 
+const uint DubinsDistDefaultRec = 6;
+
 class Dubins
 {
 protected:
@@ -247,7 +249,7 @@ public:
      *                  - The global minimal distance between the two
      */
     std::pair<double,double> XY_distance_to(const Dubins& other, double this_speed, double other_speed, 
-        double duration, double min_dist, double tol, std::optional<double> hostart = std::nullopt) const;
+        double duration, double min_dist, double tol, std::optional<double> hostart = std::nullopt, uint rec=DubinsDistDefaultRec) const;
 
 
     /**
@@ -257,37 +259,39 @@ public:
     static std::pair<double,double> compute_XY_distance(const Dubins& first, const Dubins& second, double first_speed, double second_speed, 
         double duration, double min_dist,
         double tol=DubinsFleetPlanner_PRECISION, 
-        std::optional<double> hotstart = std::nullopt)
+        std::optional<double> hotstart = std::nullopt,
+        uint rec=DubinsDistDefaultRec)
     {
-        return first.XY_distance_to(second,first_speed,second_speed,duration,min_dist,tol,hotstart);
+        return first.XY_distance_to(second,first_speed,second_speed,duration,min_dist,tol,hotstart,rec);
     }
 
     /**
      * @brief Generic type for distance function
      * 
      * The arguments are:
-     * First path, second path, first speed, second speed, duration, minimal distance, computation precision, optional hot start
+     * First path, second path, first speed, second speed, duration, minimal distance, computation precision, optional hot start, heuristic recursion
      */
     typedef std::pair<double,double> (*DubinsDistanceFunction)(const Dubins&, const Dubins&, 
-        double, double, double, double, double, std::optional<double>);
+        double, double, double, double, double, std::optional<double>, uint);
 
     /**
      * @brief Check whether `this` and `other` are horitzontaly separated
      * 
      * 
-     * @tparam geometric_filtering Whether or not to use geometric pre-filtering to avoid temporal optimization. Default to true
      * @param other A second Dubins path
      * @param this_speed    XY Speed along `this` path (in [L]/s)
      * @param other_speed   XY Speed along `other` path (in [L]/s)
      * @param duration Duration for which to look for conflicts (in s)
      * @param min_dist The minimal distance required for ensuring separation (in [L])
      * @param tol      Solver tolerance used when looking for the minimal distance
+     * @param rec      Depth of the recursive call to the fast but inexact geometric approximation
      * @return true  The two trajectories are well separated
      * @return false The two trajectories are not separated
      */
-    template <bool geometric_filtering = true>
     bool is_XY_separated_from(const Dubins &other, double this_speed, double other_speed,
-                              double duration, double min_dist, double tol = DubinsFleetPlanner_PRECISION) const;
+                              double duration, double min_dist, 
+                              double tol = DubinsFleetPlanner_PRECISION,
+                              uint rec = DubinsDistDefaultRec) const;
 
     /**
      * @brief A static version of `is_XY_separated_from`
@@ -295,9 +299,11 @@ public:
      */
     template<bool geometric_filtering=true>
     static bool are_XY_separated(const Dubins& first, const Dubins& second, double first_speed, double second_speed, 
-        double duration, double min_dist, double tol=DubinsFleetPlanner_PRECISION)
+        double duration, double min_dist,
+        double tol=DubinsFleetPlanner_PRECISION,
+        uint rec = DubinsDistDefaultRec)
     {
-        return first.is_XY_separated_from(second,first_speed,second_speed,duration,min_dist,tol);
+        return first.is_XY_separated_from(second,first_speed,second_speed,duration,min_dist,tol,rec);
     }
 
 
@@ -306,9 +312,9 @@ public:
      * @brief Generic type for separation function
      * 
      * The arguments are:
-     * First path, second path, first speed, second speed, duration, minimal distance, computation precision
+     * First path, second path, first speed, second speed, duration, minimal distance, computation precision, heuristic recursion
      */
-    typedef bool (*DubinsSeparationFunction)(const Dubins&, const Dubins&, double, double, double, double, double);
+    typedef bool (*DubinsSeparationFunction)(const Dubins&, const Dubins&, double, double, double, double, double, uint);
 
     /**
      * @brief Generic type for path generation function (minimal turn radius)

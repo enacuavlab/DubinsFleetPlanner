@@ -62,20 +62,20 @@ public:
         const Pose3D& _start, const Pose3D& _end, double _begin_len, double _end_len)
     : Dubins(_climb, _turn_radius, _start, _end),
         begin_length(_begin_len), end_length(_end_len),
-        begin_junction(follow_dubins<beginMove>(_start , _begin_len, 1., _climb, _turn_radius)),
-        end_junction(follow_dubins<endMove>(_end     , -_end_len,  1., _climb, _turn_radius)),
+        begin_junction(follow_dubins<beginMove>(_start , _begin_len, 1., 0., _turn_radius)),
+        end_junction(follow_dubins<endMove>(_end     , -_end_len,  1., 0., _turn_radius)),
         underlying(
             _climb,
             _turn_radius,
-            follow_dubins<beginMove>(_start , _begin_len, 1., _climb, _turn_radius),
-            follow_dubins<endMove>(_end     , -_end_len,  1., _climb, _turn_radius))
+            follow_dubins<beginMove>(_start , _begin_len, 1., 0., _turn_radius),
+            follow_dubins<endMove>(_end     , -_end_len,  1., 0., _turn_radius))
     {
         length = _compute_length();
         valid = underlying.is_valid();
     }
 
 
-        BaseExtendedDubins(double _climb, double _turn_radius, 
+    BaseExtendedDubins(double _climb, double _turn_radius, 
         const Pose3D& _start, const Pose3D& _end, double _begin_len, double _end_len,
         const Pose3D& _begin_junc, const Pose3D& _end_junc)
     : Dubins(_climb, _turn_radius, _start, _end),
@@ -97,13 +97,13 @@ public:
         double target_len, double tol)
     : Dubins(_climb, _turn_radius, _start, _end),
         begin_length(_begin_len), end_length(_end_len),
-        begin_junction(follow_dubins<beginMove>(_start , _begin_len, 1., _climb, _turn_radius)),
-        end_junction(follow_dubins<endMove>(_end     , -_end_len,  1., _climb, _turn_radius)),
+        begin_junction(follow_dubins<beginMove>(_start , _begin_len, 1., 0., _turn_radius)),
+        end_junction(follow_dubins<endMove>(_end     , -_end_len,  1., 0., _turn_radius)),
         underlying(
             _climb,
             _turn_radius,
-            follow_dubins<beginMove>(_start , _begin_len, 1., _climb, _turn_radius),
-            follow_dubins<endMove>(_end     , -_end_len,  1., _climb, _turn_radius),
+            follow_dubins<beginMove>(_start , _begin_len, 1., 0., _turn_radius),
+            follow_dubins<endMove>(_end     , -_end_len,  1., 0., _turn_radius),
             target_len - _begin_len - _end_len, tol)
     {
         length = _compute_length();
@@ -111,7 +111,7 @@ public:
     }
 
 
-        BaseExtendedDubins(double _climb, double _turn_radius, 
+    BaseExtendedDubins(double _climb, double _turn_radius, 
         const Pose3D& _start, const Pose3D& _end, double _begin_len, double _end_len,
         const Pose3D& _begin_junc, const Pose3D& _end_junc,
         double target_len, double tol)
@@ -449,3 +449,24 @@ std::vector<std::unique_ptr<Dubins>> generate_all_base_extended(const Pose3D& st
 std::vector<std::unique_ptr<Dubins>> generate_all_fitted_base_extended(const Pose3D& start, const Pose3D& end, 
     std::vector<double> start_lens, std::vector<double> end_lens,
     double climb, double turn_radius, double target_len, double tol);
+
+
+// ======================================== Variation ======================================== //
+// ===                                                                                     === //
+// ===      Use minimal turn and adjust initial/final portion length to get to the target  === //
+// ===                                                                                     === //
+// =========================================================================================== //
+
+/**
+ * @brief Generate Dubins bath with minimal turn radius and adjusted initial and final straight segments
+ * 
+ * @param start     Start pose
+ * @param end       End pose
+ * @param climb         Climb ratio
+ * @param turn_radius   Minimal turn radius
+ * @param target_len    Target length
+ * @param tol           Precision for target length
+ * @return std::vector<std::unique_ptr<Dubins>> List of generated paths
+ */
+std::vector<std::unique_ptr<Dubins>> generate_line_extended_base(const Pose3D& start, const Pose3D& end, 
+    double climb, double turn_radius, double target_len, double tol, const std::vector<double>& ratios = {0.,0.5,1.});
