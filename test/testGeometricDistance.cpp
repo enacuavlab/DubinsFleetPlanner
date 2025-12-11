@@ -171,7 +171,7 @@ TEST(GeometricDistance,Random2DCases)
             std::from_chars(row[6+5].data(),row[6+5].data()+row[6+5].size(),s2_length);
             path_set_planar_speed(s2,s2_length/duration);
 
-            double distance_computed = geometric_XY_dist<STRAIGHT,STRAIGHT>(s1,s2,duration);
+            double distance_computed = std::get<0>(geometric_XY_dist<STRAIGHT,STRAIGHT>(s1,s2,duration));
             
             EXPECT_NEAR(distance_gt,distance_computed,1e-4) << "Error on a STRAIGHT-STRAIGHT case";
         }
@@ -188,8 +188,8 @@ TEST(GeometricDistance,Random2DCases)
             path_set_planar_speed(s2,s2_length/duration);
             path_set_planar_speed(s2_bis,s2_length/duration);
 
-            double distance_computed        = geometric_XY_dist(s1,s2,duration);
-            double distance_computed_bis    = geometric_XY_dist(s1,s2_bis,duration);
+            double distance_computed        = std::get<0>(geometric_XY_dist(s1,s2,duration));
+            double distance_computed_bis    = std::get<0>(geometric_XY_dist(s1,s2_bis,duration));
 
             EXPECT_NEAR(distance_gt,distance_computed,1e-4) << "Error on a STRAIGHT-LEFT case";
             EXPECT_NEAR(distance_gt,distance_computed_bis,1e-4) << "Error on a STRAIGHT-RIGHT case";
@@ -207,8 +207,8 @@ TEST(GeometricDistance,Random2DCases)
             std::from_chars(row[6+5].data(),row[6+5].data()+row[6+5].size(),s2_length);
             path_set_planar_speed(s2,s2_length/duration);
 
-            double distance_computed        = geometric_XY_dist(s1,s2,duration);
-            double distance_computed_bis    = geometric_XY_dist(s1_bis,s2,duration);
+            double distance_computed        = std::get<0>(geometric_XY_dist(s1,s2,duration));
+            double distance_computed_bis    = std::get<0>(geometric_XY_dist(s1_bis,s2,duration));
 
             EXPECT_NEAR(distance_gt,distance_computed,1e-4) << "Error on a LEFT-STRAIGHT case";
             EXPECT_NEAR(distance_gt,distance_computed_bis,1e-4) << "Error on a RIGHT-STRAIGHT case";
@@ -228,10 +228,10 @@ TEST(GeometricDistance,Random2DCases)
             path_set_planar_speed(s2,s2_length/duration);
             path_set_planar_speed(s2_bis,s2_length/duration);
 
-            double distance_computed_stdstd = geometric_XY_dist(s1,s2,duration);
-            double distance_computed_stdbis = geometric_XY_dist(s1_bis,s2_bis,duration);
-            double distance_computed_bisstd = geometric_XY_dist(s1_bis,s2,duration);
-            double distance_computed_bisbis = geometric_XY_dist(s1_bis,s2_bis,duration);
+            double distance_computed_stdstd = std::get<0>(geometric_XY_dist(s1,s2,duration));
+            double distance_computed_stdbis = std::get<0>(geometric_XY_dist(s1_bis,s2_bis,duration));
+            double distance_computed_bisstd = std::get<0>(geometric_XY_dist(s1_bis,s2,duration));
+            double distance_computed_bisbis = std::get<0>(geometric_XY_dist(s1_bis,s2_bis,duration));
 
             EXPECT_NEAR(distance_gt,distance_computed_stdstd,1e-4) << "Error on a LEFT-LEFT case";
             EXPECT_NEAR(distance_gt,distance_computed_stdbis,1e-4) << "Error on a LEFT-RIGHT case";

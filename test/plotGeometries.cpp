@@ -157,22 +157,22 @@ int main()
 
 
 
-    double distance = geometric_XY_dist(s1,s2,duration);
+    double distance = std::get<0>(geometric_XY_dist(s1,s2,duration));
     std::cout   << "Known distance   : " << known_distance  << std::endl
                 << "Computed distance: " << distance << std::endl;
 
 #ifdef S1_BIS
-    double distance_bisstd = geometric_XY_dist(s1_bis,s2,duration);
+    double distance_bisstd = std::get<0>(geometric_XY_dist(s1_bis,s2,duration));
     std::cout   << "Bis-std distance : " << distance_bisstd << std::endl;
 #endif
 
 #ifdef S2_BIS
-    double distance_stdbis = geometric_XY_dist(s1,s2_bis,duration);
+    double distance_stdbis = std::get<0>(geometric_XY_dist(s1,s2_bis,duration));
     std::cout   << "Std-bis distance : " << distance_stdbis << std::endl;
 #endif
 
 #if defined(S1_BIS) && defined(S2_BIS)
-    double distance_bisbis = geometric_XY_dist(s1_bis,s2_bis,duration);
+    double distance_bisbis = std::get<0>(geometric_XY_dist(s1_bis,s2_bis,duration));
     std::cout   << "Bis-bis distance : " << distance_bisbis << std::endl;
 #endif
 

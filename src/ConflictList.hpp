@@ -100,11 +100,6 @@ template<Dubins::DubinsSeparationFunction separation_function>
 std::vector<Conflict_T> generic_parallel_compute_separations(uint THREADS, const SharedListOfPossibilities& list_of_possibilites, 
     const std::vector<AircraftStats>& stats, double sep);
 
-
-// std::vector<Conflict_T> compute_XY_separations(ListOfPossibilities&, const std::vector<AircraftStats>&, double);
-
-// std::vector<Conflict_T> parallel_compute_XY_separations(SharedListOfPossibilities&, const std::vector<AircraftStats>&, double,
-//     uint THREADS = std::thread::hardware_concurrency()/2);
     
 // ---------- Distance functions ---------- //
 
@@ -146,13 +141,6 @@ std::vector<RichConflict_T> generic_parallel_compute_distances(
     const std::vector<AircraftStats>& stats, double sep,
     const Conflict_Map_T& map, bool all_values);
 
-// std::vector<RichConflict_T> compute_XY_distances(
-//     ListOfPossibilities& list_of_possibilites, const std::vector<AircraftStats>& stats,
-//     double sep, const Conflict_Map_T& map, bool all_values);
-
-// std::vector<RichConflict_T> parallel_compute_XY_distances(
-//     SharedListOfPossibilities& list_of_possibilites, const std::vector<AircraftStats>& stats,
-//     double sep, uint THREADS, const Conflict_Map_T& map, bool all_values);
 
 // TODO: Compute the full matrix of separations, in order to find the best global separation
 

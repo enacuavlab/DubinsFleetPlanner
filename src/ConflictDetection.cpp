@@ -89,13 +89,13 @@ inline Eigen::Vector2d angle_vector(double angle)
  * @param s1 First shape description
  * @param s2 Second shape description
  * @param duration Duration of execution, to draw the shapes
- * @return double Minimal geometric distance between the shapes
+ * @return double Minimal geometric distance between the shapes, with its location with respect to first and second paths respectively
  */
 template<DubinsMove m1, DubinsMove m2>
-double geometric_distance(const PathShape<m1> &s1, const PathShape<m2> &s2, double duration);
+std::tuple<double,double,double> geometric_distance(const PathShape<m1> &s1, const PathShape<m2> &s2, double duration);
 
 template<> [[gnu::pure]]
-double geometric_distance(const PathShape<STRAIGHT> &s1, const PathShape<STRAIGHT> &s2, double duration)
+std::tuple<double,double,double> geometric_distance(const PathShape<STRAIGHT> &s1, const PathShape<STRAIGHT> &s2, double duration)
 {
     Eigen::Vector3d v1(s1.p1,s1.p2,s1.p3);
     Eigen::Vector3d v2(s2.p1,s2.p2,s2.p3);
@@ -130,45 +130,81 @@ double geometric_distance(const PathShape<STRAIGHT> &s1, const PathShape<STRAIGH
     // Since it is the global optimum, if it is valid, it is the best
     if (valid_param(closest_params.x()) && valid_param(closest_params.y()))
     {
-        return ((p1_s + closest_params.x()*v1) - (p2_s + closest_params.y()*v2)).norm();
+        return std::make_tuple(
+            ((p1_s + closest_params.x()*v1) - (p2_s + closest_params.y()*v2)).norm(),
+            closest_params.x(),
+            closest_params.y()
+        );
     }
 
     // -- Endpoints distances
 
-    double min_dist = std::min({
+    std::tuple<double,double,double> output = std::make_tuple(
         (p1_s-p2_s).norm(),
-        (p1_e-p2_e).norm(),
-        (p1_s-p2_e).norm(),
-        (p1_e-p2_s).norm(),
-    });
+        0.,0.
+    );
+
+    auto argmin_output = [&](double d, double t1, double t2)
+    {
+        if (d < std::get<0>(output))
+        {
+            std::get<0>(output) = d;
+            std::get<1>(output) = t1;
+            std::get<2>(output) = t2;
+        }
+    };
+
+    argmin_output((p1_e-p2_e).norm(),   duration, duration);
+    argmin_output((p1_s-p2_e).norm(),   0.      , duration);
+    argmin_output((p1_e-p2_s).norm(),   duration, 0.);
 
     // -- Projected distances
 
     double t1_s = (p1_s-p2_s).dot(v2)/v2_n2;
     if (valid_param(t1_s))
     {
-        min_dist = std::min(min_dist,(p1_s-(t1_s*v2 + p2_s)).norm());
+        // min_dist = std::min(min_dist,(p1_s-(t1_s*v2 + p2_s)).norm());
+        argmin_output(
+            (p1_s-(t1_s*v2 + p2_s)).norm(),
+             0.,
+             t1_s
+        );
     }
 
     double t1_e = (p1_e-p2_s).dot(v2)/v2_n2;
     if (valid_param(t1_e))
     {
-        min_dist = std::min(min_dist,(p1_e-(t1_e*v2 + p2_s)).norm());
+        // min_dist = std::min(min_dist,(p1_e-(t1_e*v2 + p2_s)).norm());
+        argmin_output(
+            (p1_e-(t1_e*v2 + p2_s)).norm(),
+            duration,
+            t1_e
+        );
     }
 
     double t2_s = (p2_s-p1_s).dot(v1)/v1_n2;
     if (valid_param(t2_s))
     {
-        min_dist = std::min(min_dist,(p2_s-(t2_s*v1 + p1_s)).norm());
+        // min_dist = std::min(min_dist,(p2_s-(t2_s*v1 + p1_s)).norm());
+        argmin_output(
+            (p2_s-(t2_s*v1 + p1_s)).norm(),
+            t2_s,
+            0.
+        );
     }
 
     double t2_e = (p2_e-p1_s).dot(v1)/v1_n2;
     if (valid_param(t2_e))
     {
-        min_dist = std::min(min_dist,(p2_e-(t2_e*v1 + p1_s)).norm());
+        // min_dist = std::min(min_dist,(p2_e-(t2_e*v1 + p1_s)).norm());
+        argmin_output(
+            (p2_e-(t2_e*v1 + p1_s)).norm(),
+            t2_e,
+            duration
+        );
     }
 
-    return min_dist;
+    return output;
 }
 
 // -------------------- 2D+1D Euclidean distance -------------------- //
@@ -177,7 +213,7 @@ double geometric_distance(const PathShape<STRAIGHT> &s1, const PathShape<STRAIGH
 // ----- XY distances ----- //
 
 template<> [[gnu::pure]]
-double geometric_XY_dist(const PathShape<STRAIGHT> &s1, const PathShape<STRAIGHT> &s2, double duration)
+std::tuple<double,double,double> geometric_XY_dist(const PathShape<STRAIGHT> &s1, const PathShape<STRAIGHT> &s2, double duration)
 {
     Eigen::Vector2d v1(s1.p1,s1.p2);
     Eigen::Vector2d v2(s2.p1,s2.p2);
@@ -212,49 +248,85 @@ double geometric_XY_dist(const PathShape<STRAIGHT> &s1, const PathShape<STRAIGHT
     // Since it is the global optimum, if it is valid, it is the best
     if (valid_param(closest_params.x()) && valid_param(closest_params.y()))
     {
-        return ((p1_s + closest_params.x()*v1) - (p2_s + closest_params.y()*v2)).norm();
+        return std::make_tuple(
+            ((p1_s + closest_params.x()*v1) - (p2_s + closest_params.y()*v2)).norm(),
+            closest_params.x(),
+            closest_params.y()
+        );
     }
 
     // -- Endpoints distances
 
-    double min_dist = std::min({
+    std::tuple<double,double,double> output = std::make_tuple(
         (p1_s-p2_s).norm(),
-        (p1_e-p2_e).norm(),
-        (p1_s-p2_e).norm(),
-        (p1_e-p2_s).norm(),
-    });
+        0.,0.
+    );
+
+    auto argmin_output = [&](double d, double t1, double t2)
+    {
+        if (d < std::get<0>(output))
+        {
+            std::get<0>(output) = d;
+            std::get<1>(output) = t1;
+            std::get<2>(output) = t2;
+        }
+    };
+
+    argmin_output((p1_e-p2_e).norm(),   duration, duration);
+    argmin_output((p1_s-p2_e).norm(),   0.      , duration);
+    argmin_output((p1_e-p2_s).norm(),   duration, 0.);
 
     // -- Projected distances
 
     double t1_s = (p1_s-p2_s).dot(v2)/v2_n2;
     if (valid_param(t1_s))
     {
-        min_dist = std::min(min_dist,(p1_s-(t1_s*v2 + p2_s)).norm());
+        // min_dist = std::min(min_dist,(p1_s-(t1_s*v2 + p2_s)).norm());
+        argmin_output(
+            (p1_s-(t1_s*v2 + p2_s)).norm(),
+             0.,
+             t1_s
+        );
     }
 
     double t1_e = (p1_e-p2_s).dot(v2)/v2_n2;
     if (valid_param(t1_e))
     {
-        min_dist = std::min(min_dist,(p1_e-(t1_e*v2 + p2_s)).norm());
+        // min_dist = std::min(min_dist,(p1_e-(t1_e*v2 + p2_s)).norm());
+        argmin_output(
+            (p1_e-(t1_e*v2 + p2_s)).norm(),
+            duration,
+            t1_e
+        );
     }
 
     double t2_s = (p2_s-p1_s).dot(v1)/v1_n2;
     if (valid_param(t2_s))
     {
-        min_dist = std::min(min_dist,(p2_s-(t2_s*v1 + p1_s)).norm());
+        // min_dist = std::min(min_dist,(p2_s-(t2_s*v1 + p1_s)).norm());
+        argmin_output(
+            (p2_s-(t2_s*v1 + p1_s)).norm(),
+            t2_s,
+            0.
+        );
     }
 
     double t2_e = (p2_e-p1_s).dot(v1)/v1_n2;
     if (valid_param(t2_e))
     {
-        min_dist = std::min(min_dist,(p2_e-(t2_e*v1 + p1_s)).norm());
+        // min_dist = std::min(min_dist,(p2_e-(t2_e*v1 + p1_s)).norm());
+        argmin_output(
+            (p2_e-(t2_e*v1 + p1_s)).norm(),
+            t2_e,
+            duration
+        );
     }
 
-    return min_dist;
+    return output;
 }
 
 template<DubinsMove m1, DubinsMove m2> [[gnu::pure]]
-double geometric_XY_dist(const PathShape<m1> &s1, const PathShape<m2> &s2, double duration)
+std::tuple<double,double,double> geometric_XY_dist(const PathShape<m1> &s1, const PathShape<m2> &s2, double duration)
 {
     static_assert(!(m1==STRAIGHT && m2==STRAIGHT));
 
@@ -265,7 +337,20 @@ double geometric_XY_dist(const PathShape<m1> &s1, const PathShape<m2> &s2, doubl
 
     // Function to check if a parameter is in the allowed range
     auto valid_param = [=](double t) -> bool {return (0. <= t) && (t <= duration);};
-    double min_dist = INFINITY;
+
+    std::tuple<double,double,double> output = std::make_tuple(
+        INFINITY,NAN,NAN
+    );
+
+    auto argmin_output = [&](double d, double t1, double t2)
+    {
+        if (d < std::get<0>(output))
+        {
+            std::get<0>(output) = d;
+            std::get<1>(output) = t1;
+            std::get<2>(output) = t2;
+        }
+    };
 
     if (m1==STRAIGHT)
     {
@@ -310,22 +395,26 @@ double geometric_XY_dist(const PathShape<m1> &s1, const PathShape<m2> &s2, doubl
             Eigen::Vector2d pc2(x2,y2); 
 
             double phi1 = std::atan2(y1,x1);
-            if (angle_in_arc(phi,end_phi,phi1))
+            double phi1_norm = put_in_arc(phi,end_phi,phi1);
+            if (!std::isnan(phi1_norm))
             {
                 double t1 = (pc1 + c2 - p1_s).dot(v1)/v1_n2;
                 if (valid_param(t1))
                 {
-                    return 0.;
+                    double pt1 = (phi1_norm-phi)/omega;
+                    return std::make_tuple(0.,t1,pt1);
                 }
             }
 
             double phi2 = std::atan2(y2,x2);
-            if (angle_in_arc(phi,end_phi,phi2))
+            double phi2_norm = put_in_arc(phi,end_phi,phi2);
+            if (!std::isnan(phi2_norm))
             {
                 double t2 = (pc2 + c2 - p1_s).dot(v1)/v1_n2;
                 if (valid_param(t2))
                 {
-                    return 0.;
+                    double pt2 = (phi2_norm-phi)/omega;
+                    return std::make_tuple(0.,t2,pt2);
                 }
             }
         }
@@ -337,9 +426,15 @@ double geometric_XY_dist(const PathShape<m1> &s1, const PathShape<m2> &s2, doubl
         {
             Eigen::Vector2d c2_proj = p1_s+t_line*v1 -c2;
             double phi_line = std::atan2(c2_proj.y(),c2_proj.x());
-            if (angle_in_arc(phi,end_phi,phi_line))
+            double phi_line_norm = put_in_arc(phi,end_phi,phi_line);
+            if (!std::isnan(phi_line_norm))
             {
-                min_dist = std::min(min_dist,std::abs(r-c2_proj.norm()));
+                // min_dist = std::min(min_dist,std::abs(r-c2_proj.norm()));
+                argmin_output(
+                    std::abs(r-c2_proj.norm()),
+                    t_line,
+                    (phi_line_norm-phi)/omega
+                );
             }
         }
 
@@ -351,44 +446,90 @@ double geometric_XY_dist(const PathShape<m1> &s1, const PathShape<m2> &s2, doubl
         double t2_s = (c2_s - p1_s).dot(v1)/v1_n2;
         if (valid_param(t2_s))
         {
-            min_dist = std::min(min_dist,(c2_s-(t2_s*v1 + p1_s)).norm());
+            // min_dist = std::min(min_dist,(c2_s-(t2_s*v1 + p1_s)).norm());
+            argmin_output(
+                (c2_s-(t2_s*v1 + p1_s)).norm(),
+                t2_s,
+                0.
+            );
         }
 
         double t2_e = (c2_e - p1_s).dot(v1)/v1_n2;
         if (valid_param(t2_e))
         {
-            min_dist = std::min(min_dist,(c2_e-(t2_e*v1 + p1_s)).norm());
+            // min_dist = std::min(min_dist,(c2_e-(t2_e*v1 + p1_s)).norm());
+            argmin_output(
+                (c2_e-(t2_e*v1 + p1_s)).norm(),
+                t2_e,
+                duration
+            );
         }
         
         // -- Project line endpoints on circle
 
         Eigen::Vector2d p_phi_s = p1_s - c2;
         double phi_s = std::atan2(p_phi_s.y(), p_phi_s.x());
+        double phi_s_norm = put_in_arc(phi,end_phi,phi_s);
 
-        if (angle_in_arc(phi,end_phi,phi_s))
+        if (!std::isnan(phi_s_norm))
         {
-            min_dist = std::min(min_dist,(p_phi_s-r*angle_vector(phi_s)).norm());
+            // min_dist = std::min(min_dist,(p_phi_s-r*angle_vector(phi_s)).norm());
+            argmin_output(
+                (p_phi_s-r*angle_vector(phi_s)).norm(),
+                (phi_s_norm-phi)/omega,
+                duration
+            );
         }
 
 
         Eigen::Vector2d p_phi_e = p1_e - c2;
         double phi_e = std::atan2(p_phi_e.y(), p_phi_e.x());
+        double phi_e_norm = put_in_arc(phi,end_phi,phi_e);
 
-        if (angle_in_arc(phi,end_phi,phi_e))
+        if (!std::isnan(phi_e_norm))
         {
-            min_dist = std::min(min_dist,(p_phi_e-r*angle_vector(phi_e)).norm());
+            // min_dist = std::min(min_dist,(p_phi_e-r*angle_vector(phi_e)).norm());
+            argmin_output(
+                (p_phi_e-r*angle_vector(phi_e)).norm(),
+                (phi_e_norm-phi)/omega,
+                duration
+            );
         }
 
         // -- Endpoints distances
 
-        min_dist = std::min({min_dist,
-            (p1_s-c2_s).norm(),
-            (p1_e-c2_e).norm(),
-            (p1_s-c2_e).norm(),
-            (p1_e-c2_s).norm(),
-        });
+        // min_dist = std::min({min_dist,
+        //     (p1_s-c2_s).norm(),
+        //     (p1_e-c2_e).norm(),
+        //     (p1_s-c2_e).norm(),
+        //     (p1_e-c2_s).norm(),
+        // });
 
-        return min_dist;
+        argmin_output(
+            (p1_s-c2_s).norm(),
+            0.,
+            0.
+        );
+
+        argmin_output(
+            (p1_e-c2_e).norm(),
+            duration,
+            duration
+        );
+
+        argmin_output(
+            (p1_s-c2_e).norm(),
+            0.,
+            duration
+        );
+
+        argmin_output(
+            (p1_e-c2_s).norm(),
+            duration,
+            0.
+        );
+
+        return output;
     }
     else
     {
@@ -433,9 +574,17 @@ double geometric_XY_dist(const PathShape<m1> &s1, const PathShape<m2> &s2, doubl
                 
             double t1 = std::atan2(sol1y,sol1x);
             double t2 = std::atan2(sol1y-y_2,sol1x-x_2);
-            if (angle_in_arc(phi1,end_phi1,t1) && angle_in_arc(phi2,end_phi2,t2))
+
+            double t1_norm = put_in_arc(phi1,end_phi1,t1);
+            double t2_norm = put_in_arc(phi2,end_phi2,t2);
+
+            if (!std::isnan(t1_norm) && !std::isnan(t2_norm))
             {
-                return 0;
+                return std::make_tuple(
+                    0.,
+                    (t1_norm-phi1)/omega1,
+                    (t2_norm-phi2)/omega2
+                );
             }
             
             double sol2x = (x_2*x_2*x_2 + x_2*y_2*y_2 + delta_r2*x_2 + sqrt_discr*y_2)/(2*dist2);
@@ -443,9 +592,17 @@ double geometric_XY_dist(const PathShape<m1> &s1, const PathShape<m2> &s2, doubl
             
             t1 = std::atan2(sol2y,sol2x);
             t2 = std::atan2(sol2y-y_2,sol2x-x_2);
-            if (angle_in_arc(phi1,end_phi1,t1) && angle_in_arc(phi2,end_phi2,t2))
+
+            t1_norm = put_in_arc(phi1,end_phi1,t1);
+            t2_norm = put_in_arc(phi2,end_phi2,t2);
+
+            if (!std::isnan(t1_norm) && !std::isnan(t2_norm))
             {
-                return 0;
+                return std::make_tuple(
+                    0.,
+                    (t1_norm-phi1)/omega1,
+                    (t2_norm-phi2)/omega2
+                );
             }
         }
     
@@ -459,9 +616,18 @@ double geometric_XY_dist(const PathShape<m1> &s1, const PathShape<m2> &s2, doubl
         {
             double t1 = std::atan2(dC.y(),dC.x());
             double t2 = t1 + M_PI;
-            if (angle_in_arc(phi1,end_phi1,t1) && angle_in_arc(phi2,end_phi2,t2))
+            
+            double t1_norm = put_in_arc(phi1,end_phi1,t1);
+            double t2_norm = put_in_arc(phi2,end_phi2,t2);
+
+            if (!std::isnan(t1_norm) && !std::isnan(t2_norm))
             {
-                min_dist = std::min(min_dist, d - r1 - r2);
+                // min_dist = std::min(min_dist, d - r1 - r2);
+                argmin_output(
+                    d - r1 - r2, 
+                    (t1_norm-phi1)/omega1,
+                    (t2_norm-phi2)/omega2
+                );
             }
         }
         // Inscribed circles
@@ -471,9 +637,18 @@ double geometric_XY_dist(const PathShape<m1> &s1, const PathShape<m2> &s2, doubl
         {
             double t1 = M_PI + std::atan2(dC.y(),dC.x());
             double t2 = t1;
-            if (angle_in_arc(phi1,end_phi1,t1) && angle_in_arc(phi2,end_phi2,t2))
+
+            double t1_norm = put_in_arc(phi1,end_phi1,t1);
+            double t2_norm = put_in_arc(phi2,end_phi2,t2);
+
+            if (!std::isnan(t1_norm) && !std::isnan(t2_norm))
             {
-                min_dist = std::min(min_dist, r2 - d - r1);
+                // min_dist = std::min(min_dist, r2 - d - r1);
+                argmin_output(
+                    r2 - d - r1, 
+                    (t1_norm-phi1)/omega1,
+                    (t2_norm-phi2)/omega2
+                );
             }
         }
 
@@ -482,9 +657,18 @@ double geometric_XY_dist(const PathShape<m1> &s1, const PathShape<m2> &s2, doubl
         {
             double t1 = std::atan2(dC.y(),dC.x());
             double t2 = t1;
-            if (angle_in_arc(phi1,end_phi1,t1) && angle_in_arc(phi2,end_phi2,t2))
+
+            double t1_norm = put_in_arc(phi1,end_phi1,t1);
+            double t2_norm = put_in_arc(phi2,end_phi2,t2);
+
+            if (!std::isnan(t1_norm) && !std::isnan(t2_norm))
             {
-                min_dist = std::min(min_dist, r1 - d - r2);
+                // min_dist = std::min(min_dist, r2 - d - r1);
+                argmin_output(
+                    r1 - d - r2, 
+                    (t1_norm-phi1)/omega1,
+                    (t2_norm-phi2)/omega2
+                );
             }
         }
 
@@ -497,57 +681,85 @@ double geometric_XY_dist(const PathShape<m1> &s1, const PathShape<m2> &s2, doubl
 
         Eigen::Vector2d p1_s_in_2 = p1_s - c2;
         double phi1_s = std::atan2(p1_s_in_2.y(),p1_s_in_2.x());
-        if (angle_in_arc(phi2,end_phi2,phi1_s))
+        double phi1_s_norm = put_in_arc(phi2, end_phi2, phi1_s);
+        if (!std::isnan(phi1_s_norm))
         {
-            min_dist = std::min(min_dist,std::abs(r2 - (p1_s - c2).norm()));
+            // min_dist = std::min(min_dist,std::abs(r2 - (p1_s - c2).norm()));
+            argmin_output(
+                std::abs(r2 - (p1_s - c2).norm()),
+                0.,
+                phi1_s_norm
+            );
         }
 
         Eigen::Vector2d p1_e_in_2 = p1_e - c2;
         double phi1_e = std::atan2(p1_e_in_2.y(),p1_e_in_2.x());
-        if (angle_in_arc(phi2,end_phi2,phi1_e))
+        double phi1_e_norm = put_in_arc(phi2, end_phi2, phi1_e);
+        if (!std::isnan(phi1_e_norm))
         {
-            min_dist = std::min(min_dist,std::abs(r2 - (p1_e - c2).norm()));
+            // min_dist = std::min(min_dist,std::abs(r2 - (p1_e - c2).norm()));
+            argmin_output(
+                std::abs(r2 - (p1_e - c2).norm()),
+                duration,
+                phi1_e_norm
+            );
         }
-
 
 
         Eigen::Vector2d p2_s_in_1 = p2_s - c1;
         double phi2_s = std::atan2(p2_s_in_1.y(),p2_s_in_1.x());
-        if (angle_in_arc(phi1,end_phi1,phi2_s))
+        double phi2_s_norm = put_in_arc(phi1, end_phi1, phi2_s);
+        if (!std::isnan(phi2_s_norm))
         {
-            min_dist = std::min(min_dist,std::abs(r1 - (p2_s - c1).norm()));
+            // min_dist = std::min(min_dist,std::abs(r1 - (p2_s - c1).norm()));
+            argmin_output(
+                std::abs(r1 - (p2_s - c1).norm()),
+                phi2_s_norm,
+                0.
+            );
         }
 
         Eigen::Vector2d p2_e_in_1 = p2_e - c1;
         double phi2_e = std::atan2(p2_e_in_1.y(),p2_e_in_1.x());
-        if (angle_in_arc(phi1,end_phi1,phi2_e))
+        double phi2_e_norm = put_in_arc(phi1, end_phi1, phi2_e);
+        if (!std::isnan(phi2_e_norm))
         {
-            min_dist = std::min(min_dist,std::abs(r1 - (p2_e - c1).norm()));
+            // min_dist = std::min(min_dist,std::abs(r1 - (p2_e - c1).norm()));
+            argmin_output(
+                std::abs(r1 - (p2_e - c1).norm()),
+                phi2_e_norm,
+                duration
+            );
         }
 
         // -- Point to point distances
 
-        min_dist = std::min({min_dist,
-            (p1_s-p2_s).norm(),
-            (p1_e-p2_e).norm(),
-            (p1_s-p2_e).norm(),
-            (p1_e-p2_s).norm(),
-        });
+        // min_dist = std::min({min_dist,
+        //     (p1_s-p2_s).norm(),
+        //     (p1_e-p2_e).norm(),
+        //     (p1_s-p2_e).norm(),
+        //     (p1_e-p2_s).norm(),
+        // });
 
-        return min_dist;
+        argmin_output((p1_s-p2_s).norm(),   0., 0.);
+        argmin_output((p1_e-p2_e).norm(),   duration, duration);
+        argmin_output((p1_s-p2_e).norm(),   0.      , duration);
+        argmin_output((p1_e-p2_s).norm(),   duration, 0.);
+
+        return output;
     }
 }
 
 // Explicitely declare all possible specializations
-template double geometric_XY_dist<STRAIGHT,STRAIGHT>(const PathShape<STRAIGHT>& , const PathShape<STRAIGHT>&, double);
-template double geometric_XY_dist<STRAIGHT,LEFT>    (const PathShape<STRAIGHT>& , const PathShape<LEFT>&    , double);
-template double geometric_XY_dist<STRAIGHT,RIGHT>   (const PathShape<STRAIGHT>& , const PathShape<RIGHT>&   , double);
-template double geometric_XY_dist<LEFT,STRAIGHT>    (const PathShape<LEFT>&     , const PathShape<STRAIGHT>&, double);
-template double geometric_XY_dist<RIGHT,STRAIGHT>   (const PathShape<RIGHT>&    , const PathShape<STRAIGHT>&, double);
-template double geometric_XY_dist<LEFT,LEFT>        (const PathShape<LEFT>&     , const PathShape<LEFT>&    , double);
-template double geometric_XY_dist<RIGHT,LEFT>       (const PathShape<RIGHT>&    , const PathShape<LEFT>&    , double);
-template double geometric_XY_dist<LEFT,RIGHT>       (const PathShape<LEFT>&     , const PathShape<RIGHT>&   , double);
-template double geometric_XY_dist<RIGHT,RIGHT>      (const PathShape<RIGHT>&    , const PathShape<RIGHT>&   , double);
+template std::tuple<double,double,double> geometric_XY_dist<STRAIGHT,STRAIGHT>(const PathShape<STRAIGHT>& , const PathShape<STRAIGHT>&, double);
+template std::tuple<double,double,double> geometric_XY_dist<STRAIGHT,LEFT>    (const PathShape<STRAIGHT>& , const PathShape<LEFT>&    , double);
+template std::tuple<double,double,double> geometric_XY_dist<STRAIGHT,RIGHT>   (const PathShape<STRAIGHT>& , const PathShape<RIGHT>&   , double);
+template std::tuple<double,double,double> geometric_XY_dist<LEFT,STRAIGHT>    (const PathShape<LEFT>&     , const PathShape<STRAIGHT>&, double);
+template std::tuple<double,double,double> geometric_XY_dist<RIGHT,STRAIGHT>   (const PathShape<RIGHT>&    , const PathShape<STRAIGHT>&, double);
+template std::tuple<double,double,double> geometric_XY_dist<LEFT,LEFT>        (const PathShape<LEFT>&     , const PathShape<LEFT>&    , double);
+template std::tuple<double,double,double> geometric_XY_dist<RIGHT,LEFT>       (const PathShape<RIGHT>&    , const PathShape<LEFT>&    , double);
+template std::tuple<double,double,double> geometric_XY_dist<LEFT,RIGHT>       (const PathShape<LEFT>&     , const PathShape<RIGHT>&   , double);
+template std::tuple<double,double,double> geometric_XY_dist<RIGHT,RIGHT>      (const PathShape<RIGHT>&    , const PathShape<RIGHT>&   , double);
 
 // ----- Z distances ----- //
 

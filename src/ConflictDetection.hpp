@@ -38,6 +38,7 @@
 
 // ==================== Geometric distance ==================== //
 
+
 /**
  * @brief Given two shapes described by paths, compute their XY geometric separation 
  * 
@@ -48,10 +49,10 @@
  * @param s1 First shape parameters
  * @param s2 Second shape parameters
  * @param duration Duration (in s) for which the shape are followed, defining segment and circle arcs
- * @return double The minimal XY separation distance
+ * @return double The minimal XY separation distance, with its location parameter with respect to the first and second paths
  */
 template<DubinsMove m1, DubinsMove m2>
-double geometric_XY_dist(const PathShape<m1> &s1, const PathShape<m2> &s2, double duration);
+std::tuple<double,double,double> geometric_XY_dist(const PathShape<m1> &s1, const PathShape<m2> &s2, double duration);
 
 /**
  * @brief Given two shapes described by paths, compute their XY geometric separation by sampling

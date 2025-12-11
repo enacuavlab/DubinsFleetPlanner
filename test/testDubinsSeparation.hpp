@@ -25,7 +25,7 @@
 #include "randomPathShape.hpp"
 
 #ifndef TEST_NUM
-#define TEST_NUM 50
+#define TEST_NUM 500
 #endif
 
 #ifndef TEST_POS_RANGE

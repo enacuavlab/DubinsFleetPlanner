@@ -83,7 +83,7 @@ template<Dubins::DubinsSeparationFunction separation_function>
 static inline bool generic_check_compatibility(const Dubins& d1, const Dubins& d2, const AircraftStats& s1, const AircraftStats& s2, double sep)
 {
     double duration = std::min(d1.get_duration(s1.airspeed),d2.get_duration(s2.airspeed));
-    return d1.is_valid() && d2.is_valid() && separation_function(d1,d2,s1.airspeed,s2.airspeed,duration,sep,DubinsFleetPlanner_PRECISION);
+    return d1.is_valid() && d2.is_valid() && separation_function(d1,d2,s1.airspeed,s2.airspeed,duration,sep,DubinsFleetPlanner_PRECISION,DubinsDistDefaultRec);
 }
 
 template<Dubins::DubinsDistanceFunction distance_function>
@@ -100,7 +100,7 @@ static inline std::pair<double,double> generic_compute_distance(
     }
     else
     {
-        return distance_function(d1,d2,s1.airspeed,s2.airspeed,duration,sep,DubinsFleetPlanner_PRECISION,hotstart);
+        return distance_function(d1,d2,s1.airspeed,s2.airspeed,duration,sep,DubinsFleetPlanner_PRECISION,hotstart,DubinsDistDefaultRec);
     }
 }
 

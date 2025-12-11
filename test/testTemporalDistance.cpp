@@ -145,7 +145,7 @@ TEST(TemporalDistance,Random2DCasesWithDerivatives)
         std::pair<double,double> sampled_lr = sample_temporal_XY_dist<LEFT,RIGHT,samples>     (l,r,TEST_PATH_DURATION);
         std::cout << "Sampling LR done" << std::endl;
 
-        std::pair<double,double> test_ss_with_der = temporal_XY_dist<STRAIGHT,STRAIGHT,false>  (s,sbis,TEST_PATH_DURATION,TEST_PRECISION);
+        std::pair<double,double> test_ss_with_der = temporal_XY_dist<STRAIGHT,STRAIGHT,true>  (s,sbis,TEST_PATH_DURATION,TEST_PRECISION);
         std::pair<double,double> test_sl_with_der = temporal_XY_dist<STRAIGHT,LEFT,true>  (s,l,TEST_PATH_DURATION,TEST_PRECISION);
         std::pair<double,double> test_sr_with_der = temporal_XY_dist<STRAIGHT,RIGHT,true> (s,r,TEST_PATH_DURATION,TEST_PRECISION);
         std::pair<double,double> test_lr_with_der = temporal_XY_dist<LEFT,RIGHT,true>     (l,r,TEST_PATH_DURATION,TEST_PRECISION);
