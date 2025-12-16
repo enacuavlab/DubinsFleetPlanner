@@ -36,8 +36,8 @@ __CSV_problem_statement_header = "ac_id,start_x,start_y,start_z,start_theta,end_
 # The extra float is for dt, the time difference with respect to the previous aircraft. 
 AC_PP_Problem = tuple[ACStats,Pose3D,Pose3D,float]
 
-def write_pathplanning_problem_to_CSV(file,data:typing.Sequence[AC_PP_Problem]):
-    with open(file, newline='', mode='x') as outcsv:
+def write_pathplanning_problem_to_CSV(file,data:typing.Sequence[AC_PP_Problem],overwrite:bool=False):
+    with open(file, newline='', mode='w' if overwrite else 'x') as outcsv:
         writer = csv.writer(outcsv,delimiter=';')
         
         writer.writerow(__CSV_problem_statement_header.split(','))

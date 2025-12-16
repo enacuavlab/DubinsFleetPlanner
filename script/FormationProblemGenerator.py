@@ -15,6 +15,8 @@
 # You should have received a copy of the GNU General Public License
 # along with DubinsFleetPlanner.  If not, see <https://www.gnu.org/licenses/>.
 
+import itertools
+
 from Formation import *
 
 from ProblemGenerator import write_pathplanning_problem_to_CSV, AC_PP_Problem, ACStats, Pose3D
@@ -28,27 +30,28 @@ def problem_formation_transition(formation_start:Formation, formation_end:Format
     
     output = []
     
-    initial_poses = formation_start.to_barycentric_coords().get_abs_positions()
+    formation_start.center = np.zeros(3)
+    formation_end.center = np.zeros(3)
+    
+    initial_poses = formation_start.apply_rotation().to_barycentric_coords().get_abs_positions()
 
-    final_poses = formation_end.to_barycentric_coords().move(move).get_abs_positions()
+    final_poses = formation_end.apply_rotation().to_barycentric_coords().move(move).get_abs_positions()
     
     for i,f,s in zip(initial_poses,final_poses,stats):
         output.append((s,Pose3D.from_array(i),Pose3D.from_array(f),0.))
         
     return output
 
-def problem_from_formation_move(formation:Formation, move:Pose3D, stats:list[ACStats]) -> list[AC_PP_Problem]:
-    formation_end = copy.deepcopy(formation)
-    
-    return problem_formation_transition(formation,formation_end,move,stats)
+def problem_from_formation_move(formation:Formation, move:Pose3D, stats:list[ACStats]) -> list[AC_PP_Problem]:    
+    return problem_formation_transition(copy.deepcopy(formation),copy.deepcopy(formation),move,stats)
 
 
 Unit_ForwardShift   = Pose3D(1.,0.,0.,0.)
 Unit_LateralShift   = Pose3D(0.,1.,0.,0.)
-Unit_HalfTurnRight  = Pose3D(1.,-1.,0., np.pi/2)
-Unit_HalfTurnleft   = Pose3D(1., 1.,0.,-np.pi/2)
-Unit_FullTurnRight  = Pose3D(0.,-2.,0., np.pi)
-Unit_FullTurnleft   = Pose3D(0., 2.,0.,-np.pi)
+Unit_HalfTurnRight  = Pose3D(1., 1.,0.,-np.pi/2)
+Unit_HalfTurnleft   = Pose3D(1.,-1.,0., np.pi/2)
+Unit_FullTurnRight  = Pose3D(0., 2.,0.,-np.pi)
+Unit_FullTurnleft   = Pose3D(0.,-2.,0., np.pi)
 
 Turns = [Unit_HalfTurnRight,Unit_HalfTurnleft,Unit_FullTurnRight,Unit_FullTurnleft]
 Turns_names = ["HalfTurnRight","HalfTurnLeft","FullTurnRight","FullTurnLeft"]
@@ -58,7 +61,7 @@ def generate_basic_formation_moves(formation:Formation, stats:list[ACStats], dis
     
     
     for p,n in zip(Turns,Turns_names):
-        pq = copy.copy(p)
+        pq = copy.deepcopy(p)
         pq.x *= dist
         pq.y *= dist
         pq.z *= dist
@@ -71,7 +74,24 @@ def generate_basic_formation_moves(formation:Formation, stats:list[ACStats], dis
         
     return output
         
+
+def generate_formation_transitions(formations:list[Formation], stats:list[ACStats], dist:float=1.) -> list[tuple[list[AC_PP_Problem],str]]:
+    output = []
     
+    m = copy.deepcopy(Unit_ForwardShift)
+    m.x *= dist
+    m.y *= dist
+    m.z *= dist
+    
+    for f1,f2 in itertools.product(formations,repeat=2):
+        if f1 == f2: continue
+        
+        output.append((problem_formation_transition(
+            f1,f2,copy.deepcopy(m),stats
+        ),f1.name + "_" + f2.name))
+        
+    return output
+
 if __name__ =='__main__':
     import argparse,pathlib,os
     
@@ -125,11 +145,15 @@ if __name__ =='__main__':
     if not(dir_path.exists()):
         os.makedirs(dir_path)
     
+    dist = sep * N
+    
     for f in all_formations:
-        dist = sep * N
         pb_list = generate_basic_formation_moves(f,stats,dist)
         
         for pb,turn_name in pb_list:
-            write_pathplanning_problem_to_CSV(dest+"_"+f.name+"_"+turn_name+".csv",pb)
+            write_pathplanning_problem_to_CSV(dest+"_"+f.name+"_"+turn_name+".csv",pb,True)
+            
+    for pb,name in generate_formation_transitions(all_formations,stats,dist):
+        write_pathplanning_problem_to_CSV(dest+"_"+name+".csv",pb,True)
     
     
