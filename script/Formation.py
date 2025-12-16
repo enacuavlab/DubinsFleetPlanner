@@ -23,7 +23,7 @@ import enum
 
 import numpy as np
 
-from ProblemGenerator import Pose3D
+from Dubins import Pose3D
 
 import matplotlib.pyplot as plt
 from matplotlib.axes import Axes
@@ -510,7 +510,7 @@ def staggered_formation(lines:int,columns:int,sep:float,orientation:float) -> Fo
     fair_lines = lines - stagg_lines
     
     fair_rect = generic_rectangle_formation(fair_lines,columns,np.sqrt(3)*sep,sep,orientation)
-    stag_rect = generic_rectangle_formation(stagg_lines,columns-1,np.sqrt(3)*sep,sep,orientation)
+    stag_rect = generic_rectangle_formation(stagg_lines,columns,np.sqrt(3)*sep,sep,orientation)
     
     topleft = Corner(SidePoint.MAX,SidePoint.MAX,SidePoint.MID)
     
@@ -568,9 +568,20 @@ def stacked_echelon_formation(lines:int,columns:int,chev_sep:float,stack_sep:flo
 
 
 def list_all_formations(ncols:int,nlines:int,sep:float) -> list[Formation]:
-    output = []
+    output:list[Formation] = []
     
     N = ncols*nlines
+    
+    ratio = min(nlines,ncols)/max(nlines,ncols)
+    
+    ratio = ratio if ratio < 0.5 else 1-ratio
+    
+    short = int(N*ratio)
+    long = N - short
+    
+    if short == 0:
+        short = 1
+        long -= 1
     
     circ_clockwise = circle_formation_from_sep(N,sep,True)
     output.append(circ_clockwise)
@@ -598,26 +609,26 @@ def list_all_formations(ncols:int,nlines:int,sep:float) -> list[Formation]:
 
     vee     = v_formation(N,sep)
     output.append(vee)
-    vee_p1  = v_formation(N+1,sep)
-    vee_p1.name += "PlusOne"
-    output.append(vee_p1)
-    vee_leftmost    = v_formation(ncols,sep,N_right=nlines)
+    # vee_p1  = v_formation(N+1,sep)
+    # vee_p1.name += "PlusOne"
+    # output.append(vee_p1)
+    vee_leftmost    = v_formation(long,sep,N_right=short)
     vee_leftmost.name += "LeanLeft"
     output.append(vee_leftmost)
-    vee_rightmost   = v_formation(nlines,sep,N_right=ncols)
+    vee_rightmost   = v_formation(short,sep,N_right=long)
     vee_rightmost.name += "LeanRight"
     output.append(vee_rightmost)
 
 
     chevron     = chevron_formation(N,sep)
     output.append(chevron)
-    chevron_p1  = chevron_formation(N+1,sep)
-    chevron_p1.name += "PlusOne"
-    output.append(chevron_p1)
-    chevron_leftmost    = chevron_formation(ncols,sep,N_right=nlines)
+    # chevron_p1  = chevron_formation(N+1,sep)
+    # chevron_p1.name += "PlusOne"
+    # output.append(chevron_p1)
+    chevron_leftmost    = chevron_formation(long,sep,N_right=short)
     chevron_leftmost.name += "LeanLeft"
     output.append(chevron_leftmost)
-    chevron_rightmost   = chevron_formation(nlines,sep,N_right=ncols)
+    chevron_rightmost   = chevron_formation(short,sep,N_right=long)
     chevron_rightmost.name += "LeanRight"
     output.append(chevron_rightmost)
 
@@ -645,6 +656,14 @@ def list_all_formations(ncols:int,nlines:int,sep:float) -> list[Formation]:
     stacked_left_echelon = stacked_echelon_formation(nlines,ncols,sep,2*sep,right=False).to_barycentric_coords()
     stacked_left_echelon.name += "Left"
     output.append(stacked_left_echelon)
+    
+    for f in output:
+        try:
+            assert f.agent_num == N
+        except AssertionError as e:
+            print(f.name)
+            print(N,f.agent_num)
+            raise e
 
     return output
 

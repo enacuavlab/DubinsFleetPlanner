@@ -112,7 +112,7 @@ if __name__ =='__main__':
     parser.add_argument('nlines',type=int,help='Number of lines of aicraft (total is nlines * ncols)')
     parser.add_argument('ncols',type=int,help='Number of columns of aicraft (total is nlines * ncols)')
     parser.add_argument('mdist',type=float,help='Minimal distance separating aircraft')
-    parser.add_argument('output',type=str,help='File prefix name for writing the test case. Will have \'_{test_case_num}.csv\' appended.')
+    parser.add_argument('output',type=str,help='File prefix name for writing the test case. Will have \'_{test_case_name}.csv\' appended.')
     
     
     parser.add_argument('-v','--airspeed',dest='airspeed',

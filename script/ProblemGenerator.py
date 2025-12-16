@@ -26,6 +26,8 @@ from scipy.spatial.distance import pdist
 
 from Dubins import Pose3D,ACStats
 
+from Formation import Formation
+
 ######################################## Output CSV ########################################
 
 __CSV_problem_statement_header = "ac_id,start_x,start_y,start_z,start_theta,end_x,end_y,end_z,end_theta,airspeed,climb,turn_radius,dt"
@@ -234,7 +236,30 @@ class RandomPathPlanningGenerator:
         ends    = [Pose3D(p[0],p[1],p[2],a) for p,a in zip(sep_ends,end_angles)]
         
         return starts,ends
+    
+    def generate_random_to_formation(self, mdist:float, formation:Formation,
+                                     xrange:tuple[float,float], yrange:tuple[float,float],
+                                    zrange:tuple[float,float]|None=None,
+                                    **repulse_kwargs) -> tuple[list[Pose3D],list[Pose3D]]:
+        
+        N = formation.agent_num
+        
+        og_starts = self._generate_uniform_pts(N,xrange,yrange,zrange)
 
+        if self.verbose > 0:
+            print(f"Separating {N} starting points: ",end='')
+            
+        sep_starts = self._repulse_separate(og_starts,mdist,**repulse_kwargs)
+        start_angles = self.rng.uniform(0,2*np.pi,N)
+        
+        ends_array = formation.get_abs_positions()
+        
+        starts  = [Pose3D(p[0],p[1],p[2],a) for p,a in zip(sep_starts,start_angles)]
+        ends    = [Pose3D(p[0],p[1],p[2],p[3]) for p in ends_array]
+        
+        return starts,ends
+        
+    
 
 DEBUG = False
 
@@ -322,7 +347,7 @@ if __name__ == '__main__' and not DEBUG:
     dts = np.zeros(N)
     seed = int(args.seed) if args.seed is not None else time.time_ns()
     
-    path = pathlib.Path(args.output)
+    path = pathlib.Path(args.output).parent
     if not path.exists():
         os.mkdir(path)
     

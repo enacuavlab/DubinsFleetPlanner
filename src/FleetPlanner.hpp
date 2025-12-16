@@ -786,7 +786,7 @@ public:
         uint max_iters = 300, uint weave_iters = 2,
         double min_weave_delta =1.,
         int threads = -1,
-        double max_time_s = 120
+        int max_time_s = 120
     ) const
     {
         // Timing

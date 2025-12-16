@@ -79,6 +79,7 @@ struct program_arguments
     double max_r_length;
     bool legacy;
     bool line_fit;
+    int max_solver_time;
 };
 
 
@@ -137,7 +138,9 @@ bool process_command_line(int argc, char* argv[], program_arguments& parsed_args
 
     ("line,l"       , po::bool_switch(&parsed_args.line_fit)->default_value(false)
                     , "Add paths with minimal turn radius and fitted extra straights at start and end")
-    
+
+    ("max-time,T"   , po::value<int>(&parsed_args.max_solver_time)->default_value(120)
+                    , "Maximal allowed runtime for the solver, in seconds. Default to 120s.")
     ;
     
     // Specify positional arguments
@@ -318,7 +321,7 @@ std::tuple<int,SharedDubinsResults,ExtraPPResults> solve_case(const fs::path& in
     }
     
     SharedDubinsResults sols = planner->solve<Dubins::are_XY_separated,Dubins::compute_XY_distance>(extra,starts,ends,stats,args.separation,
-            dt,args.wind_x,args.wind_y,args.max_iters,args.weave_iters,args.min_weave_dist,args.thread_num);
+            dt,args.wind_x,args.wind_y,args.max_iters,args.weave_iters,args.min_weave_dist,args.thread_num,args.max_solver_time);
 
     output_log << "]";
     
@@ -329,7 +332,7 @@ std::tuple<int,SharedDubinsResults,ExtraPPResults> solve_case(const fs::path& in
         std::cerr << "WARNING: Could not find a solution; retrying with SEPARATION DISABLED" << std::endl;
         
         sols = planner->solve<Dubins::are_XY_separated,Dubins::compute_XY_distance>(_backup,starts,ends,stats,0.,
-            dt,args.wind_x,args.wind_y,args.max_iters,args.weave_iters,args.min_weave_dist,args.thread_num);
+            dt,args.wind_x,args.wind_y,args.max_iters,args.weave_iters,args.min_weave_dist,args.thread_num,args.max_solver_time);
     }
         
     if (!sols.has_value())
