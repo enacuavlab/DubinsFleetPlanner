@@ -213,179 +213,32 @@ double fit_shift_ratio(Pose3D start, Pose3D end, double target_l, double tol, do
 
     return generic_fit(target_fun,min_t,max_t,tol);
 }
-
-// ----- Fit on shift start ----- //
-
-template<double(distance_fun)(double,double,double)>
-double fit_shift_start(Pose3D start, Pose3D end, double target_l, double tol)
+double fit_shift_LSL_ratio(Pose3D start, Pose3D end, double target_l, double tol, double ratio)
 {
-    double min_t = 0.;
-    double max_t = target_l;
-    if (min_t > max_t) {return NAN;}
-    auto target_fun = [=](double t)
-    {
-        Pose3D shift_start(start);
-        shift_start.x += t*cos(shift_start.theta);
-        shift_start.y += t*sin(shift_start.theta);
-
-        double alpha,beta,d;
-        auto normalized = normalize_poses(shift_start,end);
-        alpha   = std::get<0>(normalized);
-        beta    = std::get<1>(normalized);
-        d       = std::get<2>(normalized);
-
-        return distance_fun(alpha,beta,d) - (target_l-t);
-    };
-
-    return generic_fit(target_fun,min_t,max_t,tol);
+    return fit_shift_ratio<LSL_total_distance>(start,end,target_l,tol,ratio);
 }
 
-
-double fit_shift_LSL_start(Pose3D start, Pose3D end, double target_l, double tol)
+double fit_shift_RSR_ratio(Pose3D start, Pose3D end, double target_l, double tol, double ratio)
 {
-    return fit_shift_start<LSL_total_distance>(start,end,target_l,tol);
+    return fit_shift_ratio<RSR_total_distance>(start,end,target_l,tol,ratio);
 }
 
-double fit_shift_RSR_start(Pose3D start, Pose3D end, double target_l, double tol)
+double fit_shift_RSL_ratio(Pose3D start, Pose3D end, double target_l, double tol, double ratio)
 {
-    return fit_shift_start<RSR_total_distance>(start,end,target_l,tol);
+    return fit_shift_ratio<RSL_total_distance>(start,end,target_l,tol,ratio);
 }
 
-double fit_shift_RSL_start(Pose3D start, Pose3D end, double target_l, double tol)
+double fit_shift_LSR_ratio(Pose3D start, Pose3D end, double target_l, double tol, double ratio)
 {
-    return fit_shift_start<RSL_total_distance>(start,end,target_l,tol);
+    return fit_shift_ratio<LSR_total_distance>(start,end,target_l,tol,ratio);
 }
 
-double fit_shift_LSR_start(Pose3D start, Pose3D end, double target_l, double tol)
+double fit_shift_RLR_ratio(Pose3D start, Pose3D end, double target_l, double tol, double ratio)
 {
-    return fit_shift_start<LSR_total_distance>(start,end,target_l,tol);
+    return fit_shift_ratio<RLR_total_distance>(start,end,target_l,tol,ratio);
 }
 
-double fit_shift_RLR_start(Pose3D start, Pose3D end, double target_l, double tol)
+double fit_shift_LRL_ratio(Pose3D start, Pose3D end, double target_l, double tol, double ratio)
 {
-    return fit_shift_start<RLR_total_distance>(start,end,target_l,tol);
-}
-
-double fit_shift_LRL_start(Pose3D start, Pose3D end, double target_l, double tol)
-{
-    return fit_shift_start<LRL_total_distance>(start,end,target_l,tol);
-}
-
-// ----- Fit on shift end ----- //
-
-template<double(distance_fun)(double,double,double)>
-double fit_shift_end(Pose3D start, Pose3D end, double target_l, double tol)
-{
-    double min_t = 0.;
-    double max_t = target_l;
-    if (min_t > max_t) {return NAN;}
-    auto target_fun = [=](double t)
-    {
-        Pose3D shift_end(end);
-        shift_end.x -= t*cos(shift_end.theta);
-        shift_end.y -= t*sin(shift_end.theta);
-
-        double alpha,beta,d;
-        auto normalized = normalize_poses(start,shift_end);
-        alpha   = std::get<0>(normalized);
-        beta    = std::get<1>(normalized);
-        d       = std::get<2>(normalized);
-
-        return distance_fun(alpha,beta,d) - (target_l-t);
-    };
-
-    return generic_fit(target_fun,min_t,max_t,tol);
-}
-
-
-double fit_shift_LSL_end(Pose3D start, Pose3D end, double target_l, double tol)
-{
-    return fit_shift_end<LSL_total_distance>(start,end,target_l,tol);
-}
-
-double fit_shift_RSR_end(Pose3D start, Pose3D end, double target_l, double tol)
-{
-    return fit_shift_end<RSR_total_distance>(start,end,target_l,tol);
-}
-
-double fit_shift_RSL_end(Pose3D start, Pose3D end, double target_l, double tol)
-{
-    return fit_shift_end<RSL_total_distance>(start,end,target_l,tol);
-}
-
-double fit_shift_LSR_end(Pose3D start, Pose3D end, double target_l, double tol)
-{
-    return fit_shift_end<LSR_total_distance>(start,end,target_l,tol);
-}
-
-double fit_shift_RLR_end(Pose3D start, Pose3D end, double target_l, double tol)
-{
-    return fit_shift_end<RLR_total_distance>(start,end,target_l,tol);
-}
-
-double fit_shift_LRL_end(Pose3D start, Pose3D end, double target_l, double tol)
-{
-    return fit_shift_end<LRL_total_distance>(start,end,target_l,tol);
-}
-
-
-// ----- Fit on shift both ----- //
-
-template<double(distance_fun)(double,double,double)>
-double fit_shift_both(Pose3D start, Pose3D end, double target_l, double tol)
-{
-    double min_t = 0.;
-    double max_t = target_l;
-    if (min_t > max_t) {return NAN;}
-    auto target_fun = [=](double t)
-    {
-        Pose3D shift_start(start);
-        shift_start.x += t*cos(shift_start.theta)/2;
-        shift_start.y += t*sin(shift_start.theta)/2;
-
-        Pose3D shift_end(end);
-        shift_end.x -= t*cos(shift_end.theta)/2;
-        shift_end.y -= t*sin(shift_end.theta)/2;
-
-        double alpha,beta,d;
-        auto normalized = normalize_poses(shift_start,shift_end);
-        alpha   = std::get<0>(normalized);
-        beta    = std::get<1>(normalized);
-        d       = std::get<2>(normalized);
-
-        return distance_fun(alpha,beta,d) - (target_l-t);
-    };
-
-    return generic_fit(target_fun,min_t,max_t,tol);
-}
-
-
-double fit_shift_LSL_both(Pose3D start, Pose3D end, double target_l, double tol)
-{
-    return fit_shift_both<LSL_total_distance>(start,end,target_l,tol);
-}
-
-double fit_shift_RSR_both(Pose3D start, Pose3D end, double target_l, double tol)
-{
-    return fit_shift_both<RSR_total_distance>(start,end,target_l,tol);
-}
-
-double fit_shift_RSL_both(Pose3D start, Pose3D end, double target_l, double tol)
-{
-    return fit_shift_both<RSL_total_distance>(start,end,target_l,tol);
-}
-
-double fit_shift_LSR_both(Pose3D start, Pose3D end, double target_l, double tol)
-{
-    return fit_shift_both<LSR_total_distance>(start,end,target_l,tol);
-}
-
-double fit_shift_RLR_both(Pose3D start, Pose3D end, double target_l, double tol)
-{
-    return fit_shift_both<RLR_total_distance>(start,end,target_l,tol);
-}
-
-double fit_shift_LRL_both(Pose3D start, Pose3D end, double target_l, double tol)
-{
-    return fit_shift_both<LRL_total_distance>(start,end,target_l,tol);
+    return fit_shift_ratio<LRL_total_distance>(start,end,target_l,tol,ratio);
 }

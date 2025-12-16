@@ -32,6 +32,7 @@ set(DubinsFleetPlannerLib_SRC
     BaseDubins.cpp
     BaseExtendedDubins.cpp
     ConflictDetection.cpp
+    ConflictList.cpp
     Dubins.cpp
     ExtendedDubins.cpp
     Fitting.cpp

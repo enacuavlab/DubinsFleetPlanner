@@ -54,25 +54,12 @@ double fit_SLS(double alpha, double beta, double d, double min_rho, double targe
  * @param end       End pose
  * @param target_l  Target length
  * @param tol       Solver precision tolerance
+ * @param ratio     Ratio splitting where the straight should be added, with 1 being all at start, 0 all at end and 0.5 equally shared between the two 
  * @return double   Length added in straight lines
  */
-double fit_shift_LSL_start(Pose3D start, Pose3D end, double target_l, double tol);
-double fit_shift_RSR_start(Pose3D start, Pose3D end, double target_l, double tol);
-double fit_shift_RSL_start(Pose3D start, Pose3D end, double target_l, double tol);
-double fit_shift_LSR_start(Pose3D start, Pose3D end, double target_l, double tol);
-double fit_shift_RLR_start(Pose3D start, Pose3D end, double target_l, double tol);
-double fit_shift_LRL_start(Pose3D start, Pose3D end, double target_l, double tol);
-
-double fit_shift_LSL_end(Pose3D start, Pose3D end, double target_l, double tol);
-double fit_shift_RSR_end(Pose3D start, Pose3D end, double target_l, double tol);
-double fit_shift_RSL_end(Pose3D start, Pose3D end, double target_l, double tol);
-double fit_shift_LSR_end(Pose3D start, Pose3D end, double target_l, double tol);
-double fit_shift_RLR_end(Pose3D start, Pose3D end, double target_l, double tol);
-double fit_shift_LRL_end(Pose3D start, Pose3D end, double target_l, double tol);
-
-double fit_shift_LSL_both(Pose3D start, Pose3D end, double target_l, double tol);
-double fit_shift_RSR_both(Pose3D start, Pose3D end, double target_l, double tol);
-double fit_shift_RSL_both(Pose3D start, Pose3D end, double target_l, double tol);
-double fit_shift_LSR_both(Pose3D start, Pose3D end, double target_l, double tol);
-double fit_shift_RLR_both(Pose3D start, Pose3D end, double target_l, double tol);
-double fit_shift_LRL_both(Pose3D start, Pose3D end, double target_l, double tol);
+double fit_shift_LSL_ratio(Pose3D start, Pose3D end, double target_l, double tol, double ratio);
+double fit_shift_RSR_ratio(Pose3D start, Pose3D end, double target_l, double tol, double ratio);
+double fit_shift_RSL_ratio(Pose3D start, Pose3D end, double target_l, double tol, double ratio);
+double fit_shift_LSR_ratio(Pose3D start, Pose3D end, double target_l, double tol, double ratio);
+double fit_shift_RLR_ratio(Pose3D start, Pose3D end, double target_l, double tol, double ratio);
+double fit_shift_LRL_ratio(Pose3D start, Pose3D end, double target_l, double tol, double ratio);

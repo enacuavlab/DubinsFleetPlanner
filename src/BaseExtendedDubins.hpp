@@ -92,7 +92,7 @@ public:
         valid = underlying.is_valid();
     }
 
-        BaseExtendedDubins(double _climb, double _turn_radius, 
+    BaseExtendedDubins(double _climb, double _turn_radius, 
         const Pose3D& _start, const Pose3D& _end, double _begin_len, double _end_len,
         double target_len, double tol)
     : Dubins(_climb, _turn_radius, _start, _end),

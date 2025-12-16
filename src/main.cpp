@@ -27,9 +27,10 @@
 
 #include <filesystem>
 
+#include "ProjectHeader.h"
 #include "ioUtils.hpp"
 #include "FleetPlanner.hpp"
-#include "ProjectHeader.h"
+#include "ConflictList.hpp"
 
 /******************** Util functions ********************/
 
@@ -37,6 +38,22 @@ static void lower_string(std::string& s)
 {
     std::transform(s.begin(), s.end(), s.begin(),
     [](unsigned char c){ return std::tolower(c); });
+}
+
+template<Dubins::DubinsSeparationFunction sep_fun>
+bool check_solution(const std::vector<std::shared_ptr<Dubins>>& s, const std::vector<AircraftStats>& stats, double min_sep)
+{
+    SharedListOfPossibilities l;
+    
+    for(auto &d : s)
+    {
+        l.push_back(std::vector<std::shared_ptr<Dubins>>({d}));
+    }
+
+    std::vector<Conflict_T> conflicts = generic_parallel_compute_separations<sep_fun>(2,l,stats,min_sep);
+    // std::vector<Conflict_T> re_conflicts = generic_compute_separations<Dubins::are_XY_separated>(l,stats,min_sep);
+
+    return conflicts.size() == 0;
 }
 
 /******************** Argument parsing ********************/
@@ -322,6 +339,17 @@ std::tuple<int,SharedDubinsResults,ExtraPPResults> solve_case(const fs::path& in
     }
     else
     {
+        if (good_solution)
+        {
+            extra.false_positive = !check_solution<Dubins::are_XY_separated_sampling>(sols.value(),stats,args.separation);
+            if (extra.false_positive)
+            {
+                good_solution = false;
+                std::cerr << "ERROR: False positive detected!!!" << std::endl;
+            }
+        }
+
+
         write_result(output_path,sols.value(),stats,args);
 
         if (good_solution)

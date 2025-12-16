@@ -62,6 +62,7 @@ class ExtraPPResults
 public:
     std::string case_name;
     bool success;
+    bool false_positive = false;
     uint iterations;
     chrono::nanoseconds duration;
     uint threads;
@@ -75,7 +76,7 @@ public:
             "Case: {}\n -> {}\n  Found path of duration {} (baseline is {})"
             "\n Performed {} iterations in {:.4f} ms\n Used {} threads; {} possible paths per AC",
             case_name, 
-            (success) ? "Success!" : "FAILURE",
+            (success) ? ((false_positive) ? "FALSE POSITIVE!" : "Success!") : "FAILURE",
             final_path_time,
             initial_path_time,
             iterations,
@@ -87,15 +88,16 @@ public:
 
     static const std::string CSV_header()
     {
-        return "Test input;Success;Iterations;Duration(ns);Threads;Possible paths;Initial guessed time;Final optained time";
+        return "Test input;Success;False positive;Iterations;Duration(ns);Threads;Possible paths;Initial guessed time;Final optained time";
     }
 
 
     std::string as_CSV() const
     {
-        return std::format("{};{};{};{};{};{};{};{}",
+        return std::format("{};{};{};{};{};{};{};{};{}",
             case_name,
             success,
+            false_positive,
             iterations,
             duration.count(),
             threads,
