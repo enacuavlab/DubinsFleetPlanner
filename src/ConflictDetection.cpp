@@ -869,7 +869,9 @@ std::pair<double,double> temporal_XY_dist(const PathShape<STRAIGHT> &s1, const P
         double tmin = -sc/nv2;
         if ((0 <= tmin) && (tmin <= duration))
         {
-            dist = std::sqrt(dp.squaredNorm()-sc*sc/nv2);
+            // Safeguard again floating point error (the minimum value cannot be negative, but because of fp errors it may...)
+            double dist2 = std::max(dp.squaredNorm()-sc*sc/nv2,0.);
+            dist = std::sqrt(dist2);
             if (dist < min_dist)
             {
                 min_dist = dist;

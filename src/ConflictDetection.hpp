@@ -127,6 +127,7 @@ std::pair<double,double> temporal_3D_dist(const PathShape<m1> &s1, const PathSha
 
 /**
  * @brief Given two base trajectories, find the minimal XY euclidean distance between them on the given time interval
+ * using a global minimum solver.
  * 
  * This amount to the minimal planar euclidean distance between the two trajectories, *ignoring* the vertical component.
  * 
@@ -141,6 +142,7 @@ std::pair<double,double> temporal_3D_dist(const PathShape<m1> &s1, const PathSha
  */
 template<DubinsMove m1, DubinsMove m2, bool use_derivatives=DubinsFleetPlanner_SOLVE_WITH_DERIVATIVES>
 std::pair<double,double> temporal_XY_dist(const PathShape<m1> &s1, const PathShape<m2> &s2, double duration, double tol);
+
 
 /**
  * @brief Given two base trajectories, find the minimal Z euclidean distance between them on the given time interval
