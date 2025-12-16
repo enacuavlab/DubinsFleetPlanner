@@ -102,6 +102,8 @@ std::pair<double,double> compute_XY_separation(
 
         output.first = duration/2.;
         output.second = pose_dist_XY(p1_start,p2_start);
+
+        return output;
     }
 
     

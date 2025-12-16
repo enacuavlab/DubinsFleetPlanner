@@ -297,7 +297,6 @@ public:
      * @brief A static version of `is_XY_separated_from`
      *
      */
-    template<bool geometric_filtering=true>
     static bool are_XY_separated(const Dubins& first, const Dubins& second, double first_speed, double second_speed, 
         double duration, double min_dist,
         double tol=DubinsFleetPlanner_PRECISION,
@@ -306,7 +305,43 @@ public:
         return first.is_XY_separated_from(second,first_speed,second_speed,duration,min_dist,tol,rec);
     }
 
+    /**
+     * @brief Check wether two Dubins paths are separated by using sampling
+     * 
+     * @param first         First path
+     * @param second        Second path
+     * @param first_speed   First path speed
+     * @param second_speed  Second path speed
+     * @param duration      Duration over which to check for separation
+     * @param min_dist      Minimal distance required
+     * @param tol           Distance between two successive time samples
+     * @param rec           UNUSED, required for compatibility with other functions
+     * @return true         The two trajectories are separated
+     * @return false        There is a conflict
+     */
+    static bool are_XY_separated_sampling(const Dubins& first, const Dubins& second, double first_speed, double second_speed, 
+        double duration, double min_dist,
+        double tol, [[maybe_unused]] uint rec)
+    {
+        double t = 0.;
+        while (t < duration)
+        {
+            Pose3D p1 = first.get_position(t*first_speed);
+            Pose3D p2 = second.get_position(t*second_speed);
 
+            double dx = p1.x - p2.x;
+            double dy = p1.y - p2.y;
+
+            if (dx*dx + dy*dy < min_dist*min_dist)
+            {
+                return false;
+            }
+
+            t += tol;
+        }
+
+        return true;
+    }
 
     /**
      * @brief Generic type for separation function
