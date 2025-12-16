@@ -827,11 +827,22 @@ PathShape<STRAIGHT> compute_params<STRAIGHT>(const Pose3D& start, const Pose3D& 
     dy = end.y - start.y;
     dz = end.z - start.z;
 
-    double d_norm = std::sqrt(dx*dx + dy*dy + dz*dz);
-    output.p1 = h_speed*dx/d_norm;
-    output.p2 = h_speed*dy/d_norm;
-    output.p3 = v_speed*dz/d_norm;
+    double d_norm = std::sqrt(dx*dx + dy*dy);
+    if (d_norm < 1e-9)
+    {
+        output.p1 = h_speed;
+        output.p2 = 0;
+        output.p3 = v_speed;
+    }
+    else
+    {
+        output.p1 = h_speed*dx/d_norm;
+        output.p2 = h_speed*dy/d_norm;
+        output.p3 = v_speed;
+    }
+
     output.p4 = 0.;
+
 
     return output;
 }
