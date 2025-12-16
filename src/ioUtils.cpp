@@ -597,7 +597,7 @@ void to_json_ModernTrajectory(json& j,
 
             if (sec_len < 1e-9)
             {
-                sec_type = STRAIGHT;
+                continue;
             }
             else
             {
