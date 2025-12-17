@@ -23,7 +23,38 @@ from ProblemGenerator import \
     Pose3D,RandomPathPlanningGenerator
     
 import numpy as np
-import typing,os,subprocess,pathlib
+import typing,os,subprocess,pathlib,csv
+
+__REF_CSV_HEADER = "Test input;Success;False positive;Iterations;Duration(ns);Threads;Possible paths;Initial guessed time;Final optained time".split(';')
+
+def check_results(case_dir:pathlib.Path,sol_dir:pathlib.Path) -> bool:
+    sol_file = sol_dir / "summary.csv"
+    if not(sol_file.exists()):
+        return False
+    
+    todos = set(p.resolve() for p in case_dir.iterdir() if p.is_file() and p.suffix.lower() == '.csv')
+    
+    with open(sol_file) as f:
+        reader = csv.reader(f,delimiter=';')
+        
+        header = next(reader)
+        for h,r in zip(header,__REF_CSV_HEADER):
+            if h != r:
+                print("WRONG HEADER")
+                print(f"Expected: {__REF_CSV_HEADER}")
+                print(f"Got     : {header}")
+                return False
+        
+        tested = set(pathlib.Path(l[0]).resolve() for l in reader)
+        
+        diff = todos.difference(tested)
+        
+        if len(diff) == 0:
+            return True
+        else:            
+            print(diff)
+            return False
+        
 
 def solve_problems(solver:pathlib.Path,src_dir:pathlib.Path,dest_dir:pathlib.Path,
                    separation:float, wind:tuple[float,float],threads:int,
@@ -115,6 +146,11 @@ if __name__ == '__main__':
     parser.add_argument('-w','--wind',dest='wind', nargs=2,
                         help='XY Wind, as a pair of values (X,Y). Default to (0,0), i.e. no wind.',
                         default=(0,0))
+    
+    parser.add_argument('--redo',dest='redo',action='store_true',
+                        help="Flag. If set, force restarting the solver on every directory.\
+                        Otherwise, skip the directories where a complete 'summary.csv' file is found. Default to False.",
+                        default=False)
     
     args = parser.parse_args()
     
@@ -265,7 +301,10 @@ if __name__ == '__main__':
     
     if solver is not None:
         solver = pathlib.Path(solver)
-        solve_problems(solver,rng_pb_dir,rng_sol_dir,mdist,wind,processes,**extra_args)
+        
+        rng_done = check_results(rng_pb_dir,rng_sol_dir)
+        if args.redo or not(rng_done):
+            solve_problems(solver,rng_pb_dir,rng_sol_dir,mdist,wind,processes,**extra_args)
         
         print("\n\n")
         print("===============================================")
@@ -273,14 +312,21 @@ if __name__ == '__main__':
         print("===============================================\n\n")
         time.sleep(1.)
         
-        solve_problems(solver,formation_pb_dir,formation_sol_dir,mdist,wind,processes,**extra_args)
+        formation_done = check_results(formation_pb_dir,formation_sol_dir)
+        if args.redo or not(formation_done):
+            solve_problems(solver,formation_pb_dir,formation_sol_dir,mdist,wind,processes,**extra_args)
+            
         print("\n\n")
         print("===============================================")
         print("==    Done with RNG to formation problems    ==")
         print("===============================================\n\n")
         
         time.sleep(1.)
-        solve_problems(solver,rng_to_formation_pb_dir,rng_to_formation_sol_dir,mdist,wind,processes,**extra_args)
+        
+        rng_to_formation_done = check_results(rng_to_formation_pb_dir,rng_to_formation_sol_dir)
+        if args.redo or not(rng_to_formation_done):
+            solve_problems(solver,rng_to_formation_pb_dir,rng_to_formation_sol_dir,mdist,wind,processes,**extra_args)
+            
         print("\n\n")
         print("===============================================")
         print("==       Done with formations problems       ==")

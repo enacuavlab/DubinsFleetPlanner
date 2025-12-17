@@ -25,9 +25,6 @@ import numpy as np
 
 from Dubins import Pose3D
 
-import matplotlib.pyplot as plt
-from matplotlib.axes import Axes
-
 from scipy.spatial import distance_matrix
 
 
@@ -189,39 +186,6 @@ class Formation:
         
         return self
         
-    
-def plot_formation(ax:Axes, form:Formation, title:str, label:str=''):
-    
-    positions = form.get_abs_positions()
-    xs = positions[:,0]
-    ys = positions[:,1]
-    
-    
-    
-    distances = distance_matrix(positions[:,:2],positions[:,:2])
-    min_dist = np.inf
-    min_pair = (None,None)
-    for i in range(len(positions)):
-        for j in range(i+1,len(positions)):
-            if distances[i,j] < min_dist:
-                min_dist = distances[i,j]
-                min_pair = (i,j)
-    
-    dxs = np.cos(positions[:,-1])
-    dys = np.sin(positions[:,-1])
-    
-    ax.set_title(title)
-    ax.set_aspect('equal')
-    ax.plot([xs[min_pair[0]],xs[min_pair[1]]],
-            [ys[min_pair[0]],ys[min_pair[1]]],
-            linestyle='--',color='k',label=f"Minimal distance: {min_dist:.3f}")
-    
-    return ax.quiver(xs,ys,dxs,dys,
-              angles='xy',
-              scale=5.,
-              scale_units='inches',
-              units='inches',
-              label=label)
 
 #################### Define some special formations ####################
 
@@ -669,6 +633,41 @@ def list_all_formations(ncols:int,nlines:int,sep:float) -> list[Formation]:
 
 if __name__ == '__main__':
     import argparse
+    import matplotlib.pyplot as plt
+    from matplotlib.axes import Axes
+    
+    def plot_formation(ax:Axes, form:Formation, title:str, label:str='', shortest:bool=True):
+    
+        positions = form.get_abs_positions()
+        xs = positions[:,0]
+        ys = positions[:,1]
+        
+        dxs = np.cos(positions[:,-1])
+        dys = np.sin(positions[:,-1])
+        
+        ax.set_title(title)
+        ax.set_aspect('equal')
+        
+        if shortest:
+            distances = distance_matrix(positions[:,:2],positions[:,:2])
+            min_dist = np.inf
+            min_pair = (None,None)
+            for i in range(len(positions)):
+                for j in range(i+1,len(positions)):
+                    if distances[i,j] < min_dist:
+                        min_dist = distances[i,j]
+                        min_pair = (i,j)
+            
+            ax.plot([xs[min_pair[0]],xs[min_pair[1]]],
+                    [ys[min_pair[0]],ys[min_pair[1]]],
+                    linestyle='--',color='k',label=f"Minimal distance: {min_dist:.3f}")
+        
+        return ax.quiver(xs,ys,dxs,dys,
+                angles='xy',
+                scale=5.,
+                scale_units='inches',
+                units='inches',
+                label=label)
     
     parser = argparse.ArgumentParser("Formations generator tester")
     parser.add_argument('cols'  ,type=int,  
@@ -689,6 +688,7 @@ if __name__ == '__main__':
     parser.add_argument('--fsquare',action='store_true',help='Plot square-like formations')
     
     parser.add_argument('--fall',action='store_true',help='Plot all formations (override other flags)')
+    parser.add_argument('--ftest',action='store_true',help='Plot formations used for testing')
     
     args = parser.parse_args()
     
@@ -699,10 +699,32 @@ if __name__ == '__main__':
     
     N = ncols * nlines
     
-    sep     = args.sep
-    sep    = args.ysep if args.ysep > 0 else 2*sep
+    sep    = args.sep
+    ysep   = args.ysep if args.ysep > 0 else 2*sep
     
     ## Formation generation
+    if args.ftest:
+        formations = list_all_formations(ncols,nlines,sep)
+        
+        n_formations = len(formations)
+        
+        row_num = n_formations//4 if (n_formations//4)*4 == n_formations else (1+n_formations//4)
+        
+        fig,ax = plt.subplots(4,row_num,sharex='all',sharey='all')
+        ax:list[list[Axes]]
+        
+        for i in range(n_formations):
+            j = i // row_num
+            ibis = i % row_num
+            
+            a = ax[j][ibis]
+            
+            plot_formation(a,formations[i],formations[i].name,shortest=False)
+            
+        fig.suptitle(f"Formations {ncols}x{nlines} used in testing")
+        plt.show()
+        exit(0)
+    
     
     # Circles
     plotCircles = args.fall if args.fall else args.fcircles
@@ -799,9 +821,9 @@ if __name__ == '__main__':
     diamond_pi3rd = rectangle_formation(nlines,ncols,sep,np.pi/3).to_barycentric_coords()
     
     staggered   = staggered_formation(nlines,ncols,sep,0.).to_barycentric_coords()
-    stacked_chevrons = stacked_chevrons_formation(nlines,ncols,sep,sep).to_barycentric_coords()
-    stacked_right_echelon = stacked_echelon_formation(nlines,ncols,sep,sep).to_barycentric_coords()
-    stacked_left_echelon = stacked_echelon_formation(nlines,ncols,sep,sep,right=False).to_barycentric_coords()
+    stacked_chevrons = stacked_chevrons_formation(nlines,ncols,sep,ysep).to_barycentric_coords()
+    stacked_right_echelon = stacked_echelon_formation(nlines,ncols,sep,ysep).to_barycentric_coords()
+    stacked_left_echelon = stacked_echelon_formation(nlines,ncols,sep,ysep,right=False).to_barycentric_coords()
     
     if plotRectangles:
         fig,ax = plt.subplots(2,4,sharex='all',sharey='all')
