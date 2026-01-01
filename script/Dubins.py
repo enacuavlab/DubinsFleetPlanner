@@ -57,7 +57,17 @@ class Pose3D:
     def undefined() -> Pose3D:
         return Pose3D(np.nan,np.nan,np.nan,np.nan)
         
+def poses_dist(p1:Pose3D,p2:Pose3D) -> float:
+    dx = p1.x - p2.x
+    dy = p1.y - p2.y
+    dz = p1.z - p2.z
     
+    dtheta = p1.theta - p2.theta
+    dvx = np.cos(dtheta) - 1.
+    dvy = np.sin(dtheta) - 0
+    
+    return np.sqrt(dx*dx + dy*dy + dz*dz + dvx*dvx + dvy*dvy)
+
 def poses_XY_dist(p1:Pose3D,p2:Pose3D) -> float:
     dx = p1.x - p2.x
     dy = p1.y - p2.y
@@ -79,7 +89,7 @@ def min_XY_dist(poses:list[Pose3D]) -> tuple[float,int,int]:
                 
     return mdist,i1,i2
 
-TimedPosesLine = tuple[float,list[tuple[int,Pose3D]]]
+TimedPosesLine = tuple[float,dict[int,Pose3D]]
 ListOfTimedPoses = list[TimedPosesLine]
 DictOfPoseTrajectories = dict[int,list[tuple[float,Pose3D]]]
 
@@ -174,7 +184,10 @@ class Path:
         self.junctions = self.__compute_junctions(self.sections)
     
     def duration(self) -> float:
-        return self.junctions[-1] + self.sections[-1].duration()
+        if len(self.junctions) > 0:
+            return self.junctions[-1] + self.sections[-1].duration()
+        else:
+            return self.sections[-1].duration()
         
     def pose_at(self,t:float) -> Pose3D:
         section_id = 0
@@ -243,8 +256,22 @@ class FleetPlan:
         for i,t in enumerate(self.trajectories):
             self._traj_dict[t[0].id] = i
     
-    def poses_at(self,t:float) -> list[tuple[int,Pose3D]]:
-        output = []
+    @property
+    def starts(self) -> dict[int,Pose3D]:
+        output = dict()
+        for s,traj in self.trajectories:
+            output[s.id] = traj.start
+        return output
+    
+    @property
+    def ends(self) -> dict[int,Pose3D]:
+        output = dict()
+        for s,traj in self.trajectories:
+            output[s.id] = traj.end
+        return output
+    
+    def poses_at(self,t:float) -> dict[int,Pose3D]:
+        output = dict()
         wind_dx = self.wind_x*t
         wind_dy = self.wind_y*t
         
@@ -252,7 +279,7 @@ class FleetPlan:
             p = traj.pose_at(t)
             p.x += wind_dx
             p.y += wind_dy
-            output.append((s.id,p))
+            output[s.id] = p
             
         return output
 

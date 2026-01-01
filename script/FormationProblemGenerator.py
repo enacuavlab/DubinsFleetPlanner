@@ -38,7 +38,7 @@ def problem_formation_transition(formation_start:Formation, formation_end:Format
     final_poses = formation_end.apply_rotation().to_barycentric_coords().move(move).get_abs_positions()
     
     for i,f,s in zip(initial_poses,final_poses,stats):
-        output.append((s,Pose3D.from_array(i),Pose3D.from_array(f),0.))
+        output.append(AC_PP_Problem(s,Pose3D.from_array(i),Pose3D.from_array(f),0.))
         
     return output
 

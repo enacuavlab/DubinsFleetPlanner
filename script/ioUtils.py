@@ -15,11 +15,13 @@
 # You should have received a copy of the GNU General Public License
 # along with DubinsFleetPlanner.  If not, see <https://www.gnu.org/licenses/>.
 
-import json,csv
+import json,csv,dataclasses,pathlib,typing
 
 from Dubins import Pose3D,ACStats,Path,BasicPath,FleetPlan,ListOfTimedPoses,TimedPosesLine,DictOfPoseTrajectories
 
-######################################## JSON parsing ########################################
+######################################## Dubins results parsing ########################################
+
+############################## JSON parsing ##############################
 
 def parse_section_from_dict(d:dict) -> BasicPath:
     try:
@@ -75,7 +77,7 @@ def join_trajectories_JSONs(output_file,*input_files):
         
     print_FleetPlan_to_JSON(output_file,base_plan)
 
-######################################## CSV Parsing ########################################
+############################## CSV Parsing ##############################
 
 def parse_trajectories_from_CSV(file) -> ListOfTimedPoses:
     with open(file, newline='') as csvfile:
@@ -96,14 +98,14 @@ def parse_trajectories_from_CSV(file) -> ListOfTimedPoses:
         output:ListOfTimedPoses = list()
         for row in reader:
             ts = float(row[0])
-            l = []
+            l = dict()
             for i in range(1,len(row),4):
                 id = ids[(i-1)//4]
                 x = float(row[i])
                 y = float(row[i+1])
                 z = float(row[i+2])
                 theta = float(row[i+3])
-                l.append((id,Pose3D(x,y,z,theta)))
+                l[id] = Pose3D(x,y,z,theta)
                 
             output.append((ts,l))
             
@@ -114,7 +116,7 @@ def transpose_list_of_trajectories(l:ListOfTimedPoses) -> DictOfPoseTrajectories
     output:DictOfPoseTrajectories = dict()
     for r in l:
         ts = r[0]
-        for ac_id,pose in r[1]:
+        for ac_id,pose in r[1].items():
             try:
                 output[ac_id].append((ts,pose))
             except KeyError:
@@ -123,10 +125,10 @@ def transpose_list_of_trajectories(l:ListOfTimedPoses) -> DictOfPoseTrajectories
     return output
 
 def make_CSV_trajectories_header(dataline:TimedPosesLine) -> list[str]:
-    ac_count = len(dataline[1])
     output = ["time"]
-    for i in range(ac_count):
-        id = dataline[1][i][0]
+    key_list = list(dataline[1].keys())
+    key_list.sort()
+    for id in key_list:
         output.extend([f"X_{id}",f"Y_{id}",f"Z_{id}",f"theta_{id}"])
     return output
 
@@ -138,10 +140,14 @@ def print_trajectories_to_CSV(output_file,data:ListOfTimedPoses,time_offset:floa
         header = make_CSV_trajectories_header(data[0])
         writer.writerow(header)
         
+        key_list = list(data[0][1].keys())
+        key_list.sort()
+        
         for line in data:
             row = [line[0]+time_offset]
-            for t in line[1]:
-                row.extend([t[1].x,t[1].y,t[1].z,t[1].theta])
+            for id in key_list:
+                p = line[1][id]
+                row.extend([p.x,p.y,p.z,p.theta])
             writer.writerow(row)
 
 
@@ -151,23 +157,108 @@ def join_trajectories_CSVs(output_file,*input_files):
     previous_header = None
     with open(output_file, newline='', mode='x') as outcsv:
         writer = csv.writer(outcsv,delimiter=';')
+        
+        key_list = list()
+        
         for file in input_files:
             data = parse_trajectories_from_CSV(file)
             if previous_header is None:
                 previous_header = make_CSV_trajectories_header(data[0])
                 writer.writerow(previous_header)
+                key_list = list(data[0][1].keys())
+                key_list.sort()
             else:
                 assert previous_header == make_CSV_trajectories_header(data[0])
+                assert (data[0][1].keys() <= set(key_list)) and (data[0][1].keys() >= set(key_list))
                 
             for line in data:
                 row = [line[0]+last_time]
-                for t in line[1]:
-                    row.extend([t[1].x,t[1].y,t[1].z,t[1].theta])
+                for id in key_list:
+                    p = line[1][id]
+                    row.extend([p.x,p.y,p.z,p.theta])
                 writer.writerow(row)
                 
             last_time += data[-1][0]
           
-          
+######################################## Path planning summary parsing ########################################
+
+@dataclasses.dataclass
+class CaseSummary:
+    srcfile:pathlib.Path
+    success:bool
+    false_positive:bool
+    iterations:int
+    duration_ns:int
+    threads:int
+    possibls_paths_per_ac:int
+    initial_guess_time:float
+    travel_time:float
+    
+    @staticmethod
+    def from_strlist(args:list[str]):
+        return CaseSummary(
+            pathlib.Path(args[0]),
+            True if args[1].lower() == 'true' else False,
+            True if args[2].lower() == 'true' else False,
+            int(args[3]),
+            int(args[4]),
+            int(args[5]),
+            int(args[6]),
+            float(args[7]),
+            float(args[8])
+        )
+        
+    def as_strlist(self) -> list[str]:
+        return [
+            str(self.srcfile),
+            'true' if self.success else 'false',
+            'true' if self.false_positive else 'false',
+            str(self.iterations),
+            str(self.duration_ns),
+            str(self.threads),
+            str(self.possibls_paths_per_ac),
+            str(self.initial_guess_time),
+            str(self.travel_time),
+        ]
+            
+    @staticmethod
+    def header():
+        return "Test input;Success;False positive;Iterations;Duration(ns);Threads;Possible paths;Initial guessed time;Final optained time".split(';')
+            
+
+def parse_result_summary(summary_loc:pathlib.Path) -> dict[str,CaseSummary]:
+    output = dict()
+    
+    with open(summary_loc) as f:
+        reader = csv.reader(f,delimiter=';')
+        
+        header = next(reader)
+        
+        for s,h in zip(header,CaseSummary.header()):
+            assert s.lower() == h.lower()
+        
+        for l in reader:
+            line = CaseSummary.from_strlist(l)
+            key = str(line.srcfile.resolve())
+            
+            if key in output:
+                print(f"WARNING: In file {summary_loc}, the following case is duplicated:\n\t{l[0]}")
+                
+            output[key] = line
+
+    return output
+
+
+def write_summary(summary_loc:pathlib.Path,data:dict[str,CaseSummary]):
+    with open(summary_loc,mode='w') as f:
+        writer = csv.writer(f,delimiter=';')
+        
+        writer.writerow(CaseSummary.header())
+        
+        for d in data.values():
+            writer.writerow(d.as_strlist())
+
+
 ######################################## Program entry point ########################################       
             
 if __name__ == '__main__':

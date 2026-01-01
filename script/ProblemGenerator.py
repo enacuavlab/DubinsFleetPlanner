@@ -17,7 +17,7 @@
 # You should have received a copy of the GNU General Public License
 # along with DubinsFleetPlanner.  If not, see <https://www.gnu.org/licenses/>.
 
-import typing
+import typing,dataclasses,pathlib
 
 import csv
 
@@ -30,38 +30,84 @@ from Formation import Formation
 
 ######################################## Output CSV ########################################
 
-__CSV_problem_statement_header = "ac_id,start_x,start_y,start_z,start_theta,end_x,end_y,end_z,end_theta,airspeed,climb,turn_radius,dt"
+__CSV_problem_statement_header = "ac_id,start_x,start_y,start_z,start_theta,end_x,end_y,end_z,end_theta,airspeed,climb,turn_radius,dt".split(',')
 
 # Compact way to specify an individual problem (ie a line of a CSV specifying a path planning problem)
 # ACStats holds ac_id,airspeed,climb and turn_radius.
 # The first Pose3D is for start, the second for end.
 # The extra float is for dt, the time difference with respect to the previous aircraft. 
-AC_PP_Problem = tuple[ACStats,Pose3D,Pose3D,float]
+@dataclasses.dataclass
+class AC_PP_Problem:
+    stats:ACStats
+    start:Pose3D
+    end:Pose3D
+    dt:float=0.
+    
+    @staticmethod
+    def header() -> typing.Sequence[str]:
+        return __CSV_problem_statement_header
+    
+    @staticmethod
+    def parse_from_strlist(args:typing.Sequence[str]):
+        ac_id       = int(args[0])
+        start_x     = float(args[1])
+        start_y     = float(args[2])
+        start_z     = float(args[3])
+        start_theta = float(args[4])
+        end_x       = float(args[5])
+        end_y       = float(args[6])
+        end_z       = float(args[7])
+        end_theta   = float(args[8])
+        airspeed    = float(args[9])
+        climb       = float(args[10])
+        turn_radius = float(args[11])
+        dt          = float(args[12])
+        
+        stats   = ACStats(ac_id,airspeed,climb,turn_radius)
+        start   = Pose3D(start_x,start_y,start_z,start_theta)
+        end     = Pose3D(end_x,end_y,end_z,end_theta)
+        
+        return AC_PP_Problem(stats,start,end,dt)
 
 def write_pathplanning_problem_to_CSV(file,data:typing.Sequence[AC_PP_Problem],overwrite:bool=False):
     with open(file, newline='', mode='w' if overwrite else 'x') as outcsv:
         writer = csv.writer(outcsv,delimiter=';')
         
-        writer.writerow(__CSV_problem_statement_header.split(','))
+        writer.writerow(__CSV_problem_statement_header)
         
         for p in data:
             
-            ac_id       = p[0].id
-            start_x     = p[1].x
-            start_y     = p[1].y
-            start_z     = p[1].z
-            start_theta = p[1].theta
-            end_x       = p[2].x
-            end_y       = p[2].y
-            end_z       = p[2].z
-            end_theta   = p[2].theta
-            airspeed    = p[0].airspeed
-            climb       = p[0].climb
-            turn_radius = p[0].turn_radius
-            dt          = p[3]
+            ac_id       = p.stats.id
+            start_x     = p.start.x
+            start_y     = p.start.y
+            start_z     = p.start.z
+            start_theta = p.start.theta
+            end_x       = p.end.x
+            end_y       = p.end.y
+            end_z       = p.end.z
+            end_theta   = p.end.theta
+            airspeed    = p.stats.airspeed
+            climb       = p.stats.climb
+            turn_radius = p.stats.turn_radius
+            dt          = p.dt
             
             writer.writerow([ac_id,start_x,start_y,start_z,start_theta,end_x,end_y,end_z,end_theta,airspeed,climb,turn_radius,dt])
 
+
+def parse_pathplanning_problem_from_CSV(file:pathlib.Path) -> list[AC_PP_Problem]:
+    output = []
+    with open(file) as f:
+        reader = csv.reader(f,delimiter=';')
+        
+        header = next(reader)
+        for h,r in zip(header,__CSV_problem_statement_header):
+            assert h == r
+        
+        for l in reader:
+            output.append(AC_PP_Problem.parse_from_strlist(l))
+            
+    return output
+        
 
 ######################################## Case creator ########################################
 

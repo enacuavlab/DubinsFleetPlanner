@@ -117,21 +117,24 @@ def animate_several_pose2d_sequences(poses_list:ListOfTimedPoses,fps:int=30,
     ax = plot_several_pose2d_sequences(ax,poses_dict,color_dict,False,False,False,0.2)
     
     # Setup artists for animation
-    init_poses = [t[1] for t in poses_list[0][1]]
+    keys = list(poses_list[0][1].keys())
+    keys.sort()
+    
+    init_poses = [poses_list[0][1][k] for k in keys]
     init_xs = [p.x for p in init_poses]
     init_ys = [p.y for p in init_poses]
     init_thetas = [p.theta for p in init_poses]
-    init_colors = [color_dict[t[0]] for t in poses_list[0][1]]
+    init_colors = [color_dict[t] for t in keys]
     
-    for t in poses_list[0][1]:
-        label = f"AC: {t[0]}"
+    for id,pose in zip(keys,init_poses):
+        label = f"AC: {id}"
         if name_dict is not None:
-            label += " " + name_dict[t[0]]
+            label += " " + name_dict[id]
             
-        ax.scatter([t[1].x],[t[1].y],color=color_dict[t[0]],
+        ax.scatter([pose.x],[pose.y],color=color_dict[id],
                    marker='o',label=label,alpha=0.5)
-    for t in poses_list[-1][1]:
-        ax.scatter([t[1].x],[t[1].y],color=color_dict[t[0]],
+    for id,pose in poses_list[-1][1].items():
+        ax.scatter([pose.x],[pose.y],color=color_dict[id],
                    marker='X',alpha=0.5)
         
     
@@ -147,8 +150,8 @@ def animate_several_pose2d_sequences(poses_list:ListOfTimedPoses,fps:int=30,
     )
     
     min_dist,i1,i2 = min_XY_dist(init_poses)
-    id1,p1 = poses_list[0][1][i1]
-    id2,p2 = poses_list[0][1][i2]
+    id1,p1 = keys[i1],poses_list[0][1][keys[i1]]
+    id2,p2 = keys[i2],poses_list[0][1][keys[i2]]
     
     agent_num_txtwidth = int(np.log10(len(init_poses)))+1
     
@@ -173,7 +176,7 @@ def animate_several_pose2d_sequences(poses_list:ListOfTimedPoses,fps:int=30,
         modified_artists = []
         
         poses_and_ids = poses_list[frame][1]
-        poses = [t[1] for t in poses_and_ids]
+        poses = [poses_and_ids[k] for k in keys]
         
         offsets = np.asarray([[p.x,p.y] for p in poses])
         angles = np.asarray([p.theta for p in poses])
@@ -184,8 +187,8 @@ def animate_several_pose2d_sequences(poses_list:ListOfTimedPoses,fps:int=30,
         
         
         min_dist,i1,i2 = min_XY_dist(poses)
-        id1,p1 = poses_and_ids[i1]
-        id2,p2 = poses_and_ids[i2]
+        id1,p1 = keys[i1],poses[i1]
+        id2,p2 = keys[i2],poses[i2]
         
         # Draw only if distance is relevant
         if not(no_legend):
@@ -268,7 +271,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser('Dubins plotter','Display a Dubins path planning result.')
     parser.add_argument('file',type=str,help='File from which to parse data')
     parser.add_argument('save',type=str,nargs='?',default=None,help='Optional argument: if set, specifies where to save the animation')
-    parser.add_argument('-p','--print',action='store_true',help='Show resulting animation if set')
+    parser.add_argument('-np','--no-print',dest='no_print',action='store_true',help='Hide resulting animation if set')
     parser.add_argument('--fps',type=int,help="Number of Frames Per Second when building animation. Default is 30",default=30)
     parser.add_argument('-c','--colormap',type=str,help="A Matplotlib colormap name, mapping aircraft ID to color. Default to a qualitative map",default=None)
     parser.add_argument('--no-legend',dest='no_legend',action='store_true',help="Remove the legend for a cleaner plot. Default to False", default=False)
@@ -278,7 +281,7 @@ if __name__ == '__main__':
     
     path = pathlib.Path(args.file)
     save = args.save
-    show_anim = args.print
+    show_anim = not(args.no_print)
     sample_num = args.sample_num
     if not(path.is_file()):
         print(f"{path} is not a file!! Exiting....")

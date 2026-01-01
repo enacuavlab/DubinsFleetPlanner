@@ -597,29 +597,31 @@ def list_all_formations(ncols:int,nlines:int,sep:float) -> list[Formation]:
     output.append(chevron_rightmost)
 
 
-    rectangle   = rectangle_formation(nlines,ncols,sep,0.).to_barycentric_coords()
-    output.append(rectangle)
-    co_rect     = rectangle_formation(nlines,ncols,sep,np.pi/2).to_barycentric_coords()
-    co_rect.name += "Bis"
-    output.append(co_rect)
-    diamond     = rectangle_formation(nlines,ncols,sep,np.pi/4).to_barycentric_coords()
-    diamond.name = "Diamond"
-    output.append(diamond)
-    diamond_pi3rd = rectangle_formation(nlines,ncols,sep,np.pi/3).to_barycentric_coords()
-    diamond_pi3rd.name += "Trd"
-    output.append(diamond_pi3rd)
+    # Get rid of square-like formations when line or column is 1 (devolve into a line formation as seen before)
+    if ncols > 1 and nlines > 1:
+        rectangle   = rectangle_formation(nlines,ncols,sep,0.).to_barycentric_coords()
+        output.append(rectangle)
+        co_rect     = rectangle_formation(nlines,ncols,sep,np.pi/2).to_barycentric_coords()
+        co_rect.name += "Bis"
+        output.append(co_rect)
+        diamond     = rectangle_formation(nlines,ncols,sep,np.pi/4).to_barycentric_coords()
+        diamond.name = "Diamond"
+        output.append(diamond)
+        diamond_pi3rd = rectangle_formation(nlines,ncols,sep,np.pi/3).to_barycentric_coords()
+        diamond_pi3rd.name += "Trd"
+        output.append(diamond_pi3rd)
 
 
-    staggered   = staggered_formation(nlines,ncols,sep,0.).to_barycentric_coords()
-    output.append(staggered)
-    stacked_chevrons = stacked_chevrons_formation(nlines,ncols,sep,2*sep).to_barycentric_coords()
-    output.append(stacked_chevrons)
-    stacked_right_echelon = stacked_echelon_formation(nlines,ncols,sep,2*sep).to_barycentric_coords()
-    stacked_right_echelon.name += "Right"
-    output.append(stacked_right_echelon)
-    stacked_left_echelon = stacked_echelon_formation(nlines,ncols,sep,2*sep,right=False).to_barycentric_coords()
-    stacked_left_echelon.name += "Left"
-    output.append(stacked_left_echelon)
+        staggered   = staggered_formation(nlines,ncols,sep,0.).to_barycentric_coords()
+        output.append(staggered)
+        stacked_chevrons = stacked_chevrons_formation(nlines,ncols,sep,2*sep).to_barycentric_coords()
+        output.append(stacked_chevrons)
+        stacked_right_echelon = stacked_echelon_formation(nlines,ncols,sep,2*sep).to_barycentric_coords()
+        stacked_right_echelon.name += "Right"
+        output.append(stacked_right_echelon)
+        stacked_left_echelon = stacked_echelon_formation(nlines,ncols,sep,2*sep,right=False).to_barycentric_coords()
+        stacked_left_echelon.name += "Left"
+        output.append(stacked_left_echelon)
     
     for f in output:
         try:
