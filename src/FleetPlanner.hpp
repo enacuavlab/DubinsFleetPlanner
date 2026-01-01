@@ -513,7 +513,7 @@ protected:
                 threads,shared_list,stats,min_sep,
                 Conflict_Map_T(),true);
 
-            if (verbosity > 1)
+            if (verbosity >= DubinsFleetPlanner_VERY_VERBOSE)
             {
                 oprint::append_rich_conflicts(datalog,timetag,r_conflicts,shared_list,stats,!first_log);
                 first_log = false;
@@ -635,7 +635,7 @@ public:
         precision_tol(_prec), maximal_relative_duration(_max_r_dur), verbosity(verb), datalog(std::cout) {}
 
     AbstractFleetPlanner(double _prec, double _max_r_dur) :
-        precision_tol(_prec), maximal_relative_duration(_max_r_dur), verbosity(1), datalog(std::cout) {}
+        precision_tol(_prec), maximal_relative_duration(_max_r_dur), verbosity(DubinsFleetPlanner_VERBOSE), datalog(std::cout) {}
 
     /**
      * @brief  Solve the pathfinding problem for given target times
@@ -669,7 +669,7 @@ public:
     ) const
     {
         // Timing
-        chrono::process_real_cpu_clock clk;
+        chrono::thread_clock clk;
         auto start = clk.now();
 
         // Init variables
@@ -734,7 +734,7 @@ public:
         {
             sol = std::nullopt;
 
-            if (verbosity > 0)
+            if (verbosity >= DubinsFleetPlanner_VERY_VERBOSE)
             {
                 std::cout   << "AC numbers : ";
                 for(uint id : nopaths_acs)
@@ -791,8 +791,8 @@ public:
     {
         // Timing
         chrono::milliseconds max_dur_s(static_cast<long int>(max_time_s*1000));
-        chrono::process_real_cpu_clock clk;
-        auto start = clk.now();
+        auto start = chrono::thread_clock::now();
+        auto max_date = start + max_dur_s;
 
         // Variables preprocessing
         uint N = starts.size();
@@ -804,7 +804,7 @@ public:
         extra.threads = std::max(threads,0);
         extra.possible_paths_num = max_path_num();
 
-        if (verbosity > 1)
+        if (verbosity >= DubinsFleetPlanner_VERBOSE)
         {
             std::cout << "Using " << extra.threads << " threads" << std::endl;
         }
@@ -839,8 +839,10 @@ public:
         SharedDubinsResults best_sol;
         double best_time = max_time;
 
-        while(iter_count < max_iters && samples.size() > 1 && (clk.now() - start) < max_dur_s)
+        while(iter_count < max_iters && samples.size() > 1 && chrono::thread_clock::now() < max_date)
         {
+            iter_count++;
+
             // Remove cases already done
             while(iter != samples.end() && iter->done)
             {
@@ -850,7 +852,7 @@ public:
             // If nothing left, regenerate
             if (iter == samples.end())
             {
-                if (verbosity > 1)
+                if (verbosity >= DubinsFleetPlanner_VERYVERY_VERBOSE)
                 {
                     std::cout << "Adding new samples, going from " << samples.size() << " to ";
                 }
@@ -861,14 +863,14 @@ public:
                 }
                 bool new_samples = weave_samples(samples,weave_iters,min_weave_delta);
 
-                if (verbosity > 1)
+                if (verbosity >= DubinsFleetPlanner_VERYVERY_VERBOSE)
                 {
                     std::cout << samples.size() << std::endl;
                 }
 
                 if (!new_samples)
                 {
-                    if (verbosity > 0)
+                    if (verbosity >= DubinsFleetPlanner_VERY_VERBOSE)
                     {
                         std::cout << "No new samples added; terminating early" << std::endl;
                     }
@@ -883,7 +885,7 @@ public:
 
             double target_time = iter->val;
 
-            if (verbosity > 0)
+            if (verbosity >= DubinsFleetPlanner_VERY_VERBOSE)
             {
                 std::cout   << "Starting iteration number " << iter_count 
                             << " (target time: " << target_time << " )" << std::endl;
@@ -912,7 +914,7 @@ public:
                 best_sol = sol.value();
                 best_time = target_time;
 
-                if (verbosity > 0)
+                if (verbosity >= DubinsFleetPlanner_VERY_VERBOSE)
                 {
                     std::cout << "Found a solution at " << best_time << std::endl;
                 }
@@ -921,14 +923,14 @@ public:
                 auto next = iter;
                 next++;
                 
-                if (verbosity > 0)
+                if (verbosity >= DubinsFleetPlanner_VERYVERY_VERBOSE)
                 {
                     std::cout << "Dropping points from " << samples.size();
                 }
 
                 samples.erase(next,samples.end());
 
-                if (verbosity > 0)
+                if (verbosity >= DubinsFleetPlanner_VERYVERY_VERBOSE)
                 {
                     std::cout << " to " << samples.size();
                 }
@@ -940,7 +942,7 @@ public:
                 }
                 bool new_samples = weave_samples(samples,weave_iters,min_weave_delta);
 
-                if (verbosity > 0)
+                if (verbosity >= DubinsFleetPlanner_VERYVERY_VERBOSE)
                 {
                     std::cout << " then weaved to " << samples.size() << std::endl;
                 }
@@ -952,16 +954,12 @@ public:
             {
                 iter->success = false;
             }
-
-            iter_count++;
             iter++;
         }
 
-        auto end = clk.now();
+        extra.duration = chrono::thread_clock::now() - start;
 
-        extra.duration = end - start;
-
-        if (verbosity > 0 && extra.duration > max_dur_s)
+        if (verbosity >= DubinsFleetPlanner_VERBOSE && extra.duration > max_dur_s)
         {
             std::cout << "WARNING: Timeout stop!" << std::endl;
         }
@@ -1043,7 +1041,8 @@ public:
             {
                 setup_base_model(ref_model,starts.size(),max_timeslots*max_path_num(),verbosity);
 
-                sol = find_solution_parallel<separation_function,distance_function>(possibilities,stats,min_sep,threads, verbosity > 1);
+                sol = find_solution_parallel<separation_function,distance_function>(
+                    possibilities,stats,min_sep,threads, verbosity >= DubinsFleetPlanner_VERY_VERBOSE);
             }
             else
             {
@@ -1063,7 +1062,7 @@ public:
         {
             sol = std::nullopt;
 
-            if (verbosity > 0)
+            if (verbosity >= DubinsFleetPlanner_VERY_VERBOSE)
             {
                 std::cout   << "AC numbers : ";
                 for(uint id : nopaths_acs)

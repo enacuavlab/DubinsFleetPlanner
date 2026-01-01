@@ -785,9 +785,20 @@ PathShape<LEFT> compute_params<LEFT>(const Pose3D& start, const Pose3D& end, dou
     output.y = start.y+oy;
     output.z = start.z;
 
+    double dz = end.z - start.z;
+    double length = abs(end.theta-start.theta)*turn_radius;
+
+    if (abs(dz) > v_speed)
+    {
+        output.p3 = (dz > 0) ? v_speed : -v_speed;
+    }
+    else
+    {
+        output.p3 = (length > 0) ? dz/(length/h_speed) : 0.;
+    }
+
     output.p1 = turn_radius;
     output.p2 = h_speed/turn_radius;
-    output.p3 = v_speed;
     output.p4 = start.theta-M_PI_2;
 
     return output;
@@ -806,9 +817,20 @@ PathShape<RIGHT> compute_params<RIGHT>(const Pose3D& start, const Pose3D& end, d
     output.y = start.y+oy;
     output.z = start.z;
 
+    double dz = end.z - start.z;
+    double length = abs(end.theta-start.theta)*turn_radius;
+
+    if (abs(dz) > v_speed)
+    {
+        output.p3 = (dz > 0) ? v_speed : -v_speed;
+    }
+    else
+    {
+        output.p3 = (length > 0) ? dz/(length/h_speed) : 0.;
+    }
+
     output.p1 = turn_radius;
     output.p2 = -h_speed/turn_radius;
-    output.p3 = v_speed;
     output.p4 = start.theta+M_PI_2;
 
     return output;
@@ -828,17 +850,27 @@ PathShape<STRAIGHT> compute_params<STRAIGHT>(const Pose3D& start, const Pose3D& 
     dz = end.z - start.z;
 
     double d_norm = std::sqrt(dx*dx + dy*dy);
+
+    if (abs(dz) > v_speed)
+    {
+        output.p3 = (dz > 0) ? v_speed : -v_speed;
+    }
+    else
+    {
+        output.p3 = dz/d_norm;
+    }
+
+    
     if (d_norm < 1e-9)
     {
         output.p1 = h_speed;
         output.p2 = 0;
-        output.p3 = v_speed;
+        output.p3 = 0;
     }
     else
     {
         output.p1 = h_speed*dx/d_norm;
         output.p2 = h_speed*dy/d_norm;
-        output.p3 = v_speed;
     }
 
     output.p4 = 0.;

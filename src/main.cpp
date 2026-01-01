@@ -80,6 +80,7 @@ struct program_arguments
     bool legacy;
     bool line_fit;
     int max_solver_time;
+    bool recompute;
 };
 
 
@@ -141,6 +142,10 @@ bool process_command_line(int argc, char* argv[], program_arguments& parsed_args
 
     ("max-time,T"   , po::value<int>(&parsed_args.max_solver_time)->default_value(120)
                     , "Maximal allowed runtime for the solver, in seconds. Default to 120s.")
+
+    ("recompute,R"  , po::bool_switch(&parsed_args.recompute)->default_value(false)
+                    , "Force overwriting output file. Otherwise, skip cases where an output file is found. "
+                      "Only relevant when parsing cases from directories. Default to False")
     ;
     
     // Specify positional arguments
@@ -209,7 +214,7 @@ void write_result(const fs::path& out_filepath, vector<std::shared_ptr<Dubins>>&
     // Put to lowercase
     lower_string(ext);
 
-    if (args.verbosity > 0)
+    if (args.verbosity >= DubinsFleetPlanner_VERBOSE)
     {
         std::cout << "Writing result at: " << out_filepath.string() << std::endl << std::endl;
     }
@@ -236,7 +241,7 @@ std::tuple<int,SharedDubinsResults,ExtraPPResults> solve_case(const fs::path& in
     ExtraPPResults extra;
     extra.case_name = input_path.string();
 
-    if (args.verbosity > 0)
+    if (args.verbosity >= DubinsFleetPlanner_VERBOSE)
     {
         std::cout << "Reading file: " << input_path << std::endl;
     }
@@ -319,9 +324,13 @@ std::tuple<int,SharedDubinsResults,ExtraPPResults> solve_case(const fs::path& in
                 args.verbosity, output_log);
         }
     }
+
+    auto start = chrono::thread_clock::now(boost::throws());
     
     SharedDubinsResults sols = planner->solve<Dubins::are_XY_separated,Dubins::compute_XY_distance>(extra,starts,ends,stats,args.separation,
             dt,args.wind_x,args.wind_y,args.max_iters,args.weave_iters,args.min_weave_dist,args.thread_num,args.max_solver_time);
+
+    extra.duration = chrono::thread_clock::now(boost::throws()) - start;
 
     output_log << "]";
     
@@ -425,7 +434,18 @@ int main(int argc, char *argv[])
         }
 
         fs::path summary_file_path = out_path / "summary.csv";
-        std::ofstream summary_file(summary_file_path);
+        std::ofstream summary_file;
+        bool add_header = true;
+
+        if (fs::exists(summary_file_path) && !args.recompute)
+        {
+            summary_file = std::ofstream(summary_file_path,std::ios_base::app | std::ios_base::out);
+            add_header = false;
+        }
+        else
+        {
+            summary_file = std::ofstream(summary_file_path,std::ios_base::out);
+        }
 
         if (summary_file.bad())
         {
@@ -435,7 +455,10 @@ int main(int argc, char *argv[])
             exit(DubinsFleetPlanner_PARSING_FAILURE);
         }
 
-        summary_file << ExtraPPResults::CSV_header() << std::endl;
+        if (add_header)
+        {
+            summary_file << ExtraPPResults::CSV_header() << std::endl;
+        }
         
         for(auto srcfile : fs::directory_iterator(src_path))
         {
@@ -447,6 +470,15 @@ int main(int argc, char *argv[])
 
                 out_filepath /= srcfile.path().filename();
                 out_filepath.replace_extension(ext);
+
+                if (!args.recompute && fs::exists(out_filepath))
+                {
+                    if (args.verbosity >= DubinsFleetPlanner_VERBOSE)
+                    {
+                        std::cout << "File: " << srcfile << " is already solved at " << out_filepath << std::endl;
+                    }
+                    continue;
+                }
 
                 auto __ret = solve_case(srcfile,out_filepath,args);
 

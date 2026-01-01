@@ -35,3 +35,9 @@
 #define DubinsFleetPlanner_SOLVING_SUCCESS 0
 #define DubinsFleetPlanner_SOLVING_FAILURE 1
 #define DubinsFleetPlanner_PARSING_FAILURE 2
+
+#define DubinsFleetPlanner_NO_VERBOSE 0
+#define DubinsFleetPlanner_SILENT DubinsFleetPlanner_NO_VERBOSE
+#define DubinsFleetPlanner_VERBOSE          1
+#define DubinsFleetPlanner_VERY_VERBOSE     2
+#define DubinsFleetPlanner_VERYVERY_VERBOSE 3

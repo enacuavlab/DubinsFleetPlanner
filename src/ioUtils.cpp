@@ -572,8 +572,7 @@ void to_json_ModernTrajectory(json& j,
 
     json j_path;
     
-    j_path["total_length"]      = path->get_length();
-    j_path["sections_count"]    = path->get_all_sections().size();
+    j_path["total_length"] = path->get_length();
 
     json j_start,j_end;
     to_json(j_start,path->get_start());
@@ -636,6 +635,7 @@ void to_json_ModernTrajectory(json& j,
         j_path["sections"] = sections;
     }
 
+    j_path["sections_count"] = sections.size();
     j["path"] = j_path;
 }
 

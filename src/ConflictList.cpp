@@ -90,7 +90,7 @@ void setup_base_model(Highs& highs, uint AC_count, uint max_paths_count, int ver
     highs.setOptionValue("mip_abs_gap", 1-1e-5); // Since all variables in the objective are binary, it should stop when the absolute gap is below 1
     // highs.setOptionValue('random_seed', SEED)
 
-    if (verbosity > 1)
+    if (verbosity >= DubinsFleetPlanner_VERY_VERBOSE)
     {
         highs.setOptionValue("log_to_console",true);
     }
