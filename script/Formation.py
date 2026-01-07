@@ -28,7 +28,29 @@ from Dubins import Pose3D
 from scipy.spatial import distance_matrix
 
 
+#################### Util ####################
+
+def quasi_square_upper(n:int) -> tuple[int,int]:
+    lower_sqrt = int(np.sqrt(n))
+    upper_sqrt = lower_sqrt+1
+    
+    lower_square = lower_sqrt*lower_sqrt
+    middle_quasi_square = lower_sqrt*upper_sqrt
+    
+    if lower_square == n:
+        return lower_sqrt,lower_sqrt
+    elif middle_quasi_square >= n:
+        return upper_sqrt,lower_sqrt
+    else:
+        return upper_sqrt,upper_sqrt
+
+#################### Formation objects ####################
+
 class SidePoint(enum.Enum):
+    """
+    Enum representing three locations on a serie of values:
+    minimum, middle and maximum.
+    """
     MIN = -1
     MID = 0
     MAX = 1
@@ -46,6 +68,10 @@ class SidePoint(enum.Enum):
     
 @dataclass
 class Corner:
+    """
+    Specify a junction point for a 3D point cloud by specifying a location with respect to
+    the X,Y and Z values.
+    """
     x_side:SidePoint
     y_side:SidePoint
     z_side:SidePoint

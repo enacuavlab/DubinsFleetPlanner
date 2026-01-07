@@ -25,8 +25,8 @@ def minmax_speeds(stats:list[ACStats]) -> tuple[float,float]:
     return min(s.airspeed for s in stats),max(s.airspeed for s in stats)
 
 def problem_formation_transition(formation_start:Formation, formation_end:Formation, move:Pose3D, stats:list[ACStats]) -> list[AC_PP_Problem]:
-    assert len(formation_start.positions) <= len(stats)
-    assert len(formation_end.positions) <= len(stats)
+    assert len(formation_start.positions) >= len(stats)
+    assert len(formation_end.positions) >= len(stats)
     
     output = []
     

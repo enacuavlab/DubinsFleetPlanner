@@ -32,16 +32,15 @@ from Formation import Formation
 
 __CSV_problem_statement_header = "ac_id,start_x,start_y,start_z,start_theta,end_x,end_y,end_z,end_theta,airspeed,climb,turn_radius,dt".split(',')
 
-# Compact way to specify an individual problem (ie a line of a CSV specifying a path planning problem)
-# ACStats holds ac_id,airspeed,climb and turn_radius.
-# The first Pose3D is for start, the second for end.
-# The extra float is for dt, the time difference with respect to the previous aircraft. 
 @dataclasses.dataclass
 class AC_PP_Problem:
-    stats:ACStats
-    start:Pose3D
-    end:Pose3D
-    dt:float=0.
+    """
+    Compact way to specify an individual problem (ie a line of a CSV specifying a path planning problem)
+    """
+    stats:ACStats   # Holds ac_id,airspeed,climb and turn_radius.
+    start:Pose3D    # Start pose
+    end:Pose3D      # End pose
+    dt:float=0.     # Time difference with respect to the previous aircraft
     
     @staticmethod
     def header() -> typing.Sequence[str]:
