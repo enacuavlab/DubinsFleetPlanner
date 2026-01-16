@@ -241,7 +241,12 @@ def animate_several_pose2d_sequences(poses_list:ListOfTimedPoses,fps:int=30,
     
     if save_animation is not None:
         print(f"Saving file to '{save_animation}' ...",end='',flush=True)
-        ani.save(save_animation,fps=fps)
+        if ".gif" in save_animation or ".webp" in save_animation or ".apng" in save_animation:
+            ani.save(save_animation,fps=fps,writer="pillow")
+        elif ".webm" in save_animation:
+            ani.save(save_animation,fps=fps,writer="imagemagick",extra_args=["-quality", "100"])
+        else:
+            ani.save(save_animation,fps=fps)
         print(" Done!")
     
     if show_animation:

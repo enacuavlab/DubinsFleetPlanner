@@ -161,7 +161,7 @@ if __name__ == '__main__':
         this_case.N      = n
         ncols,nlines     = quasi_square_upper(n)
         print(n,ncols,nlines)
-        this_case.output = str((output_dir / (this_case.basename+str(ncols)+"x"+str(nlines))).resolve())
+        this_case.output = str((output_dir / (this_case.basename+str(n)+"-"+str(ncols)+"x"+str(nlines))).resolve())
         this_case.solver = args.solver
         
         this_case.processes = args.processes
