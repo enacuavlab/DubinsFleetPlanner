@@ -134,7 +134,7 @@ public:
         return std::vector({fst,snd,trd});
     }
 
-    constexpr const std::string get_type_abbr() const
+    constexpr const std::string get_type_abbr( [[maybe_unused]] bool b=false) const
     {
         return class_abbr_name;
     }

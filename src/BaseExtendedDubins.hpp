@@ -158,19 +158,28 @@ public:
         return output_hash;
     }
 
-    const std::string get_type_abbr() const
+    const std::string get_type_abbr(bool length_info=false) const
     {
         std::string output;
         if (std::abs(begin_length) > DubinsFleetPlanner_PRECISION)
         {
-            output += std::string(1,DubinsMoveNames[beginMove][0]) + std::format(" {:.2f} -",begin_length);
+            output += std::string(1,DubinsMoveNames[beginMove][0]);
+            if (length_info)
+            {
+                output += std::format(" {:.2f}",begin_length);
+            }
+            output += " -";
         }
 
         output += underlying.get_type_abbr();
 
         if (std::abs(end_length) > DubinsFleetPlanner_PRECISION)
         {
-            output += std::string("- ") + std::string(1,DubinsMoveNames[endMove][0]) + std::format(" {:.2f}",end_length);
+            output += std::string("- ") + std::string(1,DubinsMoveNames[endMove][0]);
+            if (length_info)
+            {
+                output += std::format(" {:.2f}",end_length);
+            }
         }
 
         return output;

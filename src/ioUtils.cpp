@@ -537,9 +537,9 @@ void DubinsPP::OutputPrinter::append_rich_conflicts(std::ostream& s,
 
         json j_conflict = json{
             {"AC_id1"       , stats[ac_id1].id},
-            {"Path_type1"   , possibilities[ac_id1][path_id1]->get_type_abbr()},
+            {"Path_type1"   , possibilities[ac_id1][path_id1]->get_type_abbr(false)},
             {"AC_id2"       , stats[ac_id2].id},
-            {"Path_type2"   , possibilities[ac_id2][path_id2]->get_type_abbr()},
+            {"Path_type2"   , possibilities[ac_id2][path_id2]->get_type_abbr(false)},
             {"min_loc"      , std::get<4>(v)},
             {"min_val"      , std::get<5>(v)}
         };

@@ -56,7 +56,7 @@ void check_all_dubins_pairs(
         for(size_t i2 = 0; i2 < ds2.size(); i2++)
         {
             auto& d2 = ds2[i2];
-            std::string msg = expect_msg + " using 1: " + d1->get_type_abbr() + " and 2: " + d2->get_type_abbr();
+            std::string msg = expect_msg + " using 1: " + d1->get_type_abbr(false) + " and 2: " + d2->get_type_abbr(false);
             double duration = std::min(d1->get_length()/p1_speed,d2->get_length()/p2_speed);
             sample_test_dubins_separation<TEST_SAMPLES_COUNT>(*d1,*d2,p1_speed,p2_speed,duration,min_sep,tol,rec,msg,no_test);
         }

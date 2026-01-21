@@ -101,7 +101,7 @@ public:
     /****** Setters and getters ******/
 
     // virtual constexpr const std::string& get_type_name() const = 0;
-    virtual const std::string get_type_abbr() const = 0;
+    virtual const std::string get_type_abbr(bool) const = 0;
     virtual const std::vector<DubinsMove> get_all_sections() const = 0;
 
     virtual size_t type_hash() const = 0;
