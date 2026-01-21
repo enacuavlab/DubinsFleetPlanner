@@ -72,7 +72,7 @@ struct program_arguments
     vector<double> length_extensions;
     int thread_num;
     int max_iters,weave_iters;
-    double min_weave_dist;
+    double min_weave_dist,min_weave_dist_percent;
     int samples;
     int verbosity;
     double precision;
@@ -129,6 +129,8 @@ bool process_command_line(int argc, char* argv[], program_arguments& parsed_args
                     ,"Number of samples to add when resampling between two points. Default to 2.")
     ("weave-dist,wd", po::value<double>(&parsed_args.min_weave_dist)->default_value(0.1)
                     ,"Minimal value required between two time-points for ressampling between them (no ressampling if below). Default to 0.1")
+    ("weave-dist-percent,wdp", po::value<double>(&parsed_args.min_weave_dist_percent)->default_value(1)
+                    ,"Minimal value required between two time-points for ressampling between them as a percentage of the maximal duration (no ressampling if below). Default to 1")
 
     ("help", "Produce help message")
     ("verbose,v"    , po::value<int>(&parsed_args.verbosity)->default_value(1)
@@ -140,8 +142,8 @@ bool process_command_line(int argc, char* argv[], program_arguments& parsed_args
     ("line,l"       , po::bool_switch(&parsed_args.line_fit)->default_value(false)
                     , "Add paths with minimal turn radius and fitted extra straights at start and end")
 
-    ("max-time,T"   , po::value<int>(&parsed_args.max_solver_time)->default_value(120)
-                    , "Maximal allowed runtime for the solver, in seconds. Default to 120s.")
+    ("max-time,T"   , po::value<int>(&parsed_args.max_solver_time)->default_value(60)
+                    , "Maximal allowed runtime for the solver, in seconds. Default to 60s.")
 
     ("recompute,R"  , po::bool_switch(&parsed_args.recompute)->default_value(false)
                     , "Force overwriting output file. Otherwise, skip cases where an output file is found. "
@@ -328,7 +330,7 @@ std::tuple<int,SharedDubinsResults,ExtraPPResults> solve_case(const fs::path& in
     auto start = chrono::thread_clock::now(boost::throws());
     
     SharedDubinsResults sols = planner->solve<Dubins::are_XY_separated,Dubins::compute_XY_distance>(extra,starts,ends,stats,args.separation,
-            dt,args.wind_x,args.wind_y,args.max_iters,args.weave_iters,args.min_weave_dist,args.thread_num,args.max_solver_time);
+            dt,args.wind_x,args.wind_y,args.max_iters,args.weave_iters,args.min_weave_dist,args.min_weave_dist_percent,args.thread_num,args.max_solver_time);
 
     extra.duration = chrono::thread_clock::now(boost::throws()) - start;
 
@@ -341,7 +343,7 @@ std::tuple<int,SharedDubinsResults,ExtraPPResults> solve_case(const fs::path& in
         std::cerr << "WARNING: Could not find a solution; retrying with SEPARATION DISABLED" << std::endl;
         
         sols = planner->solve<Dubins::are_XY_separated,Dubins::compute_XY_distance>(_backup,starts,ends,stats,0.,
-            dt,args.wind_x,args.wind_y,args.max_iters,args.weave_iters,args.min_weave_dist,args.thread_num,args.max_solver_time);
+            dt,args.wind_x,args.wind_y,args.max_iters,args.weave_iters,args.min_weave_dist,args.min_weave_dist_percent,args.thread_num,args.max_solver_time);
     }
         
     if (!sols.has_value())

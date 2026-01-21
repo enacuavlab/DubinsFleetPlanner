@@ -69,12 +69,13 @@ public:
     uint possible_paths_num;
     double initial_path_time;
     double final_path_time;
+    double worst_improvement_rate;
 
     std::string format() const
     {
         return std::format(
             "Case: {}\n -> {}\n  Found path of duration {} (baseline is {})"
-            "\n Performed {} iterations in {:.4f} ms\n Used {} threads; {} possible paths per AC",
+            "\n Performed {} iterations in {:.4f} ms\n Used {} threads; {} possible paths per AC; {} Worst rate measured (time unit per milliseconds of computation)",
             case_name, 
             (success) ? ((false_positive) ? "FALSE POSITIVE!" : "Success!") : "FAILURE",
             final_path_time,
@@ -82,19 +83,20 @@ public:
             iterations,
             static_cast<double>(duration.count())/1000000.,
             threads,
-            possible_paths_num);
+            possible_paths_num,
+            worst_improvement_rate);
     }
 
 
     static const std::string CSV_header()
     {
-        return "Test input;Success;False positive;Iterations;Duration(ns);Threads;Possible paths;Initial guessed time;Final optained time";
+        return "Test input;Success;False positive;Iterations;Duration(ns);Threads;Possible paths;Initial guessed time;Final obtained time;Worst rate(u/ms)";
     }
 
 
     std::string as_CSV() const
     {
-        return std::format("{};{};{};{};{};{};{};{};{}",
+        return std::format("{};{};{};{};{};{};{};{};{};{}",
             case_name,
             success,
             false_positive,
@@ -103,7 +105,8 @@ public:
             threads,
             possible_paths_num,
             initial_path_time,
-            final_path_time
+            final_path_time,
+            worst_improvement_rate
         );
     }
 };
@@ -784,9 +787,9 @@ public:
         const std::vector<double>& delta_t,
         double wind_x = 0., double wind_y = 0.,
         uint max_iters = 300, uint weave_iters = 2,
-        double min_weave_delta =1.,
+        double min_weave_delta =1., double min_weave_frac =0.01,
         int threads = -1,
-        int max_time_s = 120
+        int max_time_s = 60
     ) const
     {
         // Timing
@@ -832,12 +835,17 @@ public:
 
         double max_time = min_time * maximal_relative_duration;
 
+        min_weave_delta = std::max(min_weave_delta,min_weave_frac * max_time);
+
         std::list<SampleCase> samples = generate_linspace(min_time,max_time,weave_iters,true,true);
         auto iter = samples.begin();
 
         uint iter_count = 0;
         SharedDubinsResults best_sol;
         double best_time = max_time;
+
+        auto solve_timepoint = start;
+        double solver_rate = INFINITY;
 
         while(iter_count < max_iters && samples.size() > 1 && chrono::thread_clock::now() < max_date)
         {
@@ -912,6 +920,14 @@ public:
                 iter->success = true;
 
                 best_sol = sol.value();
+
+                auto now = chrono::thread_clock::now();
+                chrono::nanoseconds dt = now - solve_timepoint;
+                double rate = (best_time - target_time)/static_cast<double>(dt.count()/1e6);
+
+                solver_rate = std::min(solver_rate,rate);
+
+                solve_timepoint = now;
                 best_time = target_time;
 
                 if (verbosity >= DubinsFleetPlanner_VERY_VERBOSE)
@@ -966,6 +982,7 @@ public:
 
         extra.success = best_sol.has_value();
 
+        extra.worst_improvement_rate = solver_rate;
         extra.iterations        = iter_count;
         extra.final_path_time   = best_time;
         return best_sol;
