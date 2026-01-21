@@ -557,47 +557,46 @@ def stacked_echelon_formation(lines:int,columns:int,chev_sep:float,stack_sep:flo
     return output_formation
 
 
-def list_all_formations(ncols:int,nlines:int,sep:float) -> list[Formation]:
+def list_all_formations(ncols:int,nlines:int,n:int,sep:float) -> list[Formation]:
     output:list[Formation] = []
     
-    N = ncols*nlines
     
     ratio = min(nlines,ncols)/max(nlines,ncols)
     
     ratio = ratio if ratio < 0.5 else 1-ratio
     
-    short = int(N*ratio)
-    long = N - short
+    short = int(n*ratio)
+    long = n - short
     
     if short == 0:
         short = 1
         long -= 1
     
-    circ_clockwise = circle_formation_from_sep(N,sep,True)
+    circ_clockwise = circle_formation_from_sep(n,sep,True)
     output.append(circ_clockwise)
-    circ_anticlock = circle_formation_from_sep(N,sep,False)
+    circ_anticlock = circle_formation_from_sep(n,sep,False)
     output.append(circ_anticlock)
     
     
-    hline       = line_formation(N,sep)
+    hline       = line_formation(n,sep)
     output.append(hline)
-    column      = column_formation(N,sep)
+    column      = column_formation(n,sep)
     output.append(column)
-    right_ech   = echelon_right_formation(N,sep)
+    right_ech   = echelon_right_formation(n,sep)
     output.append(right_ech)
-    left_ech    = echelon_left_formation(N,sep)
+    left_ech    = echelon_left_formation(n,sep)
     output.append(left_ech)
     
     
-    right_ech_trd   = echelon_right_formation(N,sep,np.pi/3)
+    right_ech_trd   = echelon_right_formation(n,sep,np.pi/3)
     right_ech_trd.name += "Trd"
     output.append(right_ech_trd)
-    left_ech_trd    = echelon_left_formation(N,sep,np.pi/3)
+    left_ech_trd    = echelon_left_formation(n,sep,np.pi/3)
     left_ech_trd.name += "Trd"
     output.append(left_ech_trd)
 
 
-    vee     = v_formation(N,sep)
+    vee     = v_formation(n,sep)
     output.append(vee)
     # vee_p1  = v_formation(N+1,sep)
     # vee_p1.name += "PlusOne"
@@ -610,7 +609,7 @@ def list_all_formations(ncols:int,nlines:int,sep:float) -> list[Formation]:
     output.append(vee_rightmost)
 
 
-    chevron     = chevron_formation(N,sep)
+    chevron     = chevron_formation(n,sep)
     output.append(chevron)
     # chevron_p1  = chevron_formation(N+1,sep)
     # chevron_p1.name += "PlusOne"
@@ -648,14 +647,6 @@ def list_all_formations(ncols:int,nlines:int,sep:float) -> list[Formation]:
         stacked_left_echelon = stacked_echelon_formation(nlines,ncols,sep,2*sep,right=False).to_barycentric_coords()
         stacked_left_echelon.name += "Left"
         output.append(stacked_left_echelon)
-    
-    for f in output:
-        try:
-            assert f.agent_num == N
-        except AssertionError as e:
-            print(f.name)
-            print(N,f.agent_num)
-            raise e
 
     return output
 
@@ -732,7 +723,7 @@ if __name__ == '__main__':
     
     ## Formation generation
     if args.ftest:
-        formations = list_all_formations(ncols,nlines,sep)
+        formations = list_all_formations(ncols,nlines,N,sep)
         
         n_formations = len(formations)
         

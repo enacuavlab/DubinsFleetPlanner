@@ -288,7 +288,7 @@ def main(args):
     
     print(ncols,nlines)
     
-    all_formations = list_all_formations(ncols,nlines,endpoint_dist)
+    all_formations = list_all_formations(ncols,nlines,N,endpoint_dist)
     formations_std_poses:list[list[Pose3D]] = []
     formations_shifted_poses:list[list[Pose3D]] = []
     for f in all_formations:

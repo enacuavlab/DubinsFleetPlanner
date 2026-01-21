@@ -139,7 +139,7 @@ if __name__ =='__main__':
     
     stats = [ACStats(i,airspeed,climb,turn) for i in range(N+1)]
     
-    all_formations = list_all_formations(ncols,nlines,sep)
+    all_formations = list_all_formations(ncols,nlines,N,sep)
     
     dir_path = pathlib.Path(dest).parent
     if not(dir_path.exists()):
