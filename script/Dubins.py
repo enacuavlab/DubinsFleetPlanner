@@ -36,6 +36,11 @@ class DubinsMove(IntEnum):
     def abbr(self) -> str:
         return self.name[0]
 
+class Pose2D(typing.NamedTuple):
+    x:float
+    y:float
+    angle:float
+
 @dataclass
 class Pose3D:
     x:float # X coordinate
@@ -53,9 +58,15 @@ class Pose3D:
     def asdict(self) -> dict[str,float]:
         return asdict(self)
     
+    def astuple(self) -> tuple[float,float,float,float]:
+        return (self.x,self.y,self.z,self.theta)
+    
     @staticmethod
     def undefined() -> Pose3D:
         return Pose3D(np.nan,np.nan,np.nan,np.nan)
+    
+    def to2D(self) -> Pose2D:
+        return Pose2D(self.x,self.y,self.theta)
         
 def poses_dist(p1:Pose3D,p2:Pose3D) -> float:
     dx = p1.x - p2.x
@@ -92,6 +103,210 @@ def min_XY_dist(poses:list[Pose3D]) -> tuple[float,int,int]:
 TimedPosesLine = tuple[float,dict[int,Pose3D]]
 ListOfTimedPoses = list[TimedPosesLine]
 DictOfPoseTrajectories = dict[int,list[tuple[float,Pose3D]]]
+
+
+
+################ Base Dubins generation ################
+
+def mod2pi(theta:float) -> float:
+    return np.mod(theta, 2.0 * np.pi)
+
+def central_angle(theta:float) -> float:
+    output = np.fmod(theta, 2*np.pi)
+    
+    if output > np.pi:
+        return output - 2*np.pi
+    
+    if output < -np.pi:
+        return output + 2*np.pi
+    
+    return output
+
+def transform(start:Pose2D, goal:Pose2D) -> tuple[float,float,float]:
+    x0, y0, th0 = start
+    x1, y1, th1 = goal
+
+    dx = x1 - x0
+    dy = y1 - y0
+
+    phi = np.arctan2(dy, dx)
+    d = np.hypot(dx, dy)
+
+    alpha = mod2pi(th0 - phi)
+    beta  = mod2pi(th1 - phi)
+
+    return d, alpha, beta
+
+
+def LSL(start:Pose2D, goal:Pose2D) -> typing.Optional[tuple[float,float,float]]:
+    d, a, b = transform(start, goal)
+
+    sa, sb = np.sin(a), np.sin(b)
+    ca, cb = np.cos(a), np.cos(b)
+
+    tmp = d**2 + 2 - 2*np.cos(a - b) + 2*d*(sa - sb)
+    if tmp < 0:
+        return None
+
+    u = np.sqrt(tmp)
+    theta = np.arctan2(cb - ca, d + sa - sb)
+
+    t = mod2pi(theta - a)
+    v = mod2pi(b - theta)
+
+    return t, u, v
+
+def RSR(start:Pose2D, goal:Pose2D) -> typing.Optional[tuple[float,float,float]]:
+    d, a, b = transform(start, goal)
+
+    sa, sb = np.sin(a), np.sin(b)
+    ca, cb = np.cos(a), np.cos(b)
+
+    tmp = d**2 + 2 - 2*np.cos(a - b) + 2*d*(sb - sa)
+    if tmp < 0:
+        return None
+
+    u = np.sqrt(tmp)
+    theta = np.arctan2(ca - cb, d - sa + sb)
+
+    t = mod2pi(a - theta)
+    v = mod2pi(theta - b)
+
+    return t, u, v
+
+def LSR(start:Pose2D, goal:Pose2D) -> typing.Optional[tuple[float,float,float]]:
+    d, a, b = transform(start, goal)
+
+    sa, sb = np.sin(a), np.sin(b)
+    ca, cb = np.cos(a), np.cos(b)
+
+    tmp = d**2 - 2 + 2*np.cos(a - b) + 2*d*(sa + sb)
+    if tmp < 0:
+        return None
+
+    u = np.sqrt(tmp)
+    theta = np.arctan2(-ca - cb, d + sa + sb)
+
+    t = mod2pi(theta - a - np.atan2(-2,u))
+    v = mod2pi(theta - b - np.atan2(-2,u))
+
+    return t, u, v
+
+def RSL(start:Pose2D, goal:Pose2D) -> typing.Optional[tuple[float,float,float]]:
+    d, a, b = transform(start, goal)
+
+    sa, sb = np.sin(a), np.sin(b)
+    ca, cb = np.cos(a), np.cos(b)
+
+    tmp = d**2 - 2 + 2*np.cos(a - b) - 2*d*(sa + sb)
+    if tmp < 0:
+        return None
+
+    u = np.sqrt(tmp)
+    theta = np.arctan2(ca + cb, d - sa - sb)
+
+    t = mod2pi(a - theta + np.atan2(2,u))
+    v = mod2pi(b - theta + np.atan2(2,u))
+
+    return t, u, v
+
+def RLR(start:Pose2D, goal:Pose2D) -> typing.Optional[tuple[float,float,float]]:
+    d, a, b = transform(start, goal)
+
+    sa, sb = np.sin(a), np.sin(b)
+    ca, cb = np.cos(a), np.cos(b)
+
+    tmp = (6 - d**2 + 2*np.cos(a - b) + 2*d*(sa - sb)) / 8
+    if np.abs(tmp) > 1:
+        return None
+
+    u = mod2pi(2*np.pi - np.arccos(tmp))
+    theta = np.arctan2(ca - cb, d - sa + sb)
+
+    t = mod2pi(a - theta + u / 2)
+    v = mod2pi(a - b - t + u)
+
+    return t, u, v
+
+def LRL(start:Pose2D, goal:Pose2D) -> typing.Optional[tuple[float,float,float]]:
+    d, a, b = transform(start, goal)
+
+    sa, sb = np.sin(a), np.sin(b)
+    ca, cb = np.cos(a), np.cos(b)
+
+    tmp = (6 - d**2 + 2*np.cos(a - b) + 2*d*(sb - sa)) / 8
+    if np.abs(tmp) > 1:
+        return None
+
+    u = mod2pi(2*np.pi - np.arccos(tmp))
+    theta = np.arctan2(ca - cb, d + sa - sb)
+
+    t = mod2pi(-a - theta + u / 2)
+    v = mod2pi(b - a - t + u)
+
+    return t, u, v
+
+def SRS(start:Pose2D, goal:Pose2D) -> typing.Optional[tuple[float,float,float]]:
+    d, a, b = transform(start, goal)
+    
+    da = central_angle(a - b)
+    if np.isclose(da,0.0):
+        return None
+    
+    cs = d * abs(np.sin(b)/np.sin(da))
+    ec = d * abs(np.sin(a)/np.sin(da))
+    
+    
+    first_l = cs - 1/np.tan((np.pi-da)/2)
+    second_l = mod2pi(a - b)
+    third_l = ec - 1/np.tan((np.pi-da)/2)
+    
+    if first_l < 0 or third_l < 0:
+        return None
+    else:
+        return first_l,second_l,third_l
+    
+def SLS(start:Pose2D, goal:Pose2D) -> typing.Optional[tuple[float,float,float]]:
+    d, a, b = transform(start, goal)
+    
+    da = central_angle(b - a)
+    if np.isclose(da,0.0):
+        return None
+    
+    cs = d * np.abs(np.sin(b)/np.sin(da))
+    ec = d * np.abs(np.sin(a)/np.sin(da))
+    
+    first_l = cs - 1/np.tan((np.pi-da)/2)
+    second_l = mod2pi(b - a)
+    third_l = ec - 1/np.tan((np.pi-da)/2)
+    
+    if first_l < 0 or third_l < 0:
+        return None
+    else:
+        return first_l,second_l,third_l
+    
+    
+def all_paths(start:Pose2D, goal:Pose2D) -> tuple[\
+                                typing.Optional[tuple[float,float,float]],\
+                                typing.Optional[tuple[float,float,float]],\
+                                typing.Optional[tuple[float,float,float]],\
+                                typing.Optional[tuple[float,float,float]],\
+                                typing.Optional[tuple[float,float,float]],\
+                                typing.Optional[tuple[float,float,float]],\
+                                typing.Optional[tuple[float,float,float]],\
+                                typing.Optional[tuple[float,float,float]]]:
+    """Returns paths component lengths (or None is solution does not exists) for
+    LSL, RSR, LSR, RSL, RLR, LRL, SRS, SLS in that order
+    """
+
+    return (LSL(start,goal),
+            RSR(start,goal),
+            LSR(start,goal),
+            RSL(start,goal),
+            RLR(start,goal),
+            LRL(start,goal),
+            SRS(start,goal),
+            SLS(start,goal),)
 
 #################### Paths elements ####################
 
@@ -161,6 +376,38 @@ class BasicPath:
         output["type"] = str(output["type"])
         return output
     
+    @staticmethod
+    def from_2D(type: DubinsMove, length: float, start:Pose2D, radius:float, speed:float=1.) -> BasicPath:
+        dx = np.cos(start.angle)
+        vx = dx*speed
+        
+        dy = np.sin(start.angle)
+        vy = dy*speed
+        
+        if type is DubinsMove.STRAIGHT:
+            return BasicPath(type,length,
+                             start.x,start.y,0.,
+                             vx,vy,
+                             0.,0.)
+            
+        else:
+            z = 0.
+            p1 = radius
+            p2 = speed/radius
+            p3 = 0.
+            
+            if type is DubinsMove.LEFT:
+                cx = start.x - dy*radius
+                cy = start.y + dx*radius
+            else:
+                cx = start.x + dy*radius
+                cy = start.y - dx*radius
+                p2 *= -1
+            
+            p4 = np.atan2(start.y - cy, start.x - cx)
+            return BasicPath(type,length,
+                             cx,cy,0.,
+                             p1,p2,p3,p4)
     
     
 @dataclass

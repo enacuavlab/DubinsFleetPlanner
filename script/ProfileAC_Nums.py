@@ -33,13 +33,15 @@ class SolveOneArgs:
     basename:str
     solver:str
     
-    dist_mult:float     = 1.1
+    dist_mult:float     = 1.5
+    rng_dist_mult:float = 1.5
     airspeed:float      = 1.
     climb:float         = 1.
     turn_radius:float   = 1.
     
     x_range:tuple[float,float] = (0,1)
     y_range:tuple[float,float] = (0,1)
+    xshift:float               = 1.
     
     d_range:tuple[float,float] = (9,11)
     
@@ -64,8 +66,11 @@ StandardUAVs = SolveOneArgs(
     'DubinsFleetPlanner',
     airspeed=15,
     turn_radius=40,
+    dist_mult=1.5,
+    rng_dist_mult=3.,
     x_range=(0,1000),
     y_range=(0,1000),
+    xshift = 1000,
     M=100
 )
 
@@ -79,8 +84,11 @@ TightUAVs = SolveOneArgs(
     'DubinsFleetPlanner',
     airspeed=15,
     turn_radius=40,
+    dist_mult=1.5,
+    rng_dist_mult=3.,
     x_range=(0,1000),
     y_range=(0,1000),
+    xshift = 1000,
     M=100
 )
 
@@ -96,8 +104,11 @@ StandardAirplanes = SolveOneArgs(
     'DubinsFleetPlanner',
     airspeed=4.166,
     turn_radius=1.33,
+    dist_mult=1.5,
+    rng_dist_mult=3.,
     x_range=(0,100),
     y_range=(0,100),
+    xshift = 100,
     M=100
 )
 

@@ -223,7 +223,8 @@ class CaseSummary:
             
     @staticmethod
     def header():
-        return "Test input;Success;False positive;Iterations;Duration(ns);Threads;Possible paths;Initial guessed time;Final optained time".split(';')
+        #TODO : Header modified in C++, need to correct it here and in the matching dataclass
+        return "Test input;Success;False positive;Iterations;Duration(ns);Threads;Possible paths;Initial guessed time;Final obtained time".split(';')
             
 
 def parse_result_summary(summary_loc:pathlib.Path) -> dict[str,CaseSummary]:

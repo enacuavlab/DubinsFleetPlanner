@@ -27,7 +27,7 @@ from ioUtils import CaseSummary,parse_result_summary,write_summary,parse_traject
 import numpy as np
 import typing,os,subprocess,pathlib,multiprocessing,time,hashlib
 
-__REF_CSV_HEADER = "Test input;Success;False positive;Iterations;Duration(ns);Threads;Possible paths;Initial guessed time;Final optained time".split(';')
+__REF_CSV_HEADER = "Test input;Success;False positive;Iterations;Duration(ns);Threads;Possible paths;Initial guessed time;Final obtained time".split(';')
 
 def count_testcases_in_dir(case_dir:pathlib.Path) -> int:
     return sum(1 for p in case_dir.iterdir() if p.is_file() and p.suffix.lower() == '.csv')
@@ -228,6 +228,13 @@ def main(args):
     mdist = args.mdist
     assert args.dist_mult >= 1.
     endpoint_dist = mdist * args.dist_mult
+    if args.rng_dist_mult is None:
+        rng_endpoint_dist = endpoint_dist
+    else:
+        assert args.rng_dist_mult >= 1.
+        rng_endpoint_dist = mdist * args.rng_dist_mult
+    
+    xshift = args.xshift
     
     dir = pathlib.Path(args.output)
     
@@ -292,7 +299,7 @@ def main(args):
         endposes = f.get_abs_positions()
         
         shifted_endposes = endposes.copy()
-        shifted_endposes[:,0] += 3*x_range_diam
+        shifted_endposes[:,0] += xshift
         
         formations_std_poses.append(
             [Pose3D.from_array(a) for _,a in zip(range(N),endposes)]
@@ -325,7 +332,7 @@ def main(args):
         
         og_pts = gen._generate_uniform_pts(N,x_range,y_range,z_range)
         
-        sep_pts = gen._repulse_separate(og_pts,endpoint_dist)
+        sep_pts = gen._repulse_separate(og_pts,rng_endpoint_dist)
         angles = gen.rng.uniform(0,2*np.pi,N)
         
         rng_starts = [Pose3D(p[0],p[1],p[2],a) for p,a in zip(sep_pts,angles)]
@@ -339,7 +346,7 @@ def main(args):
         if args.regen or not(rng_file.exists()) or not(rng_away_file.exists()):
             end_pts = gen._generate_uniform_pts(N,x_range,y_range,z_range)
             
-            sep_end_pts = gen._repulse_separate(end_pts,endpoint_dist)
+            sep_end_pts = gen._repulse_separate(end_pts,rng_endpoint_dist)
             end_angles = gen.rng.uniform(0,2*np.pi,N)
             
             rng_ends = [Pose3D(p[0],p[1],p[2],a) for p,a in zip(sep_end_pts,end_angles)]
@@ -348,7 +355,7 @@ def main(args):
             write_pathplanning_problem_to_CSV(rng_file,rng_problem,args.regen)
             
             
-            rng_shifted_ends = [Pose3D(p[0]+3*x_range_diam,p[1],p[2],a) for p,a in zip(sep_end_pts,end_angles)]
+            rng_shifted_ends = [Pose3D(p[0]+xshift,p[1],p[2],a) for p,a in zip(sep_end_pts,end_angles)]
             rng_shifted_problem = [AC_PP_Problem(stat,start,end,dt) for stat,start,end,dt in zip(stats,rng_starts,rng_shifted_ends,dts) ]
 
             write_pathplanning_problem_to_CSV(rng_away_file,rng_shifted_problem,args.regen)
@@ -364,7 +371,7 @@ def main(args):
             dhigh = endpoint_dist * drange[1]
             disk_og_ends = gen._generate_endpoints_in_disk(sep_pts,(dlow,dhigh),latrange)
 
-            disk_sep_ends = gen._repulse_separate(disk_og_ends,endpoint_dist)
+            disk_sep_ends = gen._repulse_separate(disk_og_ends,rng_endpoint_dist)
             disk_end_angles = gen.rng.uniform(0,2*np.pi,N)
             
             disk_ends = [Pose3D(p[0],p[1],p[2],a) for p,a in zip(disk_sep_ends,disk_end_angles)]
@@ -480,8 +487,12 @@ if __name__ == '__main__':
     parser.add_argument('output',type=str,help='Destination folder for test cases (and the eventual solutions).')
     
     parser.add_argument('-m','--dist-mult',dest='dist_mult',
-                        type=float,help='Multiplier for mdist for setting the formation separation. SHould be larger than 1. Default to 1.1',
-                        default=1.1)
+                        type=float,help='Multiplier for mdist for setting the formation separation. Should be larger than 1. Default to 1.5',
+                        default=1.5)
+    
+    parser.add_argument('--rng-dist-mult',dest='rng_dist_mult',
+                        type=float,help='Multiplier for mdist for setting the RNG separation. Should be larger than 1. Default to being equal to dist-mult',
+                        default=None)
     
     parser.add_argument('-v','--airspeed',dest='airspeed',
         type=float, help='Airspeed for all aircraft. Default to 1.',default=1.)
@@ -499,6 +510,10 @@ if __name__ == '__main__':
     parser.add_argument('-y','--y-range',dest='y_range',
         nargs=2,help='Low and high values for initial random point generation, Y axis. Default to (0,1)',
         default=(0.,1.))
+    
+    parser.add_argument('--xshift',dest='xshift',
+        type=float,help='X shift value for AWAY cases. Default to 1.',
+        default=1.)
 
     
     parser.add_argument('-d','--d-range',dest='d_range',

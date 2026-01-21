@@ -22,6 +22,8 @@ linestyle_tuple = [
 linestyle_dict = dict(linestyle_tuple)
 
 # Colormap from https://tsitsul.in/blog/coloropt/
+xgfs_normal6 = [(64, 83, 211), (221, 179, 16), (181, 29, 20), (0, 190, 255), (251, 73, 176), (0, 178, 93), (202, 202, 202)]
+my_cmap6 = np.asarray(xgfs_normal6)/255
 xgfs_normal12 = [(235, 172, 35), (184, 0, 88), (0, 140, 249), (0, 110, 0), (0, 187, 173), (209, 99, 230), (178, 69, 2), (255, 146, 135), (89, 84, 214), (0, 198, 248), (135, 133, 0), (0, 167, 108), (189, 189, 189)]
 my_cmap = np.asarray(xgfs_normal12)/255
 
