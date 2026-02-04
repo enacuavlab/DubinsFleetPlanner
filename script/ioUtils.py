@@ -193,6 +193,7 @@ class CaseSummary:
     possibls_paths_per_ac:int
     initial_guess_time:float
     travel_time:float
+    worst_rate:float
     
     @staticmethod
     def from_strlist(args:list[str]):
@@ -205,7 +206,8 @@ class CaseSummary:
             int(args[5]),
             int(args[6]),
             float(args[7]),
-            float(args[8])
+            float(args[8]),
+            float(args[9])
         )
         
     def as_strlist(self) -> list[str]:
@@ -219,12 +221,13 @@ class CaseSummary:
             str(self.possibls_paths_per_ac),
             str(self.initial_guess_time),
             str(self.travel_time),
+            str(self.worst_rate)
         ]
             
     @staticmethod
     def header():
         #TODO : Header modified in C++, need to correct it here and in the matching dataclass
-        return "Test input;Success;False positive;Iterations;Duration(ns);Threads;Possible paths;Initial guessed time;Final obtained time".split(';')
+        return "Test input;Success;False positive;Iterations;Duration(ns);Threads;Possible paths;Initial guessed time;Final obtained time;Worst rate(u/s)".split(';')
             
 
 def parse_result_summary(summary_loc:pathlib.Path) -> dict[str,CaseSummary]:

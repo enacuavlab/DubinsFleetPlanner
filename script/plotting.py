@@ -19,6 +19,7 @@
 
 import numpy as np
 import typing
+from typing import Optional
 import pathlib
 
 from _plotting_extra import linestyle_dict,my_cmap,ColorType
@@ -57,14 +58,19 @@ def plot_pose2d_sequence(ax:Axes,poses:list[Pose3D],endpoints:bool=False,endarro
     plot_kwargs.pop('angles',None)
     plot_kwargs.pop('marker',None)
     
+    try:
+        color = plot_kwargs['color']
+    except KeyError:
+        color = None
+    
     if (endpoints):
-        ax.scatter(xs[0],ys[0],marker='o',**plot_kwargs)
-        ax.scatter(xs[-1],ys[-1],marker='X',**plot_kwargs)
+        ax.scatter(xs[0],ys[0],marker='o',color=color)
+        ax.scatter(xs[-1],ys[-1],marker='X',color=color)
     
     
     if (endarrows):
-        ax.quiver([xs[0]],[ys[0]],[np.cos(angles[0])],[np.sin(angles[0])],angles='xy',**plot_kwargs)
-        ax.quiver([xs[-1]],[ys[-1]],[np.cos(angles[-1])],[np.sin(angles[-1])],angles='xy',**plot_kwargs)
+        ax.quiver([xs[0]],[ys[0]],[np.cos(angles[0])],[np.sin(angles[0])],angles='xy',color=color)
+        ax.quiver([xs[-1]],[ys[-1]],[np.cos(angles[-1])],[np.sin(angles[-1])],angles='xy',color=color)
     
     return ax
 
@@ -89,6 +95,133 @@ def plot_several_pose2d_sequences(ax:Axes,poses_dict:DictOfPoseTrajectories,colo
         
     return ax
 
+
+def snapshot_several_pose2d_sequences(poses_list:ListOfTimedPoses,snapshots:int,
+                                     color_dict:typing.Optional[dict[int,ColorType]]=None,
+                                     name_dict:dict[int,str]|None=None,
+                                     save_fig:typing.Optional[str]=None,
+                                     show_fig:bool=False,
+                                     no_legend:bool=False,
+                                     xlim:Optional[tuple[float,float]] = None):
+    # Set axes aspect
+    fig,ax = plt.subplots(figsize=(16,9))
+    if xlim is None:
+        ax.set_aspect('equal','datalim')
+    else:
+        ax.set_aspect('equal')
+    
+    # Sort in ascending time
+    poses_list.sort(key=lambda t : t[0])
+    
+    poses_dict = transpose_list_of_trajectories(poses_list)
+    
+    # Setup color scheme
+    if color_dict is None:
+        color_dict = dict()
+        i = 0
+        for k in poses_dict.keys():
+            color_dict[k] = my_cmap[i % len(my_cmap)]
+            i += 1
+    
+    # Plot background lines
+    ax = plot_several_pose2d_sequences(ax,poses_dict,color_dict,False,False,False,0.3)
+    
+    # Plot min dist location
+    mdist = np.inf
+    time_mdist = 0.
+    p1_mdist = Pose3D.undefined()
+    p2_mdist = Pose3D.undefined()
+    i1_mdist = 0
+    i2_mdist = 0
+    for time,d in poses_list:
+        now_names = []
+        now_poses = []
+        for k,v in d.items():
+            now_names.append(k)
+            now_poses.append(v)
+            
+        local_mdist,i1,i2 = min_XY_dist(now_poses)
+        if local_mdist < mdist:
+            mdist = local_mdist
+            time_mdist = time
+            p1_mdist = now_poses[i1]
+            p2_mdist = now_poses[i2]
+            i1_mdist = now_names[i1]
+            i2_mdist = now_names[i2]
+    
+    
+    arrow_indexes = np.round(np.linspace(0,len(poses_list)-1,snapshots,endpoint=True)).astype(int)
+    
+    keys = list(poses_list[0][1].keys())
+    keys.sort()
+    for i in arrow_indexes:
+        poses = poses_list[i][1].values()
+        xs = [p.x for p in poses]
+        ys = [p.y for p in poses]
+        thetas = [p.theta for p in poses]
+        colors = [color_dict[t] for t in keys]
+        
+        ax.quiver(
+            xs,ys,np.cos(thetas),np.sin(thetas),
+            color=colors,
+            angles='xy',**ARROWS_SCALING
+        )
+        
+        ax.scatter(
+            xs,ys,c=colors,marker='+',
+        )
+        
+        
+    
+    # Setup artists for animation
+    
+    init_poses = [poses_list[0][1][k] for k in keys]
+    
+    for id,pose in zip(keys,init_poses):
+        label = f"AC: {id}"
+        if name_dict is not None:
+            label += " " + name_dict[id]
+            
+        ax.scatter([pose.x],[pose.y],color=color_dict[id],
+                   marker='o',label=label,alpha=0.5)
+    for id,pose in poses_list[-1][1].items():
+        ax.scatter([pose.x],[pose.y],color=color_dict[id],
+                   marker='X',alpha=0.5)
+        
+
+    
+    agent_num_txtwidth = int(np.log10(len(keys)))+1
+    
+    if not(no_legend):
+        mindist_artist = ax.plot(
+            [p1_mdist.x,p2_mdist.x],
+            [p1_mdist.y,p2_mdist.y],
+            marker='D',color='k',linestyle=':',markeredgecolor='r',
+            label=f"Min dist at time {time_mdist:.1f} ({i1_mdist:{agent_num_txtwidth}},{i2_mdist:{agent_num_txtwidth}}): {mdist:.3f}"
+        )[0]
+        
+    else:
+        mindist_artist = ax.plot(
+            [p1_mdist.x,p2_mdist.x],
+            [p1_mdist.y,p2_mdist.y],
+            alpha=0,
+        )[0]
+    
+    if xlim is not None:
+        ax.set_xlim(xlim)
+    
+    ax.set_title(f"Total flight time: {poses_list[-1][0]:.2f}")
+    ax.set_xmargin(0.2)
+    ax.set_ymargin(0.2)
+    legend = ax.legend()
+    if no_legend:
+        legend.remove()
+        ax.set_axis_off()
+
+    
+    fig.tight_layout()
+    if show_fig:
+        plt.show()
 
 def animate_several_pose2d_sequences(poses_list:ListOfTimedPoses,fps:int=30,
                                      color_dict:typing.Optional[dict[int,ColorType]]=None,
@@ -281,6 +414,10 @@ if __name__ == '__main__':
     parser.add_argument('-c','--colormap',type=str,help="A Matplotlib colormap name, mapping aircraft ID to color. Default to a qualitative map",default=None)
     parser.add_argument('--no-legend',dest='no_legend',action='store_true',help="Remove the legend for a cleaner plot. Default to False", default=False)
     parser.add_argument('-n','--sample-num',dest='sample_num',type=int,help="Number of samples to take to generate figure. Only relevant on JSON files. Default to 500",default=500)
+    parser.add_argument('-s','--static',dest='static',type=int,
+                        help="Print a static image with superposed snapshots instead of an animation. The parameter sets the number of snapshots. Must be a positive integer",
+                        default=0)
+    parser.add_argument('--xlim',nargs=2,dest='xlim',help="If defined, set the X-axis limits from plotting",default=None)
     
     args = parser.parse_args()
     
@@ -326,6 +463,9 @@ if __name__ == '__main__':
         for id in ids:
             color_dict[id] = cmap((id-min_id)/(max_id-min_id))
     
-        
-    animate_several_pose2d_sequences(data,args.fps,color_dict,name_dict,save,show_anim,args.no_legend)
+    
+    if args.static > 0:
+        snapshot_several_pose2d_sequences(data,args.static,color_dict,name_dict,save,show_anim,args.no_legend)
+    else:
+        animate_several_pose2d_sequences(data,args.fps,color_dict,name_dict,save,show_anim,args.no_legend)
     print("Done! Exiting...")
