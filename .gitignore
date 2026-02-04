@@ -49,11 +49,11 @@
 build/**
 
 # Data produced
+cases_precise/**
 cases/**
 results/**
 
 ##### Editors #####
 # VSCode
 .vscode/**
-
 

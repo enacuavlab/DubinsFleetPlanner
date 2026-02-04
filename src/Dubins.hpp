@@ -134,7 +134,7 @@ public:
     }
 
     template<unsigned samples>
-    std::array<Pose3D,samples> get_position(const std::array<double,samples>& lens, [[maybe_unused]] bool sorted=false) const
+    std::array<Pose3D,samples> get_positions(const std::array<double,samples>& lens, [[maybe_unused]] bool sorted=false) const
     {
         std::array<Pose3D,samples> output;
         for(unsigned i = 0; i < samples; i++)

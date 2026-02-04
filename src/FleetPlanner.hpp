@@ -75,7 +75,7 @@ public:
     {
         return std::format(
             "Case: {}\n -> {}\n  Found path of duration {} (baseline is {})"
-            "\n Performed {} iterations in {:.4f} ms\n Used {} threads; {} possible paths per AC; {} Worst rate measured (time unit per milliseconds of computation)",
+            "\n Performed {} iterations in {:.4f} ms\n Used {} threads; {} possible paths per AC; {} Worst rate measured (time unit per second of computation)",
             case_name, 
             (success) ? ((false_positive) ? "FALSE POSITIVE!" : "Success!") : "FAILURE",
             final_path_time,
@@ -90,7 +90,7 @@ public:
 
     static const std::string CSV_header()
     {
-        return "Test input;Success;False positive;Iterations;Duration(ns);Threads;Possible paths;Initial guessed time;Final obtained time;Worst rate(u/ms)";
+        return "Test input;Success;False positive;Iterations;Duration(ns);Threads;Possible paths;Initial guessed time;Final obtained time;Worst rate(u/s)";
     }
 
 
@@ -923,7 +923,7 @@ public:
 
                 auto now = chrono::thread_clock::now();
                 chrono::nanoseconds dt = now - solve_timepoint;
-                double rate = (best_time - target_time)/static_cast<double>(dt.count()/1e6);
+                double rate = (best_time - target_time)/(static_cast<double>(dt.count())/1e9);
 
                 solver_rate = std::min(solver_rate,rate);
 

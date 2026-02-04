@@ -129,7 +129,7 @@ bool process_command_line(int argc, char* argv[], program_arguments& parsed_args
                     ,"Number of samples to add when resampling between two points. Default to 2.")
     ("weave-dist,wd", po::value<double>(&parsed_args.min_weave_dist)->default_value(0.1)
                     ,"Minimal value required between two time-points for ressampling between them (no ressampling if below). Default to 0.1")
-    ("weave-dist-percent,wdp", po::value<double>(&parsed_args.min_weave_dist_percent)->default_value(1)
+    ("weave-dist-percent,wdp", po::value<double>(&parsed_args.min_weave_dist_percent)->default_value(0.01)
                     ,"Minimal value required between two time-points for ressampling between them as a percentage of the maximal duration (no ressampling if below). Default to 1")
 
     ("help", "Produce help message")
