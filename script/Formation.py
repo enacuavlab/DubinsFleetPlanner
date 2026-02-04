@@ -211,6 +211,17 @@ class Formation:
         self.orientation += p.theta
         
         return self
+    
+    def sort_x(self) -> typing.Self:
+        self.positions = self.positions[self.positions[:,0].argsort()]
+        
+        return self
+    
+    def sort_y(self) -> typing.Self:
+        self.positions = self.positions[self.positions[:,1].argsort()]
+        
+        return self
+        
         
 
 #################### Define some special formations ####################
@@ -563,6 +574,8 @@ def list_all_formations(ncols:int,nlines:int,n:int,sep:float) -> list[Formation]
     
     ratio = min(nlines,ncols)/max(nlines,ncols)
     
+    if ratio >= 1:
+        ratio = 0.4
     ratio = ratio if ratio < 0.5 else 1-ratio
     
     short = int(n*ratio)
@@ -654,8 +667,11 @@ if __name__ == '__main__':
     import argparse
     import matplotlib.pyplot as plt
     from matplotlib.axes import Axes
+    from matplotlib import colormaps
     
     def plot_formation(ax:Axes, form:Formation, title:str, label:str='', shortest:bool=True):
+    
+        cmap = colormaps['cool']
     
         positions = form.get_abs_positions()
         xs = positions[:,0]
@@ -666,6 +682,8 @@ if __name__ == '__main__':
         
         ax.set_title(title)
         ax.set_aspect('equal')
+        
+        colors = cmap(np.linspace(0,1,xs.shape[0],endpoint=True))
         
         if shortest:
             distances = distance_matrix(positions[:,:2],positions[:,:2])
@@ -681,7 +699,7 @@ if __name__ == '__main__':
                     [ys[min_pair[0]],ys[min_pair[1]]],
                     linestyle='--',color='k',label=f"Minimal distance: {min_dist:.3f}")
         
-        return ax.quiver(xs,ys,dxs,dys,
+        return ax.quiver(xs,ys,dxs,dys,color=colors,
                 angles='xy',
                 scale=5.,
                 scale_units='inches',
@@ -729,7 +747,7 @@ if __name__ == '__main__':
         
         row_num = n_formations//4 if (n_formations//4)*4 == n_formations else (1+n_formations//4)
         
-        fig,ax = plt.subplots(4,row_num,sharex='all',sharey='all')
+        fig,ax = plt.subplots(4,row_num,sharex='all',sharey='all',figsize=(16,9))
         ax:list[list[Axes]]
         
         for i in range(n_formations):
@@ -738,9 +756,19 @@ if __name__ == '__main__':
             
             a = ax[j][ibis]
             
-            plot_formation(a,formations[i],formations[i].name,shortest=False)
+            fname = formations[i].name.lower()
+            if 'circle' in fname:
+                f = formations[i]
+            else:
+                if 'rectangle' in fname or 'diamond' in fname or 'stacked' in fname:
+                    f = formations[i]
+                else:
+                    f = formations[i].sort_y()
+            
+            plot_formation(a,f,f.name,shortest=False)
             
         fig.suptitle(f"Formations {ncols}x{nlines} used in testing")
+        fig.tight_layout()
         plt.show()
         exit(0)
     

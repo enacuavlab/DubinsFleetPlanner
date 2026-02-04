@@ -54,6 +54,8 @@ class SolveOneArgs:
     regen:bool  = False
     redo:bool   = False
     skip_sampling:bool = False
+    formation_only:bool = False
+    rng_only:bool = False
     
 # Default values for a case based on 1m-wider fixed-wing UAVs
 # Distances are in meters and durations in seconds

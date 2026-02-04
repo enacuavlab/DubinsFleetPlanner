@@ -51,6 +51,8 @@ def check_result(test_src:pathlib.Path,result_file:pathlib.Path,summary:typing.O
     Returns:
         bool: _description_
     """
+    print(f"Checking {result_file.name}")
+    
     ## Parsing from files
     pb = parse_pathplanning_problem_from_CSV(test_src)
     try:
@@ -222,9 +224,11 @@ def solve_problems(solver:pathlib.Path,src_dir:pathlib.Path,dest_dir:pathlib.Pat
 def main(args):
     ## Gathering parsed values and closely related
     
+    # Number of aircraft and formation config
     N = args.N
     ncols,nlines = quasi_square_upper(N)
     
+    # Minimal separation
     mdist = args.mdist
     assert args.dist_mult >= 1.
     endpoint_dist = mdist * args.dist_mult
@@ -234,8 +238,7 @@ def main(args):
         assert args.rng_dist_mult >= 1.
         rng_endpoint_dist = mdist * args.rng_dist_mult
     
-    xshift = args.xshift
-    
+    # test cases and solutions locations
     dir = pathlib.Path(args.output)
     
     rng_pb_dir                 = dir / "rng" / "cases"
@@ -252,17 +255,18 @@ def main(args):
     rng_to_formation_sol_dir    = dir / "rng_to_formation" / "solutions"
     os.makedirs(rng_to_formation_sol_dir,exist_ok=True)
     
-    
+    # Aircraft stats
     airspeed    = args.airspeed
     climb       = args.climb
     turn_radius = args.turn_radius
     
     stats = [ACStats(i,airspeed,climb,turn_radius) for i in range(N)]
     
+    # Random case generation parameters
     x_range = (float(args.x_range[0]),float(args.x_range[1]))
-    x_range_diam = x_range[1] - x_range[0]
     y_range = (float(args.y_range[0]),float(args.y_range[1]))
     z_range = (0,0)
+    xshift = args.xshift
     
     midpoint = Pose3D(
         (x_range[0]+x_range[1])/2,
@@ -273,6 +277,7 @@ def main(args):
     d_range = (float(args.d_range[0]),float(args.d_range[1]))
     M = args.M
     
+    # Solver parameters
     processes   = args.processes
     solver      = args.solver
     wind        = args.wind
@@ -283,16 +288,43 @@ def main(args):
     seed = abs(int(hashlib.sha1(str(args.output).encode()).hexdigest(),base=16))
     
     print(f"The seed is: {seed}\n\n")
+    print(f"Formation: {ncols} x {nlines}")
         
-    dts = np.zeros(N)
+        
+    # Test to performs
     
-    print(ncols,nlines)
+    test_formations = True
+    test_rng        = True
+    test_rng_to_formation = True
+
+    if args.formation_only and args.rng_only:
+        raise ValueError("Cannot set both 'formation-only' and 'rng-only' flags simultaneously")
+
+    if args.rng_only:
+        test_formations = False
+    if args.formation_only:
+        test_rng = False
+        test_rng_to_formation = False
+
+
+    ## Generating formation poses
+    dts = np.zeros(N)
     
     all_formations = list_all_formations(ncols,nlines,N,endpoint_dist)
     formations_std_poses:list[list[Pose3D]] = []
     formations_shifted_poses:list[list[Pose3D]] = []
     for f in all_formations:
         f = f.apply_rotation().to_barycentric_coords()
+        
+        fname = f.name.lower()
+        if 'circle' in fname:
+            pass
+        else:
+            if 'rectangle' in fname or 'diamond' in fname or 'stacked' in fname:
+                pass
+            else:
+                f = f.sort_y()
+        
         f.center[0] = midpoint.x
         f.center[1] = midpoint.y
         f.center[2] = midpoint.z
@@ -312,16 +344,17 @@ def main(args):
     
     ## Formation problems
     
-    formation_depl = endpoint_dist * N
+    # formation_depl = endpoint_dist * N
     
-    for f in all_formations:
-        pb_list = generate_basic_formation_moves(f,stats,formation_depl)
-        
-        for pb,turn_name in pb_list:
-            write_or_skip_CSV_case(formation_pb_dir / (f.name+"_"+turn_name+".csv"),pb,args.redo)
+    if test_formations:
+        for f in all_formations:
+            pb_list = generate_basic_formation_moves(f,stats,xshift)
             
-    for pb,name in generate_formation_transitions(all_formations,stats,formation_depl):
-        write_or_skip_CSV_case(formation_pb_dir / (name+".csv"),pb,args.redo)
+            for pb,turn_name in pb_list:
+                write_or_skip_CSV_case(formation_pb_dir / (f.name+"_"+turn_name+".csv"),pb,args.redo)
+                
+        for pb,name in generate_formation_transitions(all_formations,stats,xshift):
+            write_or_skip_CSV_case(formation_pb_dir / (name+".csv"),pb,args.redo)
         
     ## Random problems
     
@@ -343,7 +376,7 @@ def main(args):
         rng_away_file = rng_pb_dir / f"rng_rng_away_{m}.csv"
         
         
-        if args.regen or not(rng_file.exists()) or not(rng_away_file.exists()):
+        if test_rng and args.regen or not(rng_file.exists()) or not(rng_away_file.exists()):
             end_pts = gen._generate_uniform_pts(N,x_range,y_range,z_range)
             
             sep_end_pts = gen._repulse_separate(end_pts,rng_endpoint_dist)
@@ -366,7 +399,7 @@ def main(args):
         latrange = (0.,0.)
         
         disk_file = rng_pb_dir / f"rng_disk_{m}.csv"
-        if args.regen or not(disk_file.exists()):
+        if test_rng and args.regen or not(disk_file.exists()):
             dlow = endpoint_dist * drange[0]
             dhigh = endpoint_dist * drange[1]
             disk_og_ends = gen._generate_endpoints_in_disk(sep_pts,(dlow,dhigh),latrange)
@@ -382,26 +415,28 @@ def main(args):
             write_pathplanning_problem_to_CSV(disk_file,disk_problem,args.regen)
         
         # Fully random to formation (2D)
-        for f,f_ends in zip(all_formations,formations_std_poses):
-            f_problem = [AC_PP_Problem(stat,start,end,dt) for stat,start,end,dt in zip(stats,rng_starts,f_ends,dts) ]
+        if test_rng_to_formation:
+            for f,f_ends in zip(all_formations,formations_std_poses):
+                f_problem = [AC_PP_Problem(stat,start,end,dt) for stat,start,end,dt in zip(stats,rng_starts,f_ends,dts) ]
 
-            f_file = rng_to_formation_pb_dir / f"rng_to_{f.name}_{m}.csv"
-            
-            write_or_skip_CSV_case(f_file,f_problem,args.regen)
-        
-        for f,f_shiftend_ends in zip(all_formations,formations_shifted_poses):
-            f_problem = [AC_PP_Problem(stat,start,end,dt) for stat,start,end,dt in zip(stats,rng_starts,f_shiftend_ends,dts) ]
+                f_file = rng_to_formation_pb_dir / f"rng_to_{f.name}_{m}.csv"
                 
-            f_file = rng_to_formation_pb_dir / f"rng_to_{f.name}_away_{m}.csv"
+                write_or_skip_CSV_case(f_file,f_problem,args.regen)
             
-            write_or_skip_CSV_case(f_file,f_problem,args.regen)
+            for f,f_shiftend_ends in zip(all_formations,formations_shifted_poses):
+                f_problem = [AC_PP_Problem(stat,start,end,dt) for stat,start,end,dt in zip(stats,rng_starts,f_shiftend_ends,dts) ]
+                    
+                f_file = rng_to_formation_pb_dir / f"rng_to_{f.name}_away_{m}.csv"
+                
+                write_or_skip_CSV_case(f_file,f_problem,args.regen)
             
         print(f"Done with {m}")
     
-    for i in range(M):
-        problem_gen(i)
-    # with multiprocessing.Pool(processes if processes > 0 else None) as p:
-        # p.map(problem_gen,range(args.M))
+    if test_rng or test_rng_to_formation:
+        for i in range(M):
+            problem_gen(i)
+        # with multiprocessing.Pool(processes if processes > 0 else None) as p:
+            # p.map(problem_gen,range(args.M))
         
     ## Solving
     
@@ -412,58 +447,74 @@ def main(args):
     if solver is not None:
         solver = pathlib.Path(solver)
         
-        failed_cases = check_results(formation_pb_dir,formation_sol_dir,args.skip_sampling)
-        formation_done = len(failed_cases) == 0
-        if args.redo or not(formation_done):
-            now = time.time()
-            solve_problems(solver,formation_pb_dir,formation_sol_dir,mdist,wind,processes,**extra_args)
-            dt = time.time() - now
-            
-            print("\n\n")
-            print("===============================================")
-            print("         Done with formations problems       ")
-            print(f"             Time spent: {dt:.3f}s           ")        
-            print("===============================================\n\n")
-            
+        if test_formations:
+            if not args.redo:
+                failed_cases = check_results(formation_pb_dir,formation_sol_dir,args.skip_sampling)
+                formation_done = len(failed_cases) == 0
+            else:
+                formation_done = False
+            if args.redo or not(formation_done):
+                now = time.time()
+                solve_problems(solver,formation_pb_dir,formation_sol_dir,mdist,wind,processes,**extra_args)
+                dt = time.time() - now
+                
+                print("\n\n")
+                print("===============================================")
+                print("         Done with formations problems       ")
+                print(f"             Time spent: {dt:.3f}s           ")        
+                print("===============================================\n\n")
+                
+            else:
+                print(f" === Formations problems checked and done ===")
         else:
-            print(f" === Formations problems checked and done ===")
+            print(f" ~~~ Formations problems disabled ~~~")
             
         
         
         
-        failed_cases = check_results(rng_pb_dir,rng_sol_dir,args.skip_sampling)
-        rng_done = len(failed_cases) == 0
-        if args.redo or not(rng_done):
-            now = time.time()
-            solve_problems(solver,rng_pb_dir,rng_sol_dir,mdist,wind,processes,**extra_args)
-            dt = time.time() - now
-            
-            print("\n\n")
-            print("===============================================")
-            print("             Done with RNG problems          ")
-            print(f"             Time spent: {dt:.3f}s           ")
-            print("===============================================\n\n")
+        if test_rng:
+            if not args.redo:
+                failed_cases = check_results(rng_pb_dir,rng_sol_dir,args.skip_sampling)
+                rng_done = len(failed_cases) == 0
+            else:
+                rng_done = False
+            if args.redo or not(rng_done):
+                now = time.time()
+                solve_problems(solver,rng_pb_dir,rng_sol_dir,mdist,wind,processes,**extra_args)
+                dt = time.time() - now
+                
+                print("\n\n")
+                print("===============================================")
+                print("             Done with RNG problems          ")
+                print(f"             Time spent: {dt:.3f}s           ")
+                print("===============================================\n\n")
+            else:
+                print(f" === RNG problems checked and done ===")
         else:
-            print(f" === RNG problems checked and done ===")
-            
+            print(f" ~~~ RNG problems disabled ~~~")
         
         
         
-        
-        failed_cases = check_results(rng_to_formation_pb_dir,rng_to_formation_sol_dir,args.skip_sampling)
-        rng_to_formation_done = len(failed_cases) == 0
-        if args.redo or not(rng_to_formation_done):
-            now = time.time()
-            solve_problems(solver,rng_to_formation_pb_dir,rng_to_formation_sol_dir,mdist,wind,processes,**extra_args)
-            dt = time.time() - now
-            
-            print("\n\n")
-            print("===============================================")
-            print("      Done with RNG to formation problems    ")
-            print(f"             Time spent: {dt:.3f}s           ")        
-            print("===============================================\n\n")
+        if test_rng_to_formation:
+            if not args.redo:
+                failed_cases = check_results(rng_to_formation_pb_dir,rng_to_formation_sol_dir,args.skip_sampling)
+                rng_to_formation_done = len(failed_cases) == 0
+            else:
+                rng_to_formation_done = False
+            if args.redo or not(rng_to_formation_done):
+                now = time.time()
+                solve_problems(solver,rng_to_formation_pb_dir,rng_to_formation_sol_dir,mdist,wind,processes,**extra_args)
+                dt = time.time() - now
+                
+                print("\n\n")
+                print("===============================================")
+                print("      Done with RNG to formation problems    ")
+                print(f"             Time spent: {dt:.3f}s           ")        
+                print("===============================================\n\n")
+            else:
+                print(f" === RNG to Formation problems checked and done ===")
         else:
-            print(f" === RNG to Formation problems checked and done ===")
+            print(f" ~~~ RNG to Formation problems disabled ~~~")
 
 if __name__ == '__main__':
     import argparse
@@ -539,17 +590,23 @@ if __name__ == '__main__':
                         default=(0,0))
     
     parser.add_argument('--regen',dest='regen',action='store_true',
-                        help="Flag. If set, force regenerating the test cases (but may still skip identical cases).\
-                        Default to False.",
+                        help="Flag. If set, force regenerating the test cases (but may still skip identical cases). Default to False.",
                         default=False)
     
     parser.add_argument('--redo',dest='redo',action='store_true',
-                        help="Flag. If set, force regenerating and restarting the solver on every directory.\
-                        Otherwise, skip the directories where a complete 'summary.csv' file is found. Default to False.",
+                        help="Flag. If set, force regenerating and restarting the solver on every directory. Otherwise, skip the directories where a complete 'summary.csv' file is found. Default to False.",
                         default=False)
     
     parser.add_argument('--skip-sampling',dest='skip_sampling',action='store_true',
                         help="Flag. If set, disable checking separation in result files. Default to False",
+                        default=False)
+    
+    parser.add_argument('--formation-only',dest='formation_only',action='store_true',
+                        help="Flag. If set, generate and test only deterministic formation cases",
+                        default=False)
+    
+    parser.add_argument('--rng-only',dest='rng_only',action='store_true',
+                        help="Flag. If set, generate and test only randomized cases",
                         default=False)
     
     main(parser.parse_args())
