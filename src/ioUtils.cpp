@@ -64,15 +64,16 @@ namespace {
     void to_json(json& j, const DynamicPathShape& p)
     {
         j = json{
-            {"x"    ,p.x},
-            {"y"    ,p.y},
-            {"z"    ,p.z},
-            {"p1"   ,p.p1},
-            {"p2"   ,p.p2},
-            {"p3"   ,p.p3},
-            {"p4"   ,p.p4},
-            {"type" ,get_DubinsMove_name(p.m)},
-            {"m"    ,p.m}
+            {"x"        ,p.x},
+            {"y"        ,p.y},
+            {"z"        ,p.z},
+            {"p1"       ,p.p1},
+            {"p2"       ,p.p2},
+            {"p3"       ,p.p3},
+            {"p4"       ,p.p4},
+            {"type"     ,get_DubinsMove_name(p.m)},
+            {"m"        ,p.m},
+            {"length"   ,p.length}
         };
     }
 
@@ -86,6 +87,7 @@ namespace {
         p.p3    = j.at("p3");
         p.p4    = j.at("p4");
         p.m     = j.at("m");
+        p.length= j.at("length");
     }
 
     NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(AircraftStats,id,airspeed,climb,turn_radius);
@@ -276,14 +278,40 @@ CaseData DubinsPP::InputParser::parse_data_csv(std::istream& stream)
 
 // ---------- nlohmann Deserialization (JSON) ---------- //
 
-void parse_paths_as_ModernJSON(std::istream& s, 
+void parse_json_ModernTrajectory(const json& j, 
+    std::shared_ptr<Dubins>& path,
+    AircraftStats& stats)
+{
+    from_json(j.at("stats"),stats);
+
+    json j_path = j.at("path");
+
+    size_t section_count = j_path.at("sections_count");
+    Pose3D start,end;
+    from_json(j_path.at("start"),start);
+    from_json(j_path.at("end"),end);
+
+    double total_length = j_path.at("total_length");
+    
+    std::vector<DynamicPathShape> basic_paths;
+    for(const json &j_bpath : j_path.at("sections"))
+    {
+        DynamicPathShape bshape;
+        from_json(j_bpath,bshape);
+        basic_paths.push_back(bshape);
+    }
+
+    path = std::make_shared<GenericDubins>(stats.climb,stats.turn_radius,start,end,basic_paths);
+}
+
+void DubinsPP::InputParser::parse_paths_as_ModernJSON(std::istream& s, 
     std::vector<std::shared_ptr<Dubins>>& paths,
     std::vector<AircraftStats>& stats,
     double& min_sep,
     double& wind_x, double& wind_y,
     double& z_alpha)
 {
-    throw std::invalid_argument("This function is not yet fully implemented!");
+    // throw std::invalid_argument("This function is not yet fully implemented!");
 
     json j;
 
@@ -303,7 +331,12 @@ void parse_paths_as_ModernJSON(std::istream& s,
 
         for(uint i = 0; i < N; i++)
         {
-            json j_trajectory;
+            json j_trajectory = trajectories[i];
+            std::shared_ptr<Dubins> path;
+            AircraftStats stat;
+            parse_json_ModernTrajectory(j_trajectory,path,stat);
+            paths.push_back(std::move(path));
+            stats.push_back(stat);
         }
 
     }

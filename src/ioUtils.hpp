@@ -35,6 +35,7 @@
 #include "Aircraft.h"
 #include "utils.hpp"
 #include "Dubins.hpp"
+#include "GenericDubins.hpp"
 #include "ConflictList.hpp"
 
 

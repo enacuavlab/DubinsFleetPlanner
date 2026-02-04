@@ -43,6 +43,7 @@ set(DubinsFleetPlannerLib_SRC
 
 set(DubinsFleetPlannerLib_INCL
     ${CMAKE_CURRENT_BINARY_DIR}
+    ${PROJECT_SOURCE_DIR}/src
     ${libs_dir}/eigen
     ${libs_dir}/ScalarMin
     ${libs_dir}/csv_reader)

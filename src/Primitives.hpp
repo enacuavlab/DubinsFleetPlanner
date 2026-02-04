@@ -206,6 +206,7 @@ struct DynamicPathShape
     double p3;      ///< Vertical speed
     double p4;      ///< For a Straight: unused, set to 0   | For a turn: initial angle
     DubinsMove m;   ///< Type of the path shape, as a variable
+    double length = NAN;  ///< Length of the shape (if finite)
 };
 
 template<DubinsMove m>
@@ -243,6 +244,18 @@ template<DubinsMove m>
 inline double path_planar_speed(const PathShape<m>& s)
 {
     return std::abs(s.p2*s.p1);
+}
+
+inline double path_planar_speed(const DynamicPathShape& s)
+{
+    if (s.m == STRAIGHT)
+    {
+        return std::sqrt(s.p1*s.p1 + s.p2*s.p2);
+    }
+    else
+    {
+        return std::abs(s.p2*s.p1);
+    }
 }
 
 /**
