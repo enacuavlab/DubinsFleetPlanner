@@ -81,6 +81,7 @@ struct program_arguments
     bool line_fit;
     int max_solver_time;
     bool recompute;
+    string obstacle_pathname;
 };
 
 
@@ -129,8 +130,8 @@ bool process_command_line(int argc, char* argv[], program_arguments& parsed_args
                     ,"Number of samples to add when resampling between two points. Default to 2.")
     ("weave-dist,wd", po::value<double>(&parsed_args.min_weave_dist)->default_value(0.1)
                     ,"Minimal value required between two time-points for ressampling between them (no ressampling if below). Default to 0.1")
-    ("weave-dist-percent,wdp", po::value<double>(&parsed_args.min_weave_dist_percent)->default_value(0.01)
-                    ,"Minimal value required between two time-points for ressampling between them as a percentage of the maximal duration (no ressampling if below). Default to 1")
+    ("weave-dist-percent,wdp", po::value<double>(&parsed_args.min_weave_dist_percent)->default_value(0.0001)
+                    ,"Minimal value required between two time-points for ressampling between them as a fraction of the maximal duration (no ressampling if below). Default to 0.0001")
 
     ("help", "Produce help message")
     ("verbose,v"    , po::value<int>(&parsed_args.verbosity)->default_value(1)
@@ -148,6 +149,8 @@ bool process_command_line(int argc, char* argv[], program_arguments& parsed_args
     ("recompute,R"  , po::bool_switch(&parsed_args.recompute)->default_value(false)
                     , "Force overwriting output file. Otherwise, skip cases where an output file is found. "
                       "Only relevant when parsing cases from directories. Default to False")
+    ("obstacles,O"  , po::value<string>(&parsed_args.obstacle_pathname)->default_value("")
+                    , "Path to a JSON file describing multiple paths to be considered as obstacles")
     ;
     
     // Specify positional arguments
@@ -240,13 +243,40 @@ void write_result(const fs::path& out_filepath, vector<std::shared_ptr<Dubins>>&
 
 std::tuple<int,SharedDubinsResults,ExtraPPResults> solve_case(const fs::path& input_path, const fs::path& output_path, program_arguments& args)
 {
+
+    // ----- Parsing obstacle trajectories if existing ----- //
+
+    
+
+    std::vector<std::shared_ptr<Dubins>> obstacle_paths = {};
+    std::vector<AircraftStats> obstacle_stats = {};
+    double __wind_x,__wind_y,__min_sep,__z_alpha;
+
+    if (!args.obstacle_pathname.empty())
+    {
+        std::ifstream obstacle_src(args.obstacle_pathname);
+        DubinsPP::InputParser::parse_paths_as_ModernJSON(obstacle_src,obstacle_paths,obstacle_stats,
+            __min_sep,__wind_x,__wind_y,__z_alpha);
+    }
+    
+
+    // ----- Parsing case data ----- //
+
     ExtraPPResults extra;
     extra.case_name = input_path.string();
+
+    if (!(fs::exists(input_path) && fs::is_regular_file(input_path)))
+    {
+        std::cerr   << "Error: input path is not a regular file (tried path: " << input_path << " )" << std::endl
+        << "Exiting now..." << std::endl;
+        return std::make_tuple(DubinsFleetPlanner_PARSING_FAILURE,std::nullopt,extra);
+    }
 
     if (args.verbosity >= DubinsFleetPlanner_VERBOSE)
     {
         std::cout << "Reading file: " << input_path << std::endl;
     }
+
 
     std::ifstream data_src(input_path);
 
@@ -258,17 +288,30 @@ std::tuple<int,SharedDubinsResults,ExtraPPResults> solve_case(const fs::path& in
     }
     
     
-
     DubinsPP::InputParser::CaseData data = DubinsPP::InputParser::parse_data_csv(data_src);
 
     std::vector<Pose3D> starts,ends;
     std::vector<AircraftStats> stats;
     std::vector<double> dt;
+    std::vector<std::vector<double>> timeslots;
     
-    starts  = std::get<0>(data);
-    ends    = std::get<1>(data);
-    stats   = std::get<2>(data);
-    dt      = std::get<3>(data);
+    starts      = std::get<0>(data);
+    ends        = std::get<1>(data);
+    stats       = std::get<2>(data);
+    dt          = std::get<3>(data);
+    timeslots   = std::get<4>(data);
+
+    // Check if timeslots is empty:
+
+    bool empty_timeslots = true;
+    for(const auto& v : timeslots)
+    {
+        if (v.size() > 0)
+        {
+            empty_timeslots = false;
+            break;
+        }
+    }
     
     // ----- Start optimization ----- //
     
@@ -329,8 +372,20 @@ std::tuple<int,SharedDubinsResults,ExtraPPResults> solve_case(const fs::path& in
 
     auto start = chrono::thread_clock::now(boost::throws());
     
-    SharedDubinsResults sols = planner->solve<Dubins::are_XY_separated,Dubins::compute_XY_distance>(extra,starts,ends,stats,args.separation,
-            dt,args.wind_x,args.wind_y,args.max_iters,args.weave_iters,args.min_weave_dist,args.min_weave_dist_percent,args.thread_num,args.max_solver_time);
+    SharedDubinsResults sols;
+
+    if (!empty_timeslots)
+    {
+        sols = planner->solve_with_timeslots<Dubins::are_XY_separated,Dubins::compute_XY_distance>(extra,starts,ends,stats,args.separation,timeslots,
+            args.wind_x,args.wind_y,args.thread_num,
+            obstacle_paths,obstacle_stats).first;
+    }
+    else
+    {
+        sols = planner->solve<Dubins::are_XY_separated,Dubins::compute_XY_distance>(extra,starts,ends,stats,args.separation,
+            dt,args.wind_x,args.wind_y,args.max_iters,args.weave_iters,args.min_weave_dist,args.min_weave_dist_percent,args.thread_num,args.max_solver_time,
+            obstacle_paths,obstacle_stats);
+    }
 
     extra.duration = chrono::thread_clock::now(boost::throws()) - start;
 
@@ -342,8 +397,18 @@ std::tuple<int,SharedDubinsResults,ExtraPPResults> solve_case(const fs::path& in
         good_solution = false;
         std::cerr << "WARNING: Could not find a solution; retrying with SEPARATION DISABLED" << std::endl;
         
-        sols = planner->solve<Dubins::are_XY_separated,Dubins::compute_XY_distance>(_backup,starts,ends,stats,0.,
-            dt,args.wind_x,args.wind_y,args.max_iters,args.weave_iters,args.min_weave_dist,args.min_weave_dist_percent,args.thread_num,args.max_solver_time);
+        if (!empty_timeslots)
+        {
+            sols = planner->solve_with_timeslots<Dubins::are_XY_separated,Dubins::compute_XY_distance>(_backup,starts,ends,stats,0,timeslots,
+                args.wind_x,args.wind_y,args.thread_num,
+                obstacle_paths,obstacle_stats).first;
+        }
+        else
+        {
+            sols = planner->solve<Dubins::are_XY_separated,Dubins::compute_XY_distance>(_backup,starts,ends,stats,args.separation,
+                dt,args.wind_x,args.wind_y,args.max_iters,args.weave_iters,args.min_weave_dist,args.min_weave_dist_percent,args.thread_num,args.max_solver_time,
+                obstacle_paths,obstacle_stats);
+        }
     }
         
     if (!sols.has_value())
@@ -363,8 +428,13 @@ std::tuple<int,SharedDubinsResults,ExtraPPResults> solve_case(const fs::path& in
             }
         }
 
+        obstacle_paths.insert(obstacle_paths.end(),
+            std::move(sols.value().begin()),std::move(sols.value().end()));
 
-        write_result(output_path,sols.value(),stats,args);
+        obstacle_stats.insert(obstacle_stats.end(),
+            stats.begin(),stats.end());
+
+        write_result(output_path,obstacle_paths,obstacle_stats,args);
 
         if (good_solution)
         {

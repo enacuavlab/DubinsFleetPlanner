@@ -50,10 +50,11 @@ namespace DubinsPP
             Pose3D end;
             AircraftStats stats;
             double dt;
+            std::vector<double> timeslots = {};
         } RowInfo;
 
         // Transposed type of std::vector<RowInfo>
-        typedef std::tuple<std::vector<Pose3D>,std::vector<Pose3D>,std::vector<AircraftStats>,std::vector<double>> CaseData;
+        typedef std::tuple<std::vector<Pose3D>,std::vector<Pose3D>,std::vector<AircraftStats>,std::vector<double>, std::vector<std::vector<double>>> CaseData;
 
         /**
          * @brief Parse an input stream reading a CSV formatted for a path planning data into the matching data

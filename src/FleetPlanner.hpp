@@ -148,6 +148,54 @@ std::tuple<uint,uint> count_min_number_of_valid_paths(const ListOfPossibilities&
  */
 std::set<uint> acs_without_paths(const ListOfPossibilities& all_paths);
 
+/**
+ * @brief Remove from the given list of paths the ones colliding with the given set of obstacle paths
+ * 
+ * @tparam distance_function    Function computing the distance between two path (usually underline the separation one)
+ * @param all_paths             Candidate paths to be filtered
+ * @param stats                 Aircraft stats associated to candidate paths
+ * @param obstacle_paths          Obstacle paths
+ * @param obstacle_stats        Stats of obstacle aircraft paths
+ */
+template<Dubins::DubinsDistanceFunction distance_function>
+void filter_colliding_paths(ListOfPossibilities& all_paths, const std::vector<AircraftStats> &stats,
+    const std::vector<std::shared_ptr<Dubins>>& obstacle_paths, const std::vector<AircraftStats>& obstacle_stats,
+    double min_sep)
+{
+    for(uint i = 0; i < stats.size(); i++)
+    {
+        const AircraftStats& s = stats[i];
+        std::vector<std::unique_ptr<Dubins>>& path_list = all_paths[i];
+        std::vector<std::unique_ptr<Dubins>> filtered_paths;
+        
+        for(std::unique_ptr<Dubins>& p_ptr : path_list)
+        {
+            bool conflict_free = true;
+
+            for(uint j = 0; j < obstacle_stats.size(); j++)
+            {
+                const Dubins& p = *p_ptr;
+                const Dubins& c = *obstacle_paths[j];
+                const AircraftStats& cs = obstacle_stats[j];
+                 
+
+                std::pair<double,double> res = generic_compute_distance<distance_function>(p,c,s,cs,min_sep);
+
+                if (res.second < min_sep)
+                {
+                    conflict_free = false;
+                }
+            }
+
+            if (conflict_free)
+            {
+                filtered_paths.push_back(std::move(p_ptr));
+            }
+        }
+
+        all_paths[i] = std::move(filtered_paths);
+    }
+}
 
 // ---------- Smart sampling ---------- //
 
@@ -275,7 +323,7 @@ protected:
 
     double precision_tol;               // Precision when looking for collisions
     double maximal_relative_duration;   // Maximum distance (as a multiplicative factor from the lowest possible distance)
-    mutable Highs ref_model;            // Reference HiGHS model for fast init
+    mutable Highs* ref_model = nullptr;            // Reference HiGHS model for fast init
     mutable bool first_log = true;      // When logging, state whether it is the first log or not
 
     /*******************************************************************************/
@@ -493,7 +541,7 @@ protected:
      */
     template<Dubins::DubinsSeparationFunction separation_function, Dubins::DubinsDistanceFunction distance_function>
     SharedDubinsResults find_solution_parallel(
-        ListOfPossibilities& possibilites, const std::vector<AircraftStats>& stats, double min_sep, uint threads=0,
+        ListOfPossibilities& possibilites, const std::vector<AircraftStats>& stats, double min_sep, uint max_pathnum, uint threads=0,
         bool list_conflicts=true, double timetag=0.) const
     {
         SharedListOfPossibilities shared_list;
@@ -507,7 +555,7 @@ protected:
         // If the minimum separation is too small, assume it is null and return no conflicts
         if (min_sep < DubinsFleetPlanner_PRECISION) 
         {
-            return find_pathplanning_LP_solution(shared_list,stats,conflicts,max_path_num(),threads);
+            return find_pathplanning_LP_solution(shared_list,stats,conflicts,max_pathnum,threads,ref_model);
         } 
 
         if (list_conflicts)
@@ -536,7 +584,7 @@ protected:
             conflicts = generic_parallel_compute_separations<separation_function>(threads,shared_list,stats,min_sep);
         }
 
-        return find_pathplanning_LP_solution(shared_list,stats,conflicts,max_path_num(),threads);
+        return find_pathplanning_LP_solution(shared_list,stats,conflicts,max_pathnum,threads,ref_model);
     }
 
     /**
@@ -658,6 +706,8 @@ public:
      *                      If 1, set the number of threads to std::thread::hardware_concurrency()
      *                      Otherwise, use the given value
      * @param init_ref_model If true, initialize the `ref_model` attribute (required for using the HiGHS solver)
+     * @param obstacle_paths Paths acting as obstacles (representing other aircraft)
+     * @param obstacle_stats Flight characteristics of the obstacle aircraft
      * @return std::pair<SharedDubinsResults,std::set<uint>> Returns a pair, with first a solution (if it exists) and second
      *  the set of aircraft IDs with no possible paths
      */
@@ -668,7 +718,8 @@ public:
         const std::vector<AircraftStats>& stats, double min_sep,
         const std::vector<double>& times,
         double wind_x = 0., double wind_y = 0.,
-        int threads = 0, bool init_ref_model=true
+        int threads = 0, bool init_ref_model=true,
+        const std::vector<std::shared_ptr<Dubins>>& obstacle_paths = {}, const std::vector<AircraftStats>& obstacle_stats = {}
     ) const
     {
         // Timing
@@ -691,6 +742,7 @@ public:
         assert(starts.size() == ends.size());
         assert(starts.size() == stats.size());
         assert(starts.size() == times.size());
+        assert(obstacle_paths.size() == obstacle_stats.size());
 
         for(uint i = 0; i < N; i++)
         {
@@ -703,6 +755,8 @@ public:
 
         ListOfPossibilities possibilities = list_all_possibilities(starts,ends,stats,times,wind_x,wind_y);
 
+        filter_colliding_paths<distance_function>(possibilities,stats,obstacle_paths,obstacle_stats,min_sep);
+
         std::set<uint> nopaths_acs = acs_without_paths(possibilities);
 
         SharedDubinsResults sol;
@@ -713,11 +767,13 @@ public:
             {
                 if (init_ref_model)
                 {
+                    ref_model = new Highs();
                     setup_base_model(ref_model,starts.size(),max_path_num(),verbosity);
                 }
 
-                sol = find_solution_parallel<separation_function,distance_function>(possibilities,stats,min_sep,threads,
-                    verbosity > 1, *times.begin());
+                sol = find_solution_parallel<separation_function,distance_function>(possibilities,stats,min_sep,max_path_num(),threads,
+                    verbosity >= DubinsFleetPlanner_VERY_VERBOSE,
+                    *times.begin());
             }
             else
             {
@@ -777,6 +833,8 @@ public:
      *                          If nonpositive, disable threading
      *                          If 1, set the number of threads to std::thread::hardware_concurrency()
      *                          Otherwise, use the given value
+     * @param obstacle_paths Paths acting as obstacles (representing other aircraft)
+     * @param obstacle_stats Flight characteristics of the obstacle aircraft
      * @return SharedDubinsResults
      */
     template<Dubins::DubinsSeparationFunction separation_function, Dubins::DubinsDistanceFunction distance_function>
@@ -787,9 +845,10 @@ public:
         const std::vector<double>& delta_t,
         double wind_x = 0., double wind_y = 0.,
         uint max_iters = 300, uint weave_iters = 2,
-        double min_weave_delta =1., double min_weave_frac =0.01,
+        double min_weave_delta =1., double min_weave_frac =0.0001,
         int threads = -1,
-        int max_time_s = 60
+        int max_time_s = 60,
+        const std::vector<std::shared_ptr<Dubins>>& obstacle_paths = {}, const std::vector<AircraftStats>& obstacle_stats = {}
     ) const
     {
         // Timing
@@ -818,6 +877,7 @@ public:
         assert(starts.size() == ends.size());
         assert(starts.size() == stats.size());
         assert(starts.size() == delta_t.size() +1);
+        assert(obstacle_paths.size() == obstacle_stats.size());
 
         for(uint i = 0; i < N; i++)
         {
@@ -910,7 +970,8 @@ public:
                 stats,
                 min_sep,times,
                 wind_x,wind_y,
-                threads,false);
+                threads,false,
+                obstacle_paths,obstacle_stats);
 
             iter->NoPathsACs = nopaths_acs;
             iter->done = true;
@@ -1005,6 +1066,8 @@ public:
      *                          If nonpositive, disable threading
      *                          If 1, set the number of threads to std::thread::hardware_concurrency()
      *                          Otherwise, use the given value
+     * @param obstacle_paths Paths acting as obstacles (representing other aircraft)
+     * @param obstacle_stats Flight characteristics of the obstacle aircraft
      * @return SharedDubinsResults
      */
     template<Dubins::DubinsSeparationFunction separation_function, Dubins::DubinsDistanceFunction distance_function>
@@ -1014,7 +1077,8 @@ public:
         const std::vector<AircraftStats>& stats, double min_sep,
         const std::vector<std::vector<double>>& timeslots,
         double wind_x = 0., double wind_y = 0.,
-        int threads = -1
+        int threads = -1,
+        const std::vector<std::shared_ptr<Dubins>>& obstacle_paths = {}, const std::vector<AircraftStats>& obstacle_stats = {}
     ) const
     {
         // Timing
@@ -1038,15 +1102,22 @@ public:
         assert(starts.size() == ends.size());
         assert(starts.size() == stats.size());
         assert(starts.size() == timeslots.size());
+        assert(obstacle_paths.size() == obstacle_stats.size());
     #endif
 
+        double maxmin_ts = 0.;
         size_t max_timeslots = timeslots[0].size();
         for(auto ts : timeslots)
         {
+            maxmin_ts = std::max(maxmin_ts,*std::min_element(ts.begin(),ts.end()));
             max_timeslots = std::max(max_timeslots,ts.size());
         }
+        extra.initial_path_time = maxmin_ts;
 
         ListOfPossibilities possibilities = list_all_possibilities(starts,ends,stats,timeslots,wind_x,wind_y);
+
+        filter_colliding_paths<distance_function>(possibilities,stats,obstacle_paths,obstacle_stats,min_sep);
+
 
         std::set<uint> nopaths_acs = acs_without_paths(possibilities);
 
@@ -1056,10 +1127,11 @@ public:
         {
             if (threads > 1)
             {
+                ref_model = new Highs();
                 setup_base_model(ref_model,starts.size(),max_timeslots*max_path_num(),verbosity);
 
                 sol = find_solution_parallel<separation_function,distance_function>(
-                    possibilities,stats,min_sep,threads, verbosity >= DubinsFleetPlanner_VERY_VERBOSE);
+                    possibilities,stats,min_sep,max_timeslots*max_path_num(),threads, verbosity >= DubinsFleetPlanner_VERY_VERBOSE);
             }
             else
             {
@@ -1094,6 +1166,20 @@ public:
 
         extra.success = sol.has_value();
         extra.duration = end - start;
+
+        if (sol.has_value())
+        {
+            uint i = 0;
+            double max_duration = 0.;
+            for(const auto& d : sol.value())
+            {
+                const auto& s = stats[i];
+                max_duration = std::max(max_duration,d->get_duration(s.airspeed));
+                i++;
+            }
+            extra.final_path_time = max_duration;
+        }
+
 
         return std::make_pair(sol,nopaths_acs);
     }

@@ -171,7 +171,7 @@ std::vector<RichConflict_T> generic_parallel_compute_distances(
  * @param verbosity Enable/Disable logging from HiGHS library (logging enabled for verbosity >= DubinsFleetPlanner_VERY_VERBOSE)
  * @return Highs A preconfigured model
  */
-void setup_base_model(Highs& highs, uint AC_count, uint max_paths_count, int verbosity=DubinsFleetPlanner_VERBOSE);
+void setup_base_model(Highs* highs, uint AC_count, uint max_paths_count, int verbosity=DubinsFleetPlanner_VERBOSE);
 
 /**
  * @brief Solve the path finding problem using HiGHS ILP solver

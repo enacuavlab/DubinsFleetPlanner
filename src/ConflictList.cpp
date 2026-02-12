@@ -80,23 +80,23 @@ size_t list_hash(const ListOfPossibilities& list)
 
 // ---------------------------------------- LP Solver ---------------------------------------- //
 
-void setup_base_model(Highs& highs, uint AC_count, uint max_paths_count, int verbosity)
+void setup_base_model(Highs* highs, uint AC_count, uint max_paths_count, int verbosity)
 {
     // -- General Options
-    highs.setOptionValue("output_flag",true);
-    highs.setOptionValue("presolve","on");
-    highs.setOptionValue("parallel","on");
+    highs->setOptionValue("output_flag",true);
+    highs->setOptionValue("presolve","on");
+    highs->setOptionValue("parallel","on");
     // highs.setOptionValue("log_file","highs.log");
-    highs.setOptionValue("mip_abs_gap", 1-1e-5); // Since all variables in the objective are binary, it should stop when the absolute gap is below 1
+    highs->setOptionValue("mip_abs_gap", 1-1e-5); // Since all variables in the objective are binary, it should stop when the absolute gap is below 1
     // highs.setOptionValue('random_seed', SEED)
 
     if (verbosity >= DubinsFleetPlanner_VERY_VERBOSE)
     {
-        highs.setOptionValue("log_to_console",true);
+        highs->setOptionValue("log_to_console",true);
     }
     else
     {
-        highs.setOptionValue("log_to_console",false);
+        highs->setOptionValue("log_to_console",false);
     }
 
     // Define variables with bounds (01-LP problem)
@@ -118,12 +118,12 @@ void setup_base_model(Highs& highs, uint AC_count, uint max_paths_count, int ver
         }
     }
 
-    highs.addCols(var_num,costs.data(),lowers.data(),uppers.data(),0,nullptr,nullptr,nullptr);
+    highs->addCols(var_num,costs.data(),lowers.data(),uppers.data(),0,nullptr,nullptr,nullptr);
 
 
     std::vector<HighsVarType> integrality(var_num);
     std::fill(integrality.begin(),integrality.end(),HighsVarType::kInteger);
-    highs.changeColsIntegrality(0,var_num-1,integrality.data());
+    highs->changeColsIntegrality(0,var_num-1,integrality.data());
 
 
     // -- Constraints 
@@ -139,7 +139,7 @@ void setup_base_model(Highs& highs, uint AC_count, uint max_paths_count, int ver
             indices[i] = ac_id*max_paths_count+i;
         }
 
-        highs.addRow(1.,1.,max_paths_count,indices.data(),uppers.data());
+        highs->addRow(1.,1.,max_paths_count,indices.data(),uppers.data());
     }
 }
 
@@ -163,7 +163,7 @@ std::optional<std::vector<std::shared_ptr<Dubins>>> find_pathplanning_LP_solutio
 
     if (preset_model == nullptr)
     {
-        setup_base_model(model,N,max_path_num);
+        setup_base_model(&model,N,max_path_num);
     }
     else
     {

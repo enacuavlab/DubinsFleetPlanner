@@ -158,7 +158,7 @@ public:
         uint i = 0;
         uint N = sections.size();
 
-        while(i < N-1 && len < junctions_locs[i])
+        while(i < N-1 && len > junctions_locs[i])
         {
             i++;
         }

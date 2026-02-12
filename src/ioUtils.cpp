@@ -180,6 +180,7 @@ bool check_header(const CSVRow& r)
     //     << std::endl;
 
 
+
     bool test = (
         (r[0].compare ("ac_id")         == 0) &&
         (r[1].compare ("start_x")       == 0) &&
@@ -194,7 +195,6 @@ bool check_header(const CSVRow& r)
         (r[10].compare("climb")         == 0) &&
         (r[11].compare("turn_radius")   == 0) &&
         ((r[12].compare("dt")  == 0) || (r[12].compare("dt\r")  == 0) || (r[12].compare("dt\n")  == 0) || (r[12].compare("dt\r\n")  == 0))
-
     );
 
     return test;
@@ -224,6 +224,16 @@ static RowInfo parse_row(const CSVRow& r)
 
     failable_from_stringview(r[12],o.dt);
 
+    for(uint i = 13; i < r.size(); i++)
+    {
+        double tslot;
+        auto ret = from_stringview(r[i],tslot);
+        if (ret.ec == std::errc())
+        {
+            o.timeslots.push_back(tslot);
+        }
+    }
+
     return o;
 }
 
@@ -235,6 +245,7 @@ static CaseData tranpose_data(const std::vector<RowInfo>& rows)
     std::vector<Pose3D> ends(N);
     std::vector<AircraftStats> stats(N);
     std::vector<double> dt(N-1);
+    std::vector<std::vector<double>> timeslots(N);
 
     for(uint i = 0; i < N; i++)
     {
@@ -243,12 +254,13 @@ static CaseData tranpose_data(const std::vector<RowInfo>& rows)
             dt[i-1] = rows[i].dt;
         }
 
-        starts[i]   = rows[i].start;
-        ends[i]     = rows[i].end;
-        stats[i]    = rows[i].stats;
+        starts[i]       = rows[i].start;
+        ends[i]         = rows[i].end;
+        stats[i]        = rows[i].stats;
+        timeslots[i]    = rows[i].timeslots;
     }
 
-    return std::make_tuple(starts,ends,stats,dt);
+    return std::make_tuple(starts,ends,stats,dt,timeslots);
 }
 
 CaseData DubinsPP::InputParser::parse_data_csv(std::istream& stream)
@@ -595,7 +607,7 @@ void DubinsPP::OutputPrinter::append_rich_conflicts(std::ostream& s,
 void to_json_ModernTrajectory(json& j, 
     const std::shared_ptr<Dubins>& path,
     const AircraftStats& stats,
-    double wind_x, double wind_y, double duration)
+    double wind_x, double wind_y)
 {
 
     json j_stats;
@@ -701,7 +713,7 @@ void DubinsPP::OutputPrinter::print_paths_as_ModernJSON(std::ostream& s,
         for(uint i = 0; i < N; i++)
         {
             json j_trajectory;
-            to_json_ModernTrajectory(j_trajectory,paths[i],stats[i],wind_x,wind_y,duration);
+            to_json_ModernTrajectory(j_trajectory,paths[i],stats[i],wind_x,wind_y);
             trajectories.push_back(j_trajectory);
         }
 

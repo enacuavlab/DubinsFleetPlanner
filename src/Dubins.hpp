@@ -270,6 +270,8 @@ public:
      * 
      * The arguments are:
      * First path, second path, first speed, second speed, duration, minimal distance, computation precision, optional hot start, heuristic recursion
+     * 
+     * Returns the location and value of the minimal distance between trajectories
      */
     typedef std::pair<double,double> (*DubinsDistanceFunction)(const Dubins&, const Dubins&, 
         double, double, double, double, double, std::optional<double>, uint);

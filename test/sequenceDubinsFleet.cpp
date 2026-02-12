@@ -113,7 +113,7 @@ int main()
         std::vector<std::shared_ptr<Dubins>> results_vec(results.size());
         for(uint i = 0; i < results.size(); i++)
         {
-            results_vec[i] = std::move(results[i]);
+            results_vec[i] = results[i];//std::move(results[i]);
         }
 
         std::ofstream output("/home/mael/Programming/DubinsFleetPlanner/" + std::to_string(i) + "_chained.json");
