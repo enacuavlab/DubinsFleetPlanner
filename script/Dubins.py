@@ -20,6 +20,7 @@ import typing
 
 from dataclasses import dataclass,field,asdict
 from enum import IntEnum
+import copy
 
 import numpy as np
 
@@ -187,8 +188,8 @@ def LSR(start:Pose2D, goal:Pose2D) -> typing.Optional[tuple[float,float,float]]:
     u = np.sqrt(tmp)
     theta = np.arctan2(-ca - cb, d + sa + sb)
 
-    t = mod2pi(theta - a - np.atan2(-2,u))
-    v = mod2pi(theta - b - np.atan2(-2,u))
+    t = mod2pi(theta - a - np.arctan2(-2,u))
+    v = mod2pi(theta - b - np.arctan2(-2,u))
 
     return t, u, v
 
@@ -205,8 +206,8 @@ def RSL(start:Pose2D, goal:Pose2D) -> typing.Optional[tuple[float,float,float]]:
     u = np.sqrt(tmp)
     theta = np.arctan2(ca + cb, d - sa - sb)
 
-    t = mod2pi(a - theta + np.atan2(2,u))
-    v = mod2pi(b - theta + np.atan2(2,u))
+    t = mod2pi(a - theta + np.arctan2(2,u))
+    v = mod2pi(b - theta + np.arctan2(2,u))
 
     return t, u, v
 
@@ -341,6 +342,20 @@ class BasicPath:
         else:
             output = abs(self.p1*self.p2)
         return output
+    
+    def set_speed(self,v:float):
+        if self.type == DubinsMove.STRAIGHT:
+            cv = self.speed()
+            self.p1 *= v/cv
+            self.p2 *= v/cv
+        else:
+            self.p2 = np.sign(self.p2) * v/self.p1
+    
+    def radius(self) -> float:
+        if self.type == DubinsMove.STRAIGHT:
+            return 0.
+        else:
+            return self.p1
         
     def pose_at(self,t:float) -> Pose3D:
         z = self.z + t*self.p3
@@ -374,6 +389,7 @@ class BasicPath:
     def asdict(self) -> dict[str,float|DubinsMove]:
         output = asdict(self)
         output["type"] = str(output["type"])
+        output["m"] = self.type.value
         return output
     
     @staticmethod
@@ -404,7 +420,7 @@ class BasicPath:
                 cy = start.y - dx*radius
                 p2 *= -1
             
-            p4 = np.atan2(start.y - cy, start.x - cx)
+            p4 = np.arctan2(start.y - cy, start.x - cx)
             return BasicPath(type,length,
                              cx,cy,0.,
                              p1,p2,p3,p4)
@@ -436,6 +452,20 @@ class Path:
         else:
             return self.sections[-1].duration()
         
+    def shift(self,dx:float,dy:float,dz:float=0.):
+        self.start.x += dx
+        self.start.y += dy
+        self.start.z += dz
+        
+        self.end.x += dx
+        self.end.y += dy
+        self.end.z += dz
+        
+        for s in self.sections:
+            s.x += dx
+            s.y += dy
+            s.z += dz
+        
     def pose_at(self,t:float) -> Pose3D:
         section_id = 0
         time = t
@@ -455,9 +485,14 @@ class Path:
     def asdict(self) -> dict[str,typing.Any]:
         output = asdict(self)
         output.pop("junctions")
+        output["sections_count"] = len(self.sections)
+        sections = []
+        for s in self.sections:
+            sections.append(s.asdict())
+        output["sections"] = sections
         return output
     
-    def join(self,other:typing.Self):
+    def join(self,other:Path):
         self.total_length += other.total_length
         self.end = other.end
         
@@ -474,6 +509,39 @@ class Path:
         
     def abbr(self) -> str:
         return ''.join(s.type.abbr() for s in self.sections)
+            
+    
+    def follow_for(self,t:float) -> typing.Optional[Path]:
+        section_id = 0
+        time = t
+        if time > self.duration():
+            return None
+        
+        while section_id < len(self.junctions) and t > self.junctions[section_id]:
+            time -= self.sections[section_id].duration()
+            section_id += 1
+            
+        new_duration = self.duration() - t
+        new_end     = self.end
+        
+        if (section_id >= len(self.junctions)):
+            new_sections = [self.sections[-1]]
+        else:
+            new_sections = self.sections[section_id:]
+            
+        new_start   = new_sections[0].pose_at(time)
+            
+        new_start_section = BasicPath.from_2D(
+            new_sections[0].type,
+            (new_sections[0].duration()-time)*new_sections[0].speed(),
+            Pose2D(new_start.x,new_start.y,new_start.theta),
+            new_sections[0].radius(),
+            new_sections[0].speed()
+        )
+        
+        new_sections[0] = new_start_section
+        
+        return Path(new_duration,new_start,new_end,copy.deepcopy(new_sections))
                 
 
 @dataclass
@@ -494,14 +562,30 @@ class FleetPlan:
     wind_x      :float # Wind speed along the X axis 
     wind_y      :float # Wind speed along the Y axis
     duration    :float # Time duration of the plan
-    AC_num      :int   # Number of aircraft 
     trajectories:list[tuple[ACStats,Path]] # List of paths and stats
-    _traj_dict  :dict[int,int] = field(init=False) # Match each AC_id to the correct index in the `trajectories` list
+    AC_num      :int            = field(init=False) # Number of aircraft 
+    _traj_dict  :dict[int,int]  = field(init=False) # Match each AC_id to the correct index in the `trajectories` list
     
-    def __post_init__(self):
+    def __gen_traj_dict(self):
         self._traj_dict = dict()
         for i,t in enumerate(self.trajectories):
             self._traj_dict[t[0].id] = i
+        
+    
+    def __post_init__(self):
+        self.__gen_traj_dict()
+        
+        self.AC_num = len(self.trajectories)
+        if self.AC_num != len(self._traj_dict):
+            raise KeyError(f"Some AC ids are in duplicates")
+            
+    def add_path(self,path:Path,stats:ACStats):
+        if stats.id in self._traj_dict:
+            raise KeyError(f"AC id {stats.id} is already used")
+        
+        self.AC_num += 1
+        self._traj_dict[stats.id] = len(self.trajectories)
+        self.trajectories.append((stats,path))
     
     @property
     def starts(self) -> dict[int,Pose3D]:
@@ -516,6 +600,9 @@ class FleetPlan:
         for s,traj in self.trajectories:
             output[s.id] = traj.end
         return output
+    
+    def get_path(self,ac_id:int) -> tuple[ACStats,Path]:
+        return self.trajectories[self._traj_dict[ac_id]]
     
     def poses_at(self,t:float) -> dict[int,Pose3D]:
         output = dict()
@@ -549,27 +636,59 @@ class FleetPlan:
         output = [s.id for s,_ in self.trajectories]
         return output
     
+    def remove_path(self,ac_id:int|typing.Iterable[int]):
+        if type(ac_id) is int:
+            ids = [ac_id]
+        else:
+            ids = ac_id
+        
+        locs = []
+        
+        for id in ids: # type: ignore
+            id:int
+            
+            locs.append(self._traj_dict[id])
+        
+        locs.sort(reverse=True)
+        for loc in locs:
+            self.trajectories.pop(loc)
+            self.AC_num -= 1
+            
+        self.__gen_traj_dict()
+    
     def generate_id_name_dict(self) -> dict[int,str]:
         output = dict()
         for s,p in self.trajectories:
             output[s.id] = p.abbr()
         return output
     
-    def asdict(self) -> dict[str,typing.Any]:
+    def asdict(self,subset:typing.Optional[typing.Iterable[int]]=None) -> dict[str,typing.Any]:
         output = asdict(self)
         output.pop("_traj_dict")
         output.pop("trajectories")
         output["trajectories"] = []
-        for t in self.trajectories:
+        
+        if subset is None:
+            subset = self._traj_dict.keys()
+
+        ac_count = 0
+        
+        for id in subset:
+            ac_count += 1
+            i = self._traj_dict[id]
+            t = self.trajectories[i]
             output["trajectories"].append(
                 {
                     "stats" : t[0].asdict(),
                     "path"  : t[1].asdict()
                 }
             )
+            
+        output["AC_num"] = ac_count
+
         return output
     
-    def join(self,other:typing.Self):
+    def join(self,other:FleetPlan):
         
         # Check compatibility first
         assert(self.AC_num == other.AC_num)
@@ -588,6 +707,47 @@ class FleetPlan:
         for o_stats,o_traj in other.trajectories:
             _,s_traj = self.trajectories[self._traj_dict[o_stats.id]]
             s_traj.join(o_traj)
+            
+    
+    def merge(self,other:FleetPlan,override:bool=True):
+        assert(self.separation == other.separation)
+        assert(self.z_alpha == other.z_alpha)
+        assert(self.wind_x == other.wind_x)
+        assert(self.wind_y == other.wind_y)
+        
+        for o_stats,o_traj in other.trajectories:
+            try:
+                i = self._traj_dict[o_stats.id]
+                if override:
+                    self.trajectories[i] = o_stats,o_traj
+            except KeyError:
+                self.trajectories.append((o_stats,o_traj))
+                self._traj_dict[o_stats.id] = len(self.trajectories)-1
+                self.AC_num += 1
+            
+            
+            
+    def follow_for(self,time:float) -> FleetPlan:
+        new_trajs:list[tuple[ACStats,Path]] = []
+        
+        for i in range(len(self.trajectories)):
+            stats,path = self.trajectories[i]
+            
+            new_path = path.follow_for(time)
+            if new_path is None:
+                continue
+            else:
+                new_path.shift(self.wind_x*time,self.wind_y*time)
+                new_trajs.append((stats,new_path))
+        
+        return FleetPlan(
+            self.separation,
+            self.z_alpha,
+            self.wind_x,
+            self.wind_y,
+            self.duration-time,
+            new_trajs
+        )
         
         
             

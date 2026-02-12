@@ -57,15 +57,15 @@ def parse_trajectories_from_JSON(file) -> FleetPlan:
             raw_data["wind_x"],
             raw_data["wind_y"],
             raw_data["duration"],
-            raw_data["AC_num"],
+            # raw_data["AC_num"],
             paths
         )
         
     return output
     
-def print_FleetPlan_to_JSON(file,plan:FleetPlan):
-    with open(file,mode='x') as jsonfile:
-        json.dump(plan.asdict(),jsonfile)
+def print_FleetPlan_to_JSON(file,plan:FleetPlan,subset:typing.Optional[typing.Iterable[int]]=None,overwrite:bool=False):
+    with open(file,mode='w' if overwrite else 'x') as jsonfile:
+        json.dump(plan.asdict(subset),jsonfile)
 
 
 def join_trajectories_JSONs(output_file,*input_files):

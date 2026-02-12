@@ -27,8 +27,6 @@ from ioUtils import CaseSummary,parse_result_summary,write_summary,parse_traject
 import numpy as np
 import typing,os,subprocess,pathlib,multiprocessing,time,hashlib
 
-__REF_CSV_HEADER = "Test input;Success;False positive;Iterations;Duration(ns);Threads;Possible paths;Initial guessed time;Final obtained time".split(';')
-
 def count_testcases_in_dir(case_dir:pathlib.Path) -> int:
     return sum(1 for p in case_dir.iterdir() if p.is_file() and p.suffix.lower() == '.csv')
      
@@ -525,7 +523,7 @@ if __name__ == '__main__':
                                      "or transitioning from a formation to another",
                                      epilog="Usual statistics: Airliner:\n"
                                      " - Airspeed       : 250 knots (4.166 NM/min)\n"
-                                     " - Turn radius    : 1.33 NM\n"
+                                     " - Turn radius    : 1.33 NM (full circle in 2 minutes)\n"
                                      " - Min separation : 5 NM\n\n"
                                      "Lab fixed wing:\n"
                                      " - Airspeed       : 15 m/s\n"

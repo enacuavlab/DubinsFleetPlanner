@@ -17,7 +17,7 @@
 # You should have received a copy of the GNU General Public License
 # along with DubinsFleetPlanner.  If not, see <https://www.gnu.org/licenses/>.
 
-import typing,dataclasses,pathlib
+import typing,dataclasses,pathlib,copy
 
 import csv
 
@@ -30,7 +30,7 @@ from Formation import Formation
 
 ######################################## Output CSV ########################################
 
-__CSV_problem_statement_header = "ac_id,start_x,start_y,start_z,start_theta,end_x,end_y,end_z,end_theta,airspeed,climb,turn_radius,dt".split(',')
+_CSV_problem_statement_header = "ac_id,start_x,start_y,start_z,start_theta,end_x,end_y,end_z,end_theta,airspeed,climb,turn_radius,dt".split(',')
 
 @dataclasses.dataclass
 class AC_PP_Problem:
@@ -41,10 +41,14 @@ class AC_PP_Problem:
     start:Pose3D    # Start pose
     end:Pose3D      # End pose
     dt:float=0.     # Time difference with respect to the previous aircraft
+    timeslots:list[float] = dataclasses.field(default_factory=list)
     
     @staticmethod
-    def header() -> typing.Sequence[str]:
-        return __CSV_problem_statement_header
+    def header(timeslot_num:int=0) -> typing.Sequence[str]:
+        output:typing.Sequence[str] = copy.deepcopy(_CSV_problem_statement_header)
+        for i in range(timeslot_num):
+            output.append(f"Timeslot {i}") # type: ignore
+        return output
     
     @staticmethod
     def parse_from_strlist(args:typing.Sequence[str]):
@@ -61,18 +65,23 @@ class AC_PP_Problem:
         climb       = float(args[10])
         turn_radius = float(args[11])
         dt          = float(args[12])
+        timeslots   = []
+        for e in args[13:]:
+            timeslots.append(float(e))
         
         stats   = ACStats(ac_id,airspeed,climb,turn_radius)
         start   = Pose3D(start_x,start_y,start_z,start_theta)
         end     = Pose3D(end_x,end_y,end_z,end_theta)
         
-        return AC_PP_Problem(stats,start,end,dt)
+        return AC_PP_Problem(stats,start,end,dt,timeslots)
 
 def write_pathplanning_problem_to_CSV(file,data:typing.Sequence[AC_PP_Problem],overwrite:bool=False):
+    max_timeslots = max(len(d.timeslots) for d in data)
+    
     with open(file, newline='', mode='w' if overwrite else 'x') as outcsv:
         writer = csv.writer(outcsv,delimiter=';')
         
-        writer.writerow(__CSV_problem_statement_header)
+        writer.writerow(AC_PP_Problem.header(max_timeslots))
         
         for p in data:
             
@@ -90,7 +99,11 @@ def write_pathplanning_problem_to_CSV(file,data:typing.Sequence[AC_PP_Problem],o
             turn_radius = p.stats.turn_radius
             dt          = p.dt
             
-            writer.writerow([ac_id,start_x,start_y,start_z,start_theta,end_x,end_y,end_z,end_theta,airspeed,climb,turn_radius,dt])
+            filled_timeslots = [""] * max_timeslots
+            for i,v in enumerate(p.timeslots):
+                filled_timeslots[i] = str(v)
+            
+            writer.writerow([ac_id,start_x,start_y,start_z,start_theta,end_x,end_y,end_z,end_theta,airspeed,climb,turn_radius,dt]+filled_timeslots)
 
 
 def parse_pathplanning_problem_from_CSV(file:pathlib.Path) -> list[AC_PP_Problem]:
@@ -99,7 +112,7 @@ def parse_pathplanning_problem_from_CSV(file:pathlib.Path) -> list[AC_PP_Problem
         reader = csv.reader(f,delimiter=';')
         
         header = next(reader)
-        for h,r in zip(header,__CSV_problem_statement_header):
+        for h,r in zip(header,_CSV_problem_statement_header):
             assert h == r
         
         for l in reader:
@@ -114,8 +127,8 @@ class _RepulsionSimulator:
     
     def __init__(self,
                  pts:np.ndarray,
-                 charges:np.ndarray|None=None,
-                 speeds:np.ndarray|None=None,
+                 charges:typing.Optional[np.ndarray]=None,
+                 speeds:typing.Optional[np.ndarray]=None,
                  force_factor:float=1.,
                  force_power:int = 2,
                  friction:float=1.):
@@ -193,7 +206,8 @@ class RandomPathPlanningGenerator:
         self.verbose = verbose
         
     def _sample_in_ball(self,min_r:float,max_r:float,max_angle:float=2*np.pi,
-                        latitude_range:tuple[float,float]|None=None,num:int|tuple[int,...]=1) -> tuple[float,float,float] | tuple[np.ndarray,np.ndarray,np.ndarray]:
+                        latitude_range:typing.Optional[tuple[float,float]]=None,
+                        num:typing.Union[int,tuple[int,...]]=1) -> typing.Union[tuple[float,float,float] , tuple[np.ndarray,np.ndarray,np.ndarray]]:
         
         r = self.rng.uniform(min_r,max_r,num)
         a = self.rng.uniform(0,max_angle,num)
@@ -209,7 +223,7 @@ class RandomPathPlanningGenerator:
         return sol
         
 
-    def _generate_uniform_pts(self,N:int,xrange:tuple[float,float],yrange:tuple[float,float],zrange:tuple[float,float]|None=None) -> np.ndarray:
+    def _generate_uniform_pts(self,N:int,xrange:tuple[float,float],yrange:tuple[float,float],zrange:typing.Optional[tuple[float,float]]=None) -> np.ndarray:
         xs = self.rng.uniform(xrange[0],xrange[1],N)
         ys = self.rng.uniform(yrange[0],yrange[1],N)
         
@@ -222,7 +236,7 @@ class RandomPathPlanningGenerator:
             
         return pts
     
-    def _generate_endpoints_in_disk(self,init_pts:np.ndarray,d_range:tuple[float,float],latitude_range:tuple[float,float]|None=None) -> np.ndarray:
+    def _generate_endpoints_in_disk(self,init_pts:np.ndarray,d_range:tuple[float,float],latitude_range:typing.Optional[tuple[float,float]]=None) -> np.ndarray:
         offsets = self._sample_in_ball(d_range[0],d_range[1],latitude_range=latitude_range,num=len(init_pts))
         offset_pts = np.stack(offsets).T
         
@@ -230,7 +244,7 @@ class RandomPathPlanningGenerator:
     
     def _generate_uniform_separated_poses(self, mdist:float, N:int,
         xrange:tuple[float,float], yrange:tuple[float,float],
-        zrange:tuple[float,float]|None=None,
+        zrange:typing.Optional[tuple[float,float]]=None,
         **repulse_kwargs) -> list[Pose3D]:
         
         og_pts = self._generate_uniform_pts(N,xrange,yrange,zrange)
@@ -246,7 +260,7 @@ class RandomPathPlanningGenerator:
     def generate_uniform_case_with_repulsion(
         self, mdist:float, N:int,
         xrange:tuple[float,float], yrange:tuple[float,float],
-        zrange:tuple[float,float]|None=None,
+        zrange:typing.Optional[tuple[float,float]]=None,
         **repulse_kwargs) -> tuple[list[Pose3D],list[Pose3D]]:
         
         return self._generate_uniform_separated_poses(mdist,N,xrange,yrange,zrange,**repulse_kwargs),\
@@ -257,8 +271,8 @@ class RandomPathPlanningGenerator:
         self, mdist:float, N:int,
         dist_range:tuple[float,float],
         xrange:tuple[float,float], yrange:tuple[float,float],
-        zrange:tuple[float,float]|None=None,
-        lat_range:tuple[float,float]|None=None,
+        zrange:typing.Optional[tuple[float,float]]=None,
+        lat_range:typing.Optional[tuple[float,float]]=None,
         **repulse_kwargs) -> tuple[list[Pose3D],list[Pose3D]]:
         
         og_starts = self._generate_uniform_pts(N,xrange,yrange,zrange)
@@ -284,7 +298,7 @@ class RandomPathPlanningGenerator:
     
     def generate_random_to_formation(self, mdist:float, formation:Formation,
                                      xrange:tuple[float,float], yrange:tuple[float,float],
-                                    zrange:tuple[float,float]|None=None,
+                                    zrange:typing.Optional[tuple[float,float]]=None,
                                     **repulse_kwargs) -> tuple[list[Pose3D],list[Pose3D]]:
         
         N = formation.agent_num

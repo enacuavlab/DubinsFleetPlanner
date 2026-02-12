@@ -32,8 +32,7 @@ from ioUtils import parse_trajectories_from_JSON,parse_trajectories_from_CSV,tra
 
 import matplotlib.pyplot as plt
 from matplotlib.axes import Axes
-from matplotlib.figure import Figure
-from matplotlib.patches import Rectangle,Arrow
+from matplotlib.lines import Line2D
 from matplotlib.animation import FuncAnimation
 from matplotlib.text import Text
 from matplotlib import transforms,colormaps
@@ -46,12 +45,12 @@ ARROWS_SCALING = {
     'width' : 0.03
 }
 
-def plot_pose2d_sequence(ax:Axes,poses:list[Pose3D],endpoints:bool=False,endarrows:bool=False,**plot_kwargs) -> Axes:
+def plot_pose2d_sequence(ax:Axes,poses:list[Pose3D],endpoints:bool=False,endarrows:bool=False,**plot_kwargs) -> tuple[Axes,list[Line2D]]:
     xs = np.asarray([p.x for p in poses])
     ys = np.asarray([p.y for p in poses])
     angles = np.asarray([p.theta for p in poses])
     
-    ax.plot(xs,ys,**plot_kwargs)
+    lines = ax.plot(xs,ys,**plot_kwargs)
     
     # Avoid repeating the name in the legend
     plot_kwargs.pop('label',None)
@@ -72,33 +71,39 @@ def plot_pose2d_sequence(ax:Axes,poses:list[Pose3D],endpoints:bool=False,endarro
         ax.quiver([xs[0]],[ys[0]],[np.cos(angles[0])],[np.sin(angles[0])],angles='xy',color=color)
         ax.quiver([xs[-1]],[ys[-1]],[np.cos(angles[-1])],[np.sin(angles[-1])],angles='xy',color=color)
     
-    return ax
+    return ax,lines
 
 def plot_several_pose2d_sequences(ax:Axes,poses_dict:DictOfPoseTrajectories,colors_dict:typing.Optional[dict[int,ColorType]]=None,
-                                  endpoints:bool=False,endarrows:bool=False,label:bool=False,alpha:float=1.) -> Axes:
+                                  endpoints:bool=False,endarrows:bool=False,label:bool=False,alpha:float=1.,**plot_kwargs) -> tuple[Axes,list[Line2D]]:
     i = 0
+    
+    ll = []
     for key,values in poses_dict.items():
         pose2d_seq = [v[1] for v in values]
         c = colors_dict[key] if colors_dict is not None else my_cmap[i % len(my_cmap)]
         if label:
-            ax = plot_pose2d_sequence(ax,pose2d_seq,endpoints,endarrows,
+            ax,l = plot_pose2d_sequence(ax,pose2d_seq,endpoints,endarrows,
                                     color=c,
                                     label=f"AC: {key}",
-                                    alpha=alpha)
+                                    alpha=alpha,
+                                    **plot_kwargs)
         else:
-            ax = plot_pose2d_sequence(ax,pose2d_seq,endpoints,endarrows,
+            ax,l = plot_pose2d_sequence(ax,pose2d_seq,endpoints,endarrows,
                                     color=c,
-                                    alpha=alpha)
+                                    alpha=alpha,
+                                    **plot_kwargs)
+            
+        ll.extend(l)
         
         i += 1
         
         
-    return ax
+    return ax,ll
 
 
 def snapshot_several_pose2d_sequences(poses_list:ListOfTimedPoses,snapshots:int,
                                      color_dict:typing.Optional[dict[int,ColorType]]=None,
-                                     name_dict:dict[int,str]|None=None,
+                                     name_dict:typing.Optional[dict[int,str]]=None,
                                      save_fig:typing.Optional[str]=None,
                                      show_fig:bool=False,
                                      no_legend:bool=False,
@@ -124,7 +129,7 @@ def snapshot_several_pose2d_sequences(poses_list:ListOfTimedPoses,snapshots:int,
             i += 1
     
     # Plot background lines
-    ax = plot_several_pose2d_sequences(ax,poses_dict,color_dict,False,False,False,0.3)
+    ax,_ = plot_several_pose2d_sequences(ax,poses_dict,color_dict,False,False,False,0.3)
     
     # Plot min dist location
     mdist = np.inf
@@ -225,7 +230,7 @@ def snapshot_several_pose2d_sequences(poses_list:ListOfTimedPoses,snapshots:int,
 
 def animate_several_pose2d_sequences(poses_list:ListOfTimedPoses,fps:int=30,
                                      color_dict:typing.Optional[dict[int,ColorType]]=None,
-                                     name_dict:dict[int,str]|None=None,
+                                     name_dict:typing.Optional[dict[int,str]]=None,
                                      save_animation:typing.Optional[str]=None,
                                      show_animation:bool=False,
                                      no_legend:bool=False):
@@ -247,7 +252,7 @@ def animate_several_pose2d_sequences(poses_list:ListOfTimedPoses,fps:int=30,
             i += 1
     
     # Plot background lines
-    ax = plot_several_pose2d_sequences(ax,poses_dict,color_dict,False,False,False,0.2)
+    ax,_ = plot_several_pose2d_sequences(ax,poses_dict,color_dict,False,False,False,0.2)
     
     # Setup artists for animation
     keys = list(poses_list[0][1].keys())
@@ -387,7 +392,7 @@ def animate_several_pose2d_sequences(poses_list:ListOfTimedPoses,fps:int=30,
 
 def animate_fleet_plan(plan:FleetPlan,sample_num:int,fps:int=30,
                        color_dict:typing.Optional[dict[int,ColorType]]=None,
-                       name_dict:dict[int,str]|None=None,
+                       name_dict:typing.Optional[dict[int,str]]=None,
                        save_animation:typing.Optional[str]=None,
                        show_animation:bool=False,
                        no_legend:bool=False):

@@ -15,6 +15,8 @@
 # You should have received a copy of the GNU General Public License
 # along with DubinsFleetPlanner.  If not, see <https://www.gnu.org/licenses/>.
 
+from __future__ import annotations
+
 import typing
 import copy
 
@@ -56,15 +58,14 @@ class SidePoint(enum.Enum):
     MAX = 1
     
     def get_val(self,vals:np.ndarray):
-        match (self):
-            case self.MIN:
-                return np.min(vals)
-            case self.MAX:
-                return np.max(vals)
-            case self.MID:
-                return (np.min(vals)+np.max(vals))/2
-            case _:
-                raise ValueError(f"Unknown value for SidePoint: {self}")
+        if self == SidePoint.MIN:
+            return np.min(vals)
+        elif self == SidePoint.MAX:
+            return np.max(vals)
+        elif self == SidePoint.MID:
+            return (np.min(vals)+np.max(vals))/2
+        else:
+            raise ValueError(f"Unknown value for SidePoint: {self}")
     
 @dataclass
 class Corner:
@@ -100,7 +101,7 @@ class Formation:
         """ Number of agents in the formation """
         return self.positions.shape[0]
     
-    def reorder(self,indices:np.ndarray) -> typing.Self:
+    def reorder(self,indices:np.ndarray) -> Self:
         """ Reorder the positions in the formation given a permutation
 
         Args:
