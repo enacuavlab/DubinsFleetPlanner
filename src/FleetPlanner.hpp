@@ -1119,6 +1119,7 @@ public:
 
         filter_colliding_paths<distance_function>(possibilities,stats,obstacle_paths,obstacle_stats,min_sep);
 
+
         std::set<uint> nopaths_acs = acs_without_paths(possibilities);
 
         SharedDubinsResults sol;
@@ -1225,7 +1226,6 @@ public:
     BasicDubinsFleetPlanner(double _prec, double _max_r_dur, int verb, std::ostream& output_stream) :
         AbstractFleetPlanner(_prec,_max_r_dur,verb, output_stream) {}
 };
-
 
 /**
  * @brief Plannification based on any previous paths generator extended by basic primitives (S,L,R) of fixed lengths
