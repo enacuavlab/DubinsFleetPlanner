@@ -9,6 +9,8 @@ import csv,pathlib
 
 import numpy as np
 
+import pandas as pd
+
 import matplotlib.pyplot as plt
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
@@ -19,7 +21,10 @@ from traffic.core import Traffic,Flight
 from traffic.data import samples,airports
 from traffic.algorithms import filters
 
+from pitot.geodesy import distance
 from pyproj import Geod
+
+from traffic_pb_generator import NM_TO_METERS
 
 geod = Geod(ellps="WGS84")
 
@@ -94,6 +99,28 @@ def project_position(lon:float, lat:float, track_deg:typing.Optional[float], gro
     lon2, lat2, _ = geod.fwd(lon, lat, track_deg, distance_m)
     return lon2, lat2
 
+def compute_min_dist(last_known_pos:dict[typing.Any,tuple[float,float,pd.Timestamp]],ref_t:pd.Timestamp,max_dt:pd.Timedelta=pd.Timedelta("60s")):
+    
+    positions = list(filter(lambda t : (ref_t - t[2]) <= max_dt,last_known_pos.values()))
+    
+    if len(positions) <= 1:
+        return None
+    min_p1 = None
+    min_p2 = None
+    min_dist = np.inf
+    for i in range(len(positions)):
+        for j in range(i+1,len(positions)):
+            p1 = positions[i]
+            p2 = positions[j]
+            dist = distance(p1[0],p1[1],p2[0],p2[1]) / NM_TO_METERS
+            
+            if dist < min_dist:
+                min_p1 = p1
+                min_p2 = p2
+                min_dist = dist
+                
+    return min_p1,min_p2,min_dist
+
 #################### Replayer class ####################
 
 @dataclasses.dataclass
@@ -112,6 +139,8 @@ class TrafficReplay:
     
     max_alt:float = 1
     
+    __mdist_line:typing.Optional[Line2D] = dataclasses.field(init=False)
+    __legend_handles:list           = dataclasses.field(init=False)
     
     def __post_init__(self):
         self.filling_index      = dict()
@@ -119,11 +148,16 @@ class TrafficReplay:
         self.arrival_by_icao24  = dict()
         self.airports_colors    = dict()
         self.artists            = dict()
+        self.__legend_handles   = list()
         
         cmap = cm.get_cmap("tab10")
         cmap_index = 0
         
         if self.ax is not None:
+            self.__mdist_line = self.ax.plot([],[],linestyle=':',color='k',marker='D',label="Min dist:")[0]
+            
+            self.__legend_handles = [self.__mdist_line]
+            
             for flight in self.traffic:
                 airport = get_arrival_airport(flight)
                 print(flight,airport)
@@ -168,18 +202,16 @@ class TrafficReplay:
                 )
                 self.artists[flight.icao24] = artist_container
             
-            airport_handles = []
-            airport_labels = []
+            
             for k,v in self.airports_colors.items():
-                airport_handles.append(Line2D([0], [0], color=v, marker="o", linestyle="-"))
-                airport_labels.append(k)
-                
                 if k == "UNKNOWN":
                     continue
                 
                 ap = airports[k]
                 lon = ap.longitude
                 lat = ap.latitude
+                
+                self.__legend_handles.append(Line2D([0], [0], color=v, marker="o", linestyle="-",label=f"{ap.icao}"))
                 
                 self.ax.plot(
                     lon,
@@ -201,11 +233,10 @@ class TrafficReplay:
                     zorder=6
                 )
 
-            self.ax.legend(airport_handles,airport_labels)
+            self.ax.legend(handles=self.__legend_handles)
                 
             self.ax.set_xlim(self.traffic.data.longitude.min() - 1, self.traffic.data.longitude.max() + 1)
             self.ax.set_ylim(self.traffic.data.latitude.min() - 1, self.traffic.data.latitude.max() + 1)
-
 
     def replay(self,
         speed:float,
@@ -235,11 +266,14 @@ class TrafficReplay:
             self.ax_alt.set_xlim(start_data_time,end_data_time)
         
         start_wall_time = time.time()
+        last_know_pos = dict()
 
         for _, row in df.iterrows():
             # Compute how much simulated time has passed
             sim_elapsed = (row.timestamp - start_data_time).total_seconds()
             wall_elapsed = (time.time() - start_wall_time) * speed
+            
+            last_know_pos[row.flight_id] = (row.latitude,row.longitude,row.timestamp)
 
             # Wait if simulation is ahead of wall clock
             if sim_elapsed > wall_elapsed:
@@ -328,7 +362,23 @@ class TrafficReplay:
                     self.ax_alt.set_ylim(0, self.max_alt)
                 except TypeError:
                     pass
-                
+            
+            ## Min dist
+            if self.ax is not None and self.__mdist_line is not None:
+                mdist_data = compute_min_dist(last_know_pos,row.timestamp)
+                if mdist_data is not None:
+                    p1,p2,dist = mdist_data
+                    self.__mdist_line.set_xdata(
+                        [p1[0],p2[0]]
+                    )
+                    self.__mdist_line.set_ydata(
+                        [p1[1],p2[1]]
+                    )
+                    self.__mdist_line.set_label(f"Min dist: {dist:.1f} NM")
+                    print(mdist_data[2])
+            
+            if self.ax is not None:
+                self.ax.legend(handles=self.__legend_handles)
                 
             plt.pause(0.001)
 
@@ -365,9 +415,12 @@ def main():
             print("ERROR: Filtering turned the database into None")
             exit(1)
             
-            
+        traffic = traffic.assign_id().eval(8)
         traffic.to_parquet('testdata.parquet')
     
+    if traffic is None:
+        print("isded")
+        exit(1)
     ##### Matplotlib setup #####
     
     plt.ion()  # interactive mode
@@ -390,6 +443,8 @@ def main():
 
     # Reasonable defaults (auto-adjust later)
     ax_alt.set_ylim(0, traffic.data.altitude.max() * 1.1)
+    
+    traffic = traffic.resample(100).eval(8)
     
     trafficRP = TrafficReplay(traffic,100,100,fig=fig,ax=ax,ax_alt=ax_alt)
     trafficRP.replay(60)

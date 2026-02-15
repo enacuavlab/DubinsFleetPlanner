@@ -10,6 +10,9 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.axes import Axes
 from matplotlib.lines import Line2D
+from matplotlib.quiver import Quiver
+from matplotlib.text import Text
+from matplotlib import colormaps as cm
 
 Colortype = tuple[float,float,float,float]
 
@@ -26,16 +29,17 @@ from Dubins import Path,BasicPath,FleetPlan,DubinsMove,Pose2D,Pose3D
 from pyproj import Geod,Transformer
 
 
-from traffic_pb_generator import FlightEndpoints,LatlonPose,extract_flight_endpoints,flight_landing
+from traffic_pb_generator import FlightEndpoints,LatlonPose,extract_flight_endpoints,flight_landing,NM_TO_METERS
 from ioUtils import print_FleetPlan_to_JSON,parse_trajectories_from_JSON
 
-from plotting import plot_several_pose2d_sequences,transpose_list_of_trajectories
+from plotting import plot_pose2d_sequence,transpose_list_of_trajectories
 #################### Ongoing flights simulator ####################
 
 
 def solve_problem(solver:pathlib.Path,src_dir:pathlib.Path,dest_dir:pathlib.Path,
-                   separation:float, wind:tuple[float,float],threads:int,obstacle_path:typing.Optional[str]
-                   ) -> subprocess.CompletedProcess[bytes]:
+                   separation:float, wind:tuple[float,float],threads:int,obstacle_path:typing.Optional[str],
+                   start_extensions:list[float] = [],
+                   end_extensions:list[float] = []) -> subprocess.CompletedProcess[bytes]:
     cmd = []
     cmd.append(str(solver.resolve()))
     cmd.append(str(src_dir.resolve()))
@@ -53,9 +57,21 @@ def solve_problem(solver:pathlib.Path,src_dir:pathlib.Path,dest_dir:pathlib.Path
     # cmd.append('-v')
     # cmd.append('2')
     
+    cmd.append('--straights-only')
+    
     if obstacle_path is not None:
         cmd.append('-O')
         cmd.append(str(obstacle_path))
+        
+    if len(start_extensions) > 0:
+        cmd.append('--extend-start')
+        for e in start_extensions:
+            cmd.append(str(e))
+    
+    if len(end_extensions) > 0:
+        cmd.append('--extend-end')
+        for e in end_extensions:
+            cmd.append(str(e))
     
     print(cmd)
     output = subprocess.run(cmd)
@@ -68,6 +84,8 @@ class ArrivalsSimulator:
     solver_path:pathlib.Path
     transformer:Transformer  # Convert (lat,lon) coordinates from WGS84 into some (x,y) coordinates for the solver. Must be a Conformal projection (preserve angles)
     timeshifts:list[pd.Timedelta]
+    threshold_shift:float   # By how much the endpoint have been moved along a straight line, in NM
+    cmd_shift:float         # Minimal straight length at the start of newly planned trajectory, in NM
     tasklist:list[FlightEndpoints]
     input_json_path:pathlib.Path    = pathlib.Path("input_json.json")
     output_json_path:pathlib.Path   = pathlib.Path("output_json.json")
@@ -80,22 +98,66 @@ class ArrivalsSimulator:
     scheduled:typing.Optional[FleetPlan] = None
     schedule_counters:dict[int,int]   = dataclasses.field(init=False) # Dict from AC id to number of reschedulings
     
-    __last_schedule:pd.Timestamp  = dataclasses.field(init=False)
+    __last_global_schedule:pd.Timestamp     = dataclasses.field(init=False)
+    __last_schedules:dict[int,pd.Timestamp] = dataclasses.field(init=False)
     __task_index:dict[int,int]    = dataclasses.field(init=False) # Reverse accessor from Aircraft ID to tasklist index
     __t:pd.Timestamp              = dataclasses.field(init=False)
     __end_of_times:pd.Timestamp   = dataclasses.field(init=False)
     __encountered_exception:typing.Optional[Exception] = dataclasses.field(init=False)
     
-    __axes:typing.Optional[Axes] = dataclasses.field(init=False)
-    __line_dict:dict[int,Line2D] = dataclasses.field(init=False)
-    __traj_dict:dict[int,Line2D] = dataclasses.field(init=False)
-    __quiver_dict:dict           = dataclasses.field(init=False)
+    __axes:typing.Optional[Axes]    = dataclasses.field(init=False)
+    __line_dict:dict[int,Line2D]    = dataclasses.field(init=False)
+    __traj_dict:dict[int,Line2D]    = dataclasses.field(init=False)
+    __quiver_dict:dict[int,Quiver]  = dataclasses.field(init=False)
+    __dest_dict:dict[tuple[str,str],Line2D]    = dataclasses.field(init=False)
+    __color_dict:dict[int,Colortype]= dataclasses.field(init=False)
+    __label_dict:dict[int,Text]     = dataclasses.field(init=False)
+    
+    def __post_init__(self):
+        self.schedule_counters = dict()
+        self.tasklist.sort(key=lambda fpts : fpts.start_time)
+        
+        self.__t = self.tasklist[0].start_time
+        self.__last_global_schedule = self.__t
+        self.__end_of_times = max(t.end_time for t in self.tasklist)
+        self.__task_index = dict()
+        self.__encountered_exception = None
+        self.__last_schedules = dict()
+        
+        self.__axes = None
+        
+        for i,t in enumerate(self.tasklist):
+            self.__task_index[t.stats.id] = i
+            self.schedule_counters[t.stats.id] = 0
+        
+        if self.scheduled is not None:
+            self.separation = self.scheduled.separation
+            self.z_alpha = self.scheduled.z_alpha
+            self.wind_x = self.scheduled.wind_x
+            self.wind_y = self.scheduled.wind_y
     
     def attach_axes(self,ax:Axes,set_xylims:bool=True):
         self.__axes = ax
         self.__line_dict = dict()
         self.__traj_dict = dict()
         self.__quiver_dict = dict()
+        self.__dest_dict = dict()
+        self.__color_dict = dict()
+        self.__label_dict = dict()
+        
+        # Setting up colors by destination
+        icao_rw_colordict = dict()
+        my_cm = cm["tab10"]
+        i = 0
+        for t in self.tasklist:
+            try:
+                color = icao_rw_colordict[(t.dest_ICAO,t.dest_runway)]
+            except KeyError:
+                color = my_cm(i/10)
+                i+=1
+                icao_rw_colordict[(t.dest_ICAO,t.dest_runway)] = color
+            self.__color_dict[t.stats.id] = color
+                
         
         if set_xylims:
             maxx = -np.inf
@@ -119,12 +181,29 @@ class ArrivalsSimulator:
                 miny = min(miny,start_p.y)
                 miny = min(miny,end_p.y)
                 
+                end_proj = t.end.project(self.threshold_shift*NM_TO_METERS).to_pose3D(self.transformer,True)
+                
+                color = self.__color_dict[t.id]
+                
+                if (t.dest_ICAO,t.dest_runway) not in self.__dest_dict:
+                    dest_line = self.__axes.plot(
+                        [end_p.x,end_proj.x],[end_p.y,end_proj.y],
+                        linestyle='-.',
+                        alpha=0.5,
+                        color=color,
+                        label=f"{t.dest_ICAO} : {t.dest_runway}"
+                    )[0]
+                    
+                    self.__dest_dict[(t.dest_ICAO,t.dest_runway)] = dest_line
+                    
             self.__axes.set_xlim(minx,maxx)
             self.__axes.set_ylim(miny,maxy)
             
-            #TODO: Proper labels
-            # self.__axes.set_xlabel()
-                 
+            self.__axes.set_xlabel("Easting (NM, RGF93)")
+            self.__axes.set_ylabel("Northing (NM, RGF93)")
+            
+            self.__axes.legend()
+            
         
     
     def get_task(self,ac_id:int) -> FlightEndpoints:
@@ -140,29 +219,9 @@ class ArrivalsSimulator:
         else:
             return ac_id in self.scheduled._traj_dict.keys()
     
-    def __post_init__(self):
-        self.schedule_counters = dict()
-        self.tasklist.sort(key=lambda fpts : fpts.start_time)
-        
-        self.__t = self.tasklist[0].start_time
-        self.__last_schedule = self.__t
-        self.__end_of_times = max(t.end_time for t in self.tasklist)
-        self.__task_index = dict()
-        self.__encountered_exception = None
-        
-        self.__axes = None
-        
-        for i,t in enumerate(self.tasklist):
-            self.__task_index[t.stats.id] = i
-            self.schedule_counters[t.stats.id] = 0
-        
-        if self.scheduled is not None:
-            self.separation = self.scheduled.separation
-            self.z_alpha = self.scheduled.z_alpha
-            self.wind_x = self.scheduled.wind_x
-            self.wind_y = self.scheduled.wind_y
     
-    def step(self,timedelta:pd.Timedelta,reschedule:bool=False,threads:int=0) -> list[tuple[ACStats,Pose3D]]:
+    
+    def step(self,timedelta:pd.Timedelta,reschedule_threshold:pd.Timedelta,reschedule:bool=False,threads:int=0) -> list[tuple[ACStats,Pose3D]]:
         output:list[tuple[ACStats,Pose3D]] = []
         
         ### Time forward
@@ -175,21 +234,35 @@ class ArrivalsSimulator:
         if self.scheduled is not None:
             self.scheduled = self.scheduled.follow_for(timedelta.total_seconds()/60)
             for s,p in self.scheduled.trajectories:
-                candidate_acs.add(s.id)
                 output.append((s,p.start))
                 added_acs.add(s.id)
-                print(f"Adding {s.id} from Pathing ({len(p.sections)} sections, {p.duration()} duration)")
+                
+                # Reschedule only possible during a straight without incoming turn
+                if p.sections[0].type == DubinsMove.STRAIGHT:
+                    if len(p.junctions) > 0:
+                        if p.junctions[0] > reschedule_threshold.total_seconds()/60:
+                            candidate_acs.add(s.id)
+                    else:
+                        if p.duration() > reschedule_threshold.total_seconds()/60:
+                            candidate_acs.add(s.id)
         
               
         for i,t in enumerate(self.tasklist):
             id = t.stats.id
+            
             # If already added via paths, skip
             if id in added_acs:
                 continue
             # Task already ended: remove drawing
             if t.end_time <= new_t:
-                self.__line_dict[id].set_visible(False)
-                self.__quiver_dict[id].set_visible(False)
+                if (new_t - t.end_time) > timedelta*10:
+                    try:
+                        self.__line_dict[id].set_visible(False)
+                        self.__quiver_dict[id].set_visible(False)
+                        self.__label_dict[id].set_visible(False)
+                        self.__traj_dict[id].set_visible(False)
+                    except KeyError:
+                        pass
                 continue
             
             # Task yet to begin: skip
@@ -200,10 +273,9 @@ class ArrivalsSimulator:
             candidate_acs.add(id)
             added_acs.add(id)
             output.append((nt.stats,nt.start.to_pose3D(self.transformer,True)))
-            print(f"Adding {id} from tasks")
+            # print(f"Adding {id} from tasks")
             self.tasklist[i] = nt
-            
-                
+        
                 
         self.__t = new_t
         print(f"Set time to {new_t}")
@@ -220,7 +292,8 @@ class ArrivalsSimulator:
                 except KeyError:
                     xs = [p.x]
                     ys = [p.y]
-                    line = self.__axes.plot(xs,ys,alpha=0.5,marker='+',label=id)[0]
+                    color = self.__color_dict[id]
+                    line = self.__axes.plot(xs,ys,alpha=0.5,marker='+',color=color)[0]
                 self.__line_dict[id] = line
                 color = line.get_color()
                 
@@ -233,16 +306,39 @@ class ArrivalsSimulator:
                 quiver.set_UVC([np.cos(p.theta)],[np.sin(p.theta)])
                 self.__quiver_dict[id] = quiver
                 
+                
+                try:
+                    text = self.__label_dict[id]
+                except KeyError:
+                    text = self.__axes.text(p.x,p.y,str(id))
+                    self.__label_dict[id] = text
+                text.set_position((p.x,p.y))
+                t = self.tasklist[self.__task_index[id]]
+                text.set_text(f"{id}: T -{(t.end_time-new_t).total_seconds()/60:.1f} min")
+                
         
         # Compute which aircraft can be rescheduled
         if reschedule:
             ## Remove those with no reschedule possible
-            no_reschedule_left:set[int] = set()
+            no_reschedule:set[int] = set()
             for id in candidate_acs:
                 if self.schedule_counters[id] >= self.max_reschedule:
-                    no_reschedule_left.add(id)
+                    no_reschedule.add(id)
+                    continue
+                try:
+                    last_schedule = self.__last_schedules[id]
+                    if new_t - last_schedule <= reschedule_threshold:
+                        no_reschedule.add(id)
+                        continue
+                except KeyError:
+                    pass
+            
+                if self.tasklist[self.__task_index[id]].end_time - new_t <= reschedule_threshold:
+                    no_reschedule.add(id)
+                    continue
                     
-            candidate_acs = candidate_acs-no_reschedule_left
+                
+            candidate_acs = candidate_acs-no_reschedule
             
             if len(candidate_acs) == 0:
                 reschedule = False
@@ -252,8 +348,11 @@ class ArrivalsSimulator:
             ## Print to JSON the set paths
             obstacles_exist = False
             if self.scheduled is not None:
+                print(f"Plan time: {self.scheduled.duration}")
                 
                 noncandidate_acs = set(self.scheduled._traj_dict.keys()) - candidate_acs
+                
+                
                 
                 if len(noncandidate_acs) > 0:
                     print_FleetPlan_to_JSON(self.input_json_path,self.scheduled,noncandidate_acs,True)
@@ -277,6 +376,7 @@ class ArrivalsSimulator:
             
             ## Call the solver
             try:
+                self.__last_global_schedule = new_t
                 solve_problem(
                     self.solver_path,
                     self.input_csv_path,
@@ -284,7 +384,9 @@ class ArrivalsSimulator:
                     self.separation,
                     (self.wind_x,self.wind_y),
                     threads,
-                    str(self.input_json_path.absolute()) if obstacles_exist else None
+                    str(self.input_json_path.absolute()) if obstacles_exist else None,
+                    [self.cmd_shift],
+                    [self.threshold_shift]
                 )
                 
                 ## Parse the result and merge
@@ -296,23 +398,25 @@ class ArrivalsSimulator:
                 else:
                     self.scheduled.merge(solved)
                     
-                if self.__axes is not None:
-                    list_o_trajs = self.scheduled.sample_poses(50)
-                    tranposed = transpose_list_of_trajectories(list_o_trajs)
-                    colordict = dict()
-                    for k,v in self.__line_dict.items():
-                        colordict[k] = v.get_color()
+                ## Update the task ends with the planning results
+                for s,p in self.scheduled.trajectories:
+                    i = self.__task_index[s.id]
+                    print(f"Change in arrival for {s.id}: {(self.tasklist[i].end_time - (pd.Timedelta(minutes=p.duration()) + new_t)).total_seconds()/60:.1f} min")
+                    self.tasklist[i].end_time = pd.Timedelta(minutes=p.duration()) + new_t
                     
-                    _,lines = plot_several_pose2d_sequences(self.__axes,tranposed,colordict,alpha=0.2,linestyle=':')
-                    print(len(colordict.keys()),len(lines))
-                    for k,l in zip(colordict.keys(),lines):
+                    if self.__axes is not None:
+                        poses = [p.pose_at(t) for t in np.linspace(0,p.duration(),50,endpoint=True)]
+                        
+                            
+                        c = self.__color_dict[s.id]
+                        _,l = plot_pose2d_sequence(self.__axes,poses,False,False,alpha=0.2,color=c,linestyle=':')
                         try:
-                            self.__traj_dict[k].set_visible(False)
-                            del self.__traj_dict[k]
+                            self.__traj_dict[s.id].set_visible(False)
+                            del self.__traj_dict[s.id]
                         except KeyError:
                             pass
-                        self.__traj_dict[k] = l
-                    
+                        self.__traj_dict[s.id] = l[0]
+                        
                     
             except Exception as e:
                 self.__encountered_exception = e
@@ -320,20 +424,25 @@ class ArrivalsSimulator:
                 
                 
         if self.__axes is not None:
-            self.__axes.legend()
+            # to_legend = []
+            # for l in self.__line_dict.values():
+            #     if l.get_visible():
+            #         to_legend.append(l)
+                    
+            # self.__axes.legend(handles=to_legend)
             self.__axes.set_title(str(new_t))
-            plt.pause(5)
+            plt.pause(0.1)
             
         return output
     
-    def simulate(self, timestep:pd.Timedelta, time_threshold:pd.Timedelta, ac_num_threshold:int,
+    def simulate(self, timestep:pd.Timedelta, time_threshold:pd.Timedelta, reschedule_threshold:pd.Timedelta, ac_num_threshold:int,
                  threads:int) -> list[tuple[pd.Timestamp,list[tuple[ACStats,Pose3D]]]]:
         log = []
         
         while self.__t < self.__end_of_times:
             
             do_schedule = False
-            if (self.__t - self.__last_schedule) >= time_threshold:
+            if (self.__t - self.__last_global_schedule) >= time_threshold:
                 do_schedule = True
             
             if not(do_schedule):
@@ -349,10 +458,10 @@ class ArrivalsSimulator:
                 do_schedule = unscheduled >= ac_num_threshold
             
             
-            poss = self.step(timestep,do_schedule,threads)
+            poss = self.step(timestep,reschedule_threshold,do_schedule,threads)
             log.append((self.__t,poss))
-            if self.__encountered_exception is not None:
-                break
+            # if self.__encountered_exception is not None:
+                # break
             
         return log
 
@@ -390,21 +499,23 @@ def main():
                         help="List of ICAO codes for airports in which to look for landings in the given dataset. Default to LFPO,LFPG,LFPB",
                         default=["LFPO","LFPG","LFPB"])
     parser.add_argument('-s','--threshold-shift',type=float,dest='threshold_shift',
-                        help='Shift distance relative to runway threshold for defining target point, in NM. Default to 20.',default=20)
+                        help='Distance relative to runway threshold for defining last straight, in NM. Default to 20.',default=20)
+    parser.add_argument('--cmd-shift',type=float,dest='cmd_shift',
+                        help="Duration (in minutes) for which no commands should issued (that is, go straight). Default to 2 minutes.", default=2)
     parser.add_argument('--epsg',type=int,help="EPSG code for XY projection of (lat,lon) coordinates from WGS84. Default to 9794 (i.e. Lambert-93)",
                         default=9794)
     
     parser.add_argument('-ts','--timestep',type=float,
-                        help="Simulation time step, in minutes. Default to 1.",default=1)
+                        help="Simulation time step, in minutes. Default to 1/6 (ie 10s).",default=1/6)
     parser.add_argument('-I','--intervals',nargs=3,
-                        help="Triplet (min,max,step) defining the offsets to the reference time for the target times. Defined in minutes. Default to (-20,20,2)",
-                        default=(-20,20,2))
+                        help="Triplet (min,max,step) defining the offsets to the reference time for the target times. Defined in minutes. Default to (-10,10,1)",
+                        default=(-10,10,1))
     parser.add_argument('-m','--max-reschedule',dest="max_reschedule",type=int,
                         help="Maximum number of times a flight can be rescheduled. Default to 3.",default=3)
     parser.add_argument('-n','--ac-threshold',dest='ac_threshold',type=int,
-                        help="Minimal number of unscheduled aircraft triggering a rescheduling. Default to 3.", default=3)
+                        help="Minimal number of unscheduled aircraft triggering a rescheduling. Default to 1.", default=1)
     parser.add_argument('-t','--time-threshold',dest='time_threshold',type=float,
-                        help="Time threshold (in minutes) triggering rescheduling. Default to 15 minutes.",default=5)
+                        help="Time threshold (in minutes) triggering rescheduling. Default to 10 minutes.",default=10)
     parser.add_argument('--threads',dest="threads",type=int,
                         help="Number of threads to be used by the solver. 0 allows it to autoselect. Default to 0.",default=0)
     
@@ -438,7 +549,7 @@ def main():
             expected_speed/(60*np.pi) # Full circle in 2 minutes
         )
         
-        r = extract_flight_endpoints(flight,args.ICAOs,stats,threshold_shift)
+        r = extract_flight_endpoints(flight,args.ICAOs,stats,0.)
         if r is None:
             continue
         else:
@@ -456,6 +567,8 @@ def main():
     sim = ArrivalsSimulator(pathlib.Path(solver),
                             transformer,
                             timeshifts,
+                            threshold_shift,
+                            args.cmd_shift*expected_speed/60,
                             endpoints,
                             max_reschedule=args.max_reschedule,
                             separation=args.mdist,
@@ -466,6 +579,7 @@ def main():
     
     sim.simulate(pd.Timedelta(f"{args.timestep} minute"),
         pd.Timedelta(f"{args.time_threshold} minute"),
+        pd.Timedelta(f"{args.time_threshold/3} minute"),
         args.ac_threshold,
         args.threads
     )

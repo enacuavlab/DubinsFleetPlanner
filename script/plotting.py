@@ -74,31 +74,31 @@ def plot_pose2d_sequence(ax:Axes,poses:list[Pose3D],endpoints:bool=False,endarro
     return ax,lines
 
 def plot_several_pose2d_sequences(ax:Axes,poses_dict:DictOfPoseTrajectories,colors_dict:typing.Optional[dict[int,ColorType]]=None,
-                                  endpoints:bool=False,endarrows:bool=False,label:bool=False,alpha:float=1.,**plot_kwargs) -> tuple[Axes,list[Line2D]]:
+                                  endpoints:bool=False,endarrows:bool=False,label:bool=False,alpha:float=1.,**plot_kwargs) -> tuple[Axes,dict[int,Line2D]]:
     i = 0
     
-    ll = []
+    output = dict()
     for key,values in poses_dict.items():
-        pose2d_seq = [v[1] for v in values]
+        pose_seq = [v[1] for v in values]
         c = colors_dict[key] if colors_dict is not None else my_cmap[i % len(my_cmap)]
         if label:
-            ax,l = plot_pose2d_sequence(ax,pose2d_seq,endpoints,endarrows,
+            ax,l = plot_pose2d_sequence(ax,pose_seq,endpoints,endarrows,
                                     color=c,
                                     label=f"AC: {key}",
                                     alpha=alpha,
                                     **plot_kwargs)
         else:
-            ax,l = plot_pose2d_sequence(ax,pose2d_seq,endpoints,endarrows,
+            ax,l = plot_pose2d_sequence(ax,pose_seq,endpoints,endarrows,
                                     color=c,
                                     alpha=alpha,
                                     **plot_kwargs)
             
-        ll.extend(l)
+        output[key] = l[0]
         
         i += 1
         
         
-    return ax,ll
+    return ax,output
 
 
 def snapshot_several_pose2d_sequences(poses_list:ListOfTimedPoses,snapshots:int,

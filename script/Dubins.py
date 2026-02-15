@@ -715,6 +715,8 @@ class FleetPlan:
         assert(self.wind_x == other.wind_x)
         assert(self.wind_y == other.wind_y)
         
+        self.duration = max(self.duration,other.duration)
+        
         for o_stats,o_traj in other.trajectories:
             try:
                 i = self._traj_dict[o_stats.id]

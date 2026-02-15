@@ -52,7 +52,11 @@ class LatlonPose:
         if to_NM:
             return Pose3D(x/NM_TO_METERS,y/NM_TO_METERS,self.altitude,np.deg2rad(90-self.bearing))
         else:
-            return Pose3D(x,y,self.altitude,np.deg2rad(90-self.bearing))        
+            return Pose3D(x,y,self.altitude,np.deg2rad(90-self.bearing))
+        
+    def project(self,distance:typing.Annotated[float,"m"]) -> LatlonPose:
+        nlat,nlon,ndir = destination(self.latitude,self.longitude,self.bearing,distance)
+        return LatlonPose(nlat,nlon,self.altitude,ndir+180)
 
 
 def flight_landing(flight:Flight,candidate_airports:typing.Iterable[str]) -> typing.Optional[str]:
@@ -85,6 +89,14 @@ class FlightEndpoints:
     dest_ICAO:str
     dest_runway:str
     stats:ACStats   # Speed is expected in NM / minute, turn radius in NM
+    
+    @property
+    def id(self) -> int:
+        return self.stats.id
+    
+    @id.setter
+    def id(self,_id:int):
+        self.stats.id = _id
     
     def straight_update(self,duration:pd.Timedelta) -> FlightEndpoints:
         if self.start_time+duration > self.end_time:
