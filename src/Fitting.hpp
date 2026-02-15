@@ -63,3 +63,5 @@ double fit_shift_RSL_ratio(Pose3D start, Pose3D end, double target_l, double tol
 double fit_shift_LSR_ratio(Pose3D start, Pose3D end, double target_l, double tol, double ratio);
 double fit_shift_RLR_ratio(Pose3D start, Pose3D end, double target_l, double tol, double ratio);
 double fit_shift_LRL_ratio(Pose3D start, Pose3D end, double target_l, double tol, double ratio);
+double fit_shift_SLS_ratio(Pose3D start, Pose3D end, double target_l, double tol, double ratio);
+double fit_shift_SRS_ratio(Pose3D start, Pose3D end, double target_l, double tol, double ratio);

@@ -231,6 +231,26 @@ std::vector<std::unique_ptr<Dubins>> generate_line_extended_base(const Pose3D& s
             );
         }
 
+        double SLS_length = turn_radius*fit_shift_SLS_ratio(norm_start,norm_end,target_len/turn_radius,tol,r);
+        if (!std::isnan(RLR_length))
+        {
+            output.push_back(
+                std::make_unique<BaseExtendedDubins<STRAIGHT,BaseDubinsSLS,STRAIGHT>>(
+                    climb,turn_radius,start,end,SLS_length*r,SLS_length*(1-r)
+                )
+            );
+        }
+
+        double SRS_length = turn_radius*fit_shift_SRS_ratio(norm_start,norm_end,target_len/turn_radius,tol,r);
+        if (!std::isnan(LRL_length))
+        {
+            output.push_back(
+                std::make_unique<BaseExtendedDubins<STRAIGHT,BaseDubinsSRS,STRAIGHT>>(
+                    climb,turn_radius,start,end,SRS_length*r,SRS_length*(1-r)
+                )
+            );
+        } 
+
     }
 
     return output;

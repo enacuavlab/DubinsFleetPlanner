@@ -99,7 +99,7 @@ double fit_LSL(double alpha, double beta, double d, double min_rho, double targe
 {
     std::pair<double,double> d_bracket = LSL_possible_d(alpha,beta);
     double rmin = std::max(min_rho,d/d_bracket.second);
-    double rmax = std::min(d/d_bracket.first,100*min_rho);
+    double rmax = std::min(d/d_bracket.first,target_l);
     if (rmax < rmin) {return NAN;}
     auto target_fun = [=](double rho){return LSL_total_distance(alpha,beta,d/rho)*rho-target_l;};
 
@@ -110,7 +110,7 @@ double fit_RSR(double alpha, double beta, double d, double min_rho, double targe
 {
     std::pair<double,double> d_bracket = RSR_possible_d(alpha,beta);
     double rmin = std::max(min_rho,d/d_bracket.second);
-    double rmax = std::min(d/d_bracket.first,100*min_rho);
+    double rmax = std::min(d/d_bracket.first,target_l);
     if (rmax < rmin) {return NAN;}
     auto target_fun = [=](double rho){return RSR_total_distance(alpha,beta,d/rho)*rho-target_l;};
 
@@ -121,7 +121,7 @@ double fit_RSL(double alpha, double beta, double d, double min_rho, double targe
 {
     std::pair<double,double> d_bracket = RSL_possible_d(alpha,beta);
     double rmin = std::max(min_rho,d/d_bracket.second);
-    double rmax = std::min(d/d_bracket.first,100*min_rho);
+    double rmax = std::min(d/d_bracket.first,target_l);
     if (rmax < rmin) {return NAN;}
     auto target_fun = [=](double rho){return RSL_total_distance(alpha,beta,d/rho)*rho-target_l;};
 
@@ -132,7 +132,7 @@ double fit_LSR(double alpha, double beta, double d, double min_rho, double targe
 {
     std::pair<double,double> d_bracket = LSR_possible_d(alpha,beta);
     double rmin = std::max(min_rho,d/d_bracket.second);
-    double rmax = std::min(d/d_bracket.first,100*min_rho);
+    double rmax = std::min(d/d_bracket.first,target_l);
     if (rmax < rmin) {return NAN;}
     auto target_fun = [=](double rho){return LSR_total_distance(alpha,beta,d/rho)*rho-target_l;};
     return generic_fit(target_fun,rmin,rmax,tol);
@@ -142,7 +142,7 @@ double fit_RLR(double alpha, double beta, double d, double min_rho, double targe
 {
     std::pair<double,double> d_bracket = RLR_possible_d(alpha,beta);
     double rmin = std::max(min_rho,d/d_bracket.second);
-    double rmax = std::min(d/d_bracket.first,100*min_rho);
+    double rmax = std::min(d/d_bracket.first,target_l);
     if (rmax < rmin) {return NAN;}
     auto target_fun = [=](double rho){return RLR_total_distance(alpha,beta,d/rho)*rho-target_l;};
 
@@ -153,7 +153,7 @@ double fit_LRL(double alpha, double beta, double d, double min_rho, double targe
 {
     std::pair<double,double> d_bracket = LRL_possible_d(alpha,beta);
     double rmin = std::max(min_rho,d/d_bracket.second);
-    double rmax = std::min(d/d_bracket.first,100*min_rho);
+    double rmax = std::min(d/d_bracket.first,target_l);
     if (rmax < rmin) {return NAN;}
     auto target_fun = [=](double rho){return LRL_total_distance(alpha,beta,d/rho)*rho-target_l;};
 
@@ -164,7 +164,7 @@ double fit_SRS(double alpha, double beta, double d, double min_rho, double targe
 {
     std::pair<double,double> d_bracket = SRS_possible_d(alpha,beta);
     double rmin = std::max(min_rho,d/d_bracket.second);
-    double rmax = std::min(d/d_bracket.first,100*min_rho);
+    double rmax = std::min(d/d_bracket.first,target_l);
     if (rmax < rmin) {return NAN;}
     auto target_fun = [=](double rho){return SRS_total_distance(alpha,beta,d/rho)*rho-target_l;};
 
@@ -175,7 +175,7 @@ double fit_SLS(double alpha, double beta, double d, double min_rho, double targe
 {
     std::pair<double,double> d_bracket = SLS_possible_d(alpha,beta);
     double rmin = std::max(min_rho,d/d_bracket.second);
-    double rmax = std::min(d/d_bracket.first,100*min_rho);
+    double rmax = std::min(d/d_bracket.first,target_l);
     if (rmax < rmin) {return NAN;}
     auto target_fun = [=](double rho){return SLS_total_distance(alpha,beta,d/rho)*rho-target_l;};
 
@@ -241,4 +241,14 @@ double fit_shift_RLR_ratio(Pose3D start, Pose3D end, double target_l, double tol
 double fit_shift_LRL_ratio(Pose3D start, Pose3D end, double target_l, double tol, double ratio)
 {
     return fit_shift_ratio<LRL_total_distance>(start,end,target_l,tol,ratio);
+}
+
+double fit_shift_SLS_ratio(Pose3D start, Pose3D end, double target_l, double tol, double ratio)
+{
+    return fit_shift_ratio<SLS_total_distance>(start,end,target_l,tol,ratio);
+}
+
+double fit_shift_SRS_ratio(Pose3D start, Pose3D end, double target_l, double tol, double ratio)
+{
+    return fit_shift_ratio<SRS_total_distance>(start,end,target_l,tol,ratio);
 }
