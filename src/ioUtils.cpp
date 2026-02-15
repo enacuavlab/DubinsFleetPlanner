@@ -632,6 +632,7 @@ void to_json_ModernTrajectory(json& j,
         std::vector<double> endpoints_locs = path->get_endpoints_locs();
         std::vector<Pose3D> endpoints = path->get_endpoints();
         uint sections_N = endpoints.size()-1;
+        uint sec_actual_index = 0;
 
         for(uint i = 0; i < sections_N; i++)
         {
@@ -653,6 +654,8 @@ void to_json_ModernTrajectory(json& j,
 
             json j_section;
 
+
+            //FIXME: Wrong turn radius !!
             switch (sec_type)
             {
             case STRAIGHT:
@@ -674,7 +677,9 @@ void to_json_ModernTrajectory(json& j,
             }
             
             j_section["length"] = sec_len;
+
             sections.push_back(j_section);
+            sec_actual_index++;
         }
 
         j_path["sections"] = sections;

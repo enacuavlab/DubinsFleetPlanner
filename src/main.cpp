@@ -69,7 +69,7 @@ struct program_arguments
     string out_pathname;
     double separation;
     double wind_x,wind_y;
-    vector<double> length_extensions;
+    vector<double> start_length_extensions,end_length_extensions;
     int thread_num;
     int max_iters,weave_iters;
     double min_weave_dist,min_weave_dist_percent;
@@ -77,8 +77,9 @@ struct program_arguments
     int verbosity;
     double precision;
     double max_r_length;
-    bool legacy;
     bool line_fit;
+    vector<double> ratios;
+    bool straight_only;
     int max_solver_time;
     bool recompute;
     string obstacle_pathname;
@@ -114,8 +115,13 @@ bool process_command_line(int argc, char* argv[], program_arguments& parsed_args
     ("samples,s"    , po::value<int>(&parsed_args.samples)->default_value(1000)
                     ,"Number of samples for display and/or exporting to CSV. Default to 1000.")   
     
-    ("extended,e"   , po::value<vector<double>>(&parsed_args.length_extensions)->multitoken()
-                    ,"Use extended Dubins curves with the given lengths")
+    ("extend-start,es", po::value<vector<double>>(&parsed_args.start_length_extensions)->multitoken()
+                    ,"Use extended Dubins curves with the given lengths, for the starts")
+    ("extend-end,ee", po::value<vector<double>>(&parsed_args.end_length_extensions)->multitoken()
+                    ,"Use extended Dubins curves with the given lengths, for the ends. If undefined while starts are, copy starts.")
+
+    ("straights-only,so", po::bool_switch(&parsed_args.straight_only)->default_value(false)
+                    , "Allow only straight extensions. Applies only if 'extended' is used")
 
     ("threads,t"    , po::value<int>(&parsed_args.thread_num)->default_value(-1)
                     ,"Number of threads to use (if 0, the program chooses automatically). Disabled multi-threading by default.")
@@ -137,11 +143,10 @@ bool process_command_line(int argc, char* argv[], program_arguments& parsed_args
     ("verbose,v"    , po::value<int>(&parsed_args.verbosity)->default_value(1)
                     , "Set verbosity, from 0 (silent), to 3 (very very verbose). Default to 1.")
 
-    ("legacy"       , po::bool_switch(&parsed_args.legacy)->default_value(false)
-                    , "Use a previous implementation (if possible). May decrease performances.")
-
     ("line,l"       , po::bool_switch(&parsed_args.line_fit)->default_value(false)
                     , "Add paths with minimal turn radius and fitted extra straights at start and end")
+    ("line-ratios,lr", po::value<vector<double>>(&parsed_args.ratios)->multitoken()
+                    , "If 'line' is activated, specifies the ratios (between 0 and 1) to use for extra straights generation. If undefined, default to 0, 0.5 and 1")
 
     ("max-time,T"   , po::value<int>(&parsed_args.max_solver_time)->default_value(60)
                     , "Maximal allowed runtime for the solver, in seconds. Default to 60s.")
@@ -190,12 +195,18 @@ bool process_command_line(int argc, char* argv[], program_arguments& parsed_args
         std::cerr << "Unknown error!" << std::endl;
         return false;
     }
-
-    if (vm.count("legacy"))
-    {
-        parsed_args.legacy = true;
-    }
     
+    // Implement default behaviors
+    if (parsed_args.start_length_extensions.size() > 0 && parsed_args.end_length_extensions.size() == 0)
+    {
+        parsed_args.end_length_extensions = parsed_args.start_length_extensions;
+    }
+
+    if (parsed_args.line_fit && parsed_args.ratios.size() == 0)
+    {
+        parsed_args.ratios = {0,0.5,1.};
+    }
+
     return true;
 }
 
@@ -323,31 +334,32 @@ std::tuple<int,SharedDubinsResults,ExtraPPResults> solve_case(const fs::path& in
 
     output_log << "[";
     
-    if (args.length_extensions.size())
+    if (args.start_length_extensions.size())
     {
         if (args.line_fit)
         {
-            planner = std::make_unique<LineExtendedDubinsFleetPlanner>(
-                args.precision, args.max_r_length,args.length_extensions,
-                args.verbosity, output_log
-            );
-        }
-        else
-        {
-            if (args.legacy)
+            if (args.straight_only)
             {
-                planner = std::make_unique<ExtendedDubinsFleetPlanner>(
-                    args.precision, args.max_r_length,
-                    args.length_extensions, args.length_extensions,
-                    args.verbosity, output_log);
+                planner = std::make_unique<StraightExtendedDubinsFleetPlanner<generate_both_straight_and_radius_fitted_fixed_ratios,4*8>>(
+                    args.precision, args.max_r_length,args.start_length_extensions,args.end_length_extensions,
+                    args.verbosity, output_log
+                    );
+                
             }
             else
             {
-                planner = std::make_unique<BaseExtendedDubinsFleetPlanner>(
-                    args.precision, args.max_r_length,
-                    args.length_extensions, args.length_extensions,
-                    args.verbosity, output_log);
+                planner = std::make_unique<LineExtendedDubinsFleetPlanner>(
+                    args.precision, args.max_r_length,args.ratios,
+                    args.verbosity, output_log
+                    );
             }
+        }
+        else
+        {
+            planner = std::make_unique<BaseExtendedDubinsFleetPlanner>(
+                    args.precision, args.max_r_length,
+                    args.start_length_extensions, args.end_length_extensions,
+                    args.verbosity, output_log);
         }
         
     }

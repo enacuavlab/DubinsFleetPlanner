@@ -172,7 +172,7 @@ int main()
         // TEST_AIRPORT_SPEED*5.
     };
 
-    ExtendedDubinsFleetPlanner extended_planner(TEST_PRECISION,TEST_MAX_R_LENGTH,extensions_lengths,extensions_lengths);
+    LineExtendedDubinsFleetPlanner extended_planner(TEST_PRECISION,TEST_MAX_R_LENGTH,{0,0.5,1.},DubinsFleetPlanner_VERY_VERBOSE);
 
     ExtraPPResults extra;
 
