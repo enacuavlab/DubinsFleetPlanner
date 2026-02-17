@@ -460,8 +460,8 @@ class ArrivalsSimulator:
             
             poss = self.step(timestep,reschedule_threshold,do_schedule,threads)
             log.append((self.__t,poss))
-            # if self.__encountered_exception is not None:
-                # break
+            if self.__encountered_exception is not None:
+                break
             
         return log
 

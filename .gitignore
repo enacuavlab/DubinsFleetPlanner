@@ -49,6 +49,7 @@
 build/**
 
 # Data produced
+debug_cases/**
 cases_precise/**
 cases/**
 results/**
