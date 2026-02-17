@@ -65,7 +65,6 @@ typedef std::vector<std::vector<std::unique_ptr<Dubins>>> ListOfPossibilities;
 typedef std::vector<std::vector<std::shared_ptr<Dubins>>> SharedListOfPossibilities;
 
 uint number_of_valid_paths(const ListOfPossibilities& list);
-size_t list_hash(const ListOfPossibilities& list);
 
 // ---------- Separation functions ---------- //
 
@@ -205,8 +204,6 @@ std::optional<std::vector<std::shared_ptr<Dubins>>> find_pathplanning_LP_solutio
 std::vector<Conflict_T> drop_conflict_details(const std::vector<RichConflict_T>& vec, double min_dist);
 
 uint number_of_valid_paths(ListOfPossibilities& list);
-
-size_t list_hash(const ListOfPossibilities& list);
 
 
 template<Dubins::DubinsSeparationFunction separation_function>

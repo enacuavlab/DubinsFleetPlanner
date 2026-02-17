@@ -26,7 +26,10 @@ void sample_test_dubins_separation(const Dubins& d1, const Dubins& d2,
     std::string expect_msg = "",
     bool no_test=false)
 {
-    bool test_separation    = d1.is_XY_separated_from(d2,v1,v2,duration,separation,tol,rec);
+    bool test_separation    = d1.is_XY_separated_from(d2,v1,v2,duration,separation,tol,std::nullopt,rec);
+    std::pair<double,double> computed = d1.XY_distance_to(d2,v1,v2,duration,separation,tol,std::nullopt,rec);
+
+    EXPECT_EQ(test_separation, computed.second > separation) << expect_msg << " Sep and dist methods disagree";
 
     if (!no_test)
     {
@@ -34,7 +37,11 @@ void sample_test_dubins_separation(const Dubins& d1, const Dubins& d2,
         bool check_separation   = sampled.second > separation;
 
         ASSERT_TRUE((test_separation == check_separation) || (!test_separation && check_separation)) << expect_msg;
-        EXPECT_EQ(test_separation,check_separation) << expect_msg;
+        EXPECT_EQ(test_separation,check_separation) << expect_msg << std::endl 
+            << "Sampled : " << sampled.second << " at " << sampled.first << std::endl
+            << "Computed: " << computed.second << " at " << computed.first << std::endl;
+
+        d1.is_XY_separated_from(d2,v1,v2,duration,separation,tol,std::nullopt,rec);
     }
 }
 
@@ -56,7 +63,7 @@ void check_all_dubins_pairs(
         for(size_t i2 = 0; i2 < ds2.size(); i2++)
         {
             auto& d2 = ds2[i2];
-            std::string msg = expect_msg + " using 1: " + d1->get_type_abbr(false) + " and 2: " + d2->get_type_abbr(false);
+            std::string msg = expect_msg + " using 1: " + d1->get_type_abbr() + " and 2: " + d2->get_type_abbr();
             double duration = std::min(d1->get_length()/p1_speed,d2->get_length()/p2_speed);
             sample_test_dubins_separation<TEST_SAMPLES_COUNT>(*d1,*d2,p1_speed,p2_speed,duration,min_sep,tol,rec,msg,no_test);
         }

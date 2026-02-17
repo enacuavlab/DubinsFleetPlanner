@@ -313,7 +313,9 @@ void parse_json_ModernTrajectory(const json& j,
         basic_paths.push_back(bshape);
     }
 
-    path = std::make_shared<GenericDubins>(stats.climb,stats.turn_radius,start,end,basic_paths);
+    path = std::make_shared<Dubins>(start,end,basic_paths);
+    assert(pose_dist(path->get_start(),start) < DubinsFleetPlanner_PRECISION);
+    assert(pose_dist(path->get_end(),end) < DubinsFleetPlanner_PRECISION);
 }
 
 void DubinsPP::InputParser::parse_paths_as_ModernJSON(std::istream& s, 
@@ -356,207 +358,6 @@ void DubinsPP::InputParser::parse_paths_as_ModernJSON(std::istream& s,
 
 // ---------------------------------------- Output handling ---------------------------------------- //
 
-// ---------- Handmade Serialization (JSON) ---------- //
-
-template<typename T>
-void print_field(std::ostream& s, const std::string& name, const T& value, bool trailing, uint indent_lvl)
-{
-    for(uint i = 0; i < indent_lvl; i++)
-    {
-        s << "\t";
-    }
-
-    s << "\"" << name << "\": " << value;
-
-    if (trailing)
-    {
-        s << "," << std::endl;
-    }
-    else
-    {
-        s << std::endl;
-    }
-}
-
-template<> 
-void print_field<Pose3D>(std::ostream& s, const std::string& name, const Pose3D& value, bool trailing, uint indent_lvl)
-{
-    for(uint i = 0; i < indent_lvl; i++)
-    {
-        s << "\t";
-    }
-
-    s   << "\"" << name << "\": "
-        << "{\"x\": " << value.x 
-        << " ,\"y\": " << value.y 
-        << " ,\"z\": " << value.z 
-        << " ,\"theta\": " << value.theta 
-        << " }";
-
-    if (trailing)
-    {
-        s << "," << std::endl;
-    }
-    else
-    {
-        s << std::endl;
-    }
-
-}
-
-template<> 
-void print_field<std::string>(std::ostream& s, const std::string& name, const std::string& value, bool trailing, uint indent_lvl)
-{
-    for(uint i = 0; i < indent_lvl; i++)
-    {
-        s << "\t";
-    }
-
-    s << "\"" << name << "\": \"" << value << "\"";
-
-    if (trailing)
-    {
-        s << "," << std::endl;
-    }
-    else
-    {
-        s << std::endl;
-    }
-
-}
-
-
-template<DubinsMove m>
-static inline void print_pathShape_fields(std::ostream& s, const PathShape<m>& p, uint indent_lvl=6)
-{
-    print_field(s,"x",p.x,true,indent_lvl);
-    print_field(s,"y",p.y,true,indent_lvl);
-    print_field(s,"z",p.z,true,indent_lvl);
-    print_field(s,"p1",p.p1,true,indent_lvl);
-    print_field(s,"p2",p.p2,true,indent_lvl);
-    print_field(s,"p3",p.p3,true,indent_lvl);
-    print_field(s,"p4",p.p4,true,indent_lvl);
-    print_field(s,"type",get_DubinsMove_name(m),false,indent_lvl);
-}
-
-
-void print_trajectory(std::ostream& s, 
-    const std::shared_ptr<Dubins>& path,
-    const AircraftStats& stats,
-    double wind_x, double wind_y, double duration)
-{
-    s << "\t\t{" << std::endl;
-    {
-        s << "\t\t\t\"stats\": {" << std::endl;
-        {
-            print_field(s,"id",stats.id,true,4);
-            print_field(s,"airspeed",stats.airspeed,true,4);
-            print_field(s,"climb",stats.climb,true,4);
-            print_field(s,"turn_radius",stats.turn_radius,false,4);
-        }
-        s << "\t\t\t}," << std::endl;
-
-        s << "\t\t\t\"path\": {" << std::endl;
-        {
-            print_field(s,"total_length",path->get_length(),true,4);
-            print_field(s,"sections_count",path->get_all_sections().size(),true,4);
-            print_field(s,"start",path->get_start(),true,4);
-            print_field(s,"end",path->get_end(),true,4);
-
-            s << "\t\t\t\t\"sections\":[";
-            {
-                std::vector<double> endpoints_locs = path->get_endpoints_locs();
-                std::vector<Pose3D> endpoints = path->get_endpoints();
-                uint sections_N = endpoints.size()-1;
-
-                for(uint i = 0; i < sections_N; i++)
-                {
-                    if (i > 0) {s << ",";}
-                    
-                    s << std::endl;
-
-                    double sec_len = endpoints_locs[i+1]-endpoints_locs[i];
-                    double sec_middle = (endpoints_locs[i+1]+endpoints_locs[i])/2;
-                    DubinsMove sec_type = path->get_section_type(sec_middle);
-                    Pose3D& sec_start = endpoints[i];
-                    Pose3D& sec_end   = endpoints[i+1];
-                    
-                    s << "\t\t\t\t\t{" << std::endl;
-                    {
-                        print_field(s,"length",sec_len,true,6);
-                        switch (sec_type)
-                        {
-                        case STRAIGHT:
-                            print_pathShape_fields<STRAIGHT>(s,
-                                compute_params<STRAIGHT>(sec_start,sec_end,stats.airspeed,path->get_turn_radius(),path->get_climb()),6);
-                            break;
-
-                        case LEFT:
-                            print_pathShape_fields<LEFT>(s,
-                                compute_params<LEFT>(sec_start,sec_end,stats.airspeed,path->get_turn_radius(),path->get_climb()),6);
-                            break;
-
-                        case RIGHT:
-                            print_pathShape_fields<RIGHT>(s,
-                                compute_params<RIGHT>(sec_start,sec_end,stats.airspeed,path->get_turn_radius(),path->get_climb()),6);
-                            break;
-                        
-                        default:
-                            // Unreachable
-                            exit(EXIT_FAILURE);
-                        }
-                    }
-                    s << "\t\t\t\t\t}" << std::endl;
-
-                }
-            }
-            s << "\t\t\t\t]";
-        }
-        s << "\t\t\t}" << std::endl;
-    }
-
-    s << "\t\t}" << std::endl;
-}
-
-void DubinsPP::OutputPrinter::print_paths_as_JSON(std::ostream& s, 
-    const std::vector<std::shared_ptr<Dubins>>& paths,
-    const std::vector<AircraftStats>& stats,
-    double min_sep,
-    double wind_x, double wind_y, double z_alpha)
-{
-    assert(paths.size() == stats.size());
-
-    double duration = compute_plan_duration(paths,stats);
-    uint N = paths.size();
-
-
-
-    s << "{" << std::endl;
-
-    {
-        print_field(s,"separation",min_sep,true,1);
-        print_field(s,"z_alpha",z_alpha,true,1);
-        print_field(s,"wind_x",wind_x,true,1);
-        print_field(s,"wind_y",wind_y,true,1);
-        print_field(s,"duration",duration,true,1);
-        print_field(s,"AC_num",N,true,1);
-        
-        s << "\t\"trajectories\": [" << std::endl;
-
-        print_trajectory(s,paths[0],stats[0],wind_x,wind_y,duration);
-
-        for(uint i = 1; i < N; i++)
-        {
-            s << "," << std::endl;
-            print_trajectory(s,paths[i],stats[i],wind_x,wind_y,duration);
-        }
-
-        s << "\t]" << std::endl;
-    }
-
-    s << "}" << std::endl;
-}
-
 // ----- Conflicts ----- //
 
 void DubinsPP::OutputPrinter::append_rich_conflicts(std::ostream& s,
@@ -582,9 +383,9 @@ void DubinsPP::OutputPrinter::append_rich_conflicts(std::ostream& s,
 
         json j_conflict = json{
             {"AC_id1"       , stats[ac_id1].id},
-            {"Path_type1"   , possibilities[ac_id1][path_id1]->get_type_abbr(false)},
+            {"Path_type1"   , possibilities[ac_id1][path_id1]->get_type_abbr()},
             {"AC_id2"       , stats[ac_id2].id},
-            {"Path_type2"   , possibilities[ac_id2][path_id2]->get_type_abbr(false)},
+            {"Path_type2"   , possibilities[ac_id2][path_id2]->get_type_abbr()},
             {"min_loc"      , std::get<4>(v)},
             {"min_val"      , std::get<5>(v)}
         };
@@ -605,7 +406,7 @@ void DubinsPP::OutputPrinter::append_rich_conflicts(std::ostream& s,
 // ---------- nlohmann Serialization (JSON) ---------- //
 
 void to_json_ModernTrajectory(json& j, 
-    const std::shared_ptr<Dubins>& path,
+    const Dubins& path,
     const AircraftStats& stats,
     double wind_x, double wind_y)
 {
@@ -617,11 +418,11 @@ void to_json_ModernTrajectory(json& j,
 
     json j_path;
     
-    j_path["total_length"] = path->get_length();
+    j_path["total_length"] = path.get_length();
 
     json j_start,j_end;
-    to_json(j_start,path->get_start());
-    to_json(j_end,path->get_end());
+    to_json(j_start,path.get_start());
+    to_json(j_end,path.get_end());
 
     j_path["start"] = j_start;
     j_path["end"]   = j_end;
@@ -629,58 +430,42 @@ void to_json_ModernTrajectory(json& j,
     std::vector<json> sections;
 
     {
-        std::vector<double> endpoints_locs = path->get_endpoints_locs();
-        std::vector<Pose3D> endpoints = path->get_endpoints();
-        uint sections_N = endpoints.size()-1;
-        uint sec_actual_index = 0;
-
-        for(uint i = 0; i < sections_N; i++)
+        for(DynamicPathShape s : path.get_all_sections())
         {
-            double sec_len = endpoints_locs[i+1]-endpoints_locs[i];
-            double sec_middle = (endpoints_locs[i+1]+endpoints_locs[i])/2;
-            DubinsMove sec_type;
-
-            if (sec_len < 1e-9)
-            {
-                continue;
-            }
-            else
-            {
-                sec_type = path->get_section_type(sec_middle);
-            }
+            path_set_planar_speed(s,stats.airspeed);
             
-            Pose3D& sec_start = endpoints[i];
-            Pose3D& sec_end   = endpoints[i+1];
-
             json j_section;
 
-
-            //FIXME: Wrong turn radius !!
-            switch (sec_type)
-            {
-            case STRAIGHT:
-                to_json<STRAIGHT>(j_section,
-                    compute_params<STRAIGHT>(sec_start,sec_end,stats.airspeed,path->get_turn_radius(),path->get_climb()));
-                break;
-            case LEFT:
-                to_json<LEFT>(j_section,
-                    compute_params<LEFT>(sec_start,sec_end,stats.airspeed,path->get_turn_radius(),path->get_climb()));
-                break;
-            case RIGHT:
-                to_json<RIGHT>(j_section,
-                    compute_params<RIGHT>(sec_start,sec_end,stats.airspeed,path->get_turn_radius(),path->get_climb()));
-                break;
-            
-            default:
-                // Unreachable
-                exit(EXIT_FAILURE);
-            }
-            
-            j_section["length"] = sec_len;
+            to_json(j_section,s);
 
             sections.push_back(j_section);
-            sec_actual_index++;
         }
+        // std::vector<double> endpoints_locs = path.get_endpoints_locs();
+        // std::vector<Pose3D> endpoints = path.get_endpoints();
+        // uint sections_N = endpoints.size()-1;
+        // uint sec_actual_index = 0;
+
+        // for(uint i = 0; i < sections_N; i++)
+        // {
+        //     double sec_len = endpoints_locs[i+1]-endpoints_locs[i];
+        //     double sec_middle = (endpoints_locs[i+1]+endpoints_locs[i])/2;
+
+        //     if (sec_len < 1e-9)
+        //     {
+        //         continue;
+        //     }
+
+        //     DynamicPathShape shape = path.get_pathshape(i);
+            
+        //     json j_section;
+
+        //     to_json(j_section,shape);
+            
+        //     j_section["length"] = sec_len;
+
+        //     sections.push_back(j_section);
+        //     sec_actual_index++;
+        // }
 
         j_path["sections"] = sections;
     }
@@ -718,7 +503,7 @@ void DubinsPP::OutputPrinter::print_paths_as_ModernJSON(std::ostream& s,
         for(uint i = 0; i < N; i++)
         {
             json j_trajectory;
-            to_json_ModernTrajectory(j_trajectory,paths[i],stats[i],wind_x,wind_y);
+            to_json_ModernTrajectory(j_trajectory,*paths[i],stats[i],wind_x,wind_y);
             trajectories.push_back(j_trajectory);
         }
 

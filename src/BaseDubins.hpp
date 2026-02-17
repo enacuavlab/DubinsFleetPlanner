@@ -17,223 +17,69 @@
 
 #pragma once
 
-#include <memory>
-#include <tuple>
-
 #include "Dubins.hpp"
 #include "Primitives.hpp"
 #include "utils.hpp"
 
-#if DubinsFleetPlanner_ASSERTIONS > 0
-#include <iostream>
-#endif
+/**
+ * @brief Produces the path shapes making a path of given turn radius. Output has size 0 if unrealisable.
+ * 
+ * @param start         Start pose
+ * @param end           End pose
+ * @param turn_radius   Turn radius
+ * @return std::vector<DynamicPathShape> 
+ */
+typedef std::vector<DynamicPathShape> (*BasePathShapeGenerator)(const Pose3D&, const Pose3D&, double);
 
-template<DubinsMove fst, DubinsMove snd, DubinsMove trd>
-class BaseDubins : public Dubins
-{
-private:
-    static double compute_fst_length(double alpha, double beta, double d);
-    static double compute_snd_length(double alpha, double beta, double d);
-    static double compute_trd_length(double alpha, double beta, double d);
-    static double compute_normalized_length(double alpha, double beta, double d);
-    double adjust_length(double target_len, double tol);
-
-
-    double alpha;   // Start orientation in normalized problem
-    double beta;    // End orientation in normalized problem
-    double d;       // Distance between endpoints in normalized problem
-    Pose3D normalize_transform;     // Encode the transform from standard to normalized problem (add a shift then rotate) 
-    double fst_length,snd_length,trd_length;        // Lengths of the three sections of the Dubins path
-    Pose3D intermediate_pose_1,intermediate_pose_2; // Poses at the junctions between sections
-
-    // static constexpr const std::string class_name = DubinsMoveNames[fst]  + DubinsMoveNames[snd]  + DubinsMoveNames[trd];
-    static constexpr const std::string class_abbr_name = std::string({DubinsMoveNames[fst][0],DubinsMoveNames[snd][0],DubinsMoveNames[trd][0]});
-    
-    double _compute_length()
-    {
-        fst_length = compute_fst_length(alpha,beta,d/turn_radius)*turn_radius;
-        snd_length = compute_snd_length(alpha,beta,d/turn_radius)*turn_radius;
-        trd_length = compute_trd_length(alpha,beta,d/turn_radius)*turn_radius;
-        length = fst_length+snd_length+trd_length;
-
-        return length;
-    }
-
-    void normalize()
-    {
-        auto normalized_values = normalize_poses(start,end);
-        alpha   = std::get<0>(normalized_values); 
-        beta    = std::get<1>(normalized_values);
-        d       = std::get<2>(normalized_values);
-
-        normalize_transform.x = -start.x;
-        normalize_transform.y = -start.y;
-        normalize_transform.z = -start.z;
-        normalize_transform.theta = std::get<3>(normalized_values);
-    }
-
-    void recompute()
-    {
-        normalize();
-        compute_length();
-        climb = (end.z - start.z)/length; // TODO: Properly handle the vertical axis
-        intermediate_pose_1 = follow_dubins<fst>(start,fst_length,1.,climb,turn_radius);
-        intermediate_pose_2 = follow_dubins<snd>(intermediate_pose_1,snd_length,1.,climb,turn_radius);
-        check_valid_end();
-    }
-
-public:
-    /****** Constructors ******/
-
-    BaseDubins(double _climb, double _turn_radius, const Pose3D& _start, const Pose3D& _end)
-    : Dubins(_climb, _turn_radius, _start, _end) {recompute();}
-
-    BaseDubins(double _climb, double _turn_radius, double _alpha, double _beta, double _d, double _z)
-    : BaseDubins(_climb,_turn_radius,{0.,0.,0.,_alpha},{_d,0.,_z,_beta}) {}
-
-    BaseDubins(double _climb, double _turn_radius, const Pose3D& _start, const Pose3D& _end, double target_len, double tol)
-    : Dubins(_climb, _turn_radius, _start, _end) 
-    {
-        normalize();
-        adjust_length(target_len,tol);
-
-        fst_length = compute_fst_length(alpha,beta,d/turn_radius)*turn_radius;
-        snd_length = compute_snd_length(alpha,beta,d/turn_radius)*turn_radius;
-        trd_length = compute_trd_length(alpha,beta,d/turn_radius)*turn_radius;
-
-#if defined(DubinsFleetPlanner_ASSERTIONS) && DubinsFleetPlanner_ASSERTIONS > 0
-        if(valid)
-        {
-            assert(std::abs(fst_length+snd_length+trd_length-length) < DubinsFleetPlanner_PRECISION);
-        }
-#endif
-
-        climb = (end.z - start.z)/length; // TODO: Properly handle the vertical axis
-
-        intermediate_pose_1 = follow_dubins<fst>(start,fst_length,1.,climb,turn_radius);
-        intermediate_pose_2 = follow_dubins<snd>(intermediate_pose_1,snd_length,1.,climb,turn_radius);
-
-        check_valid_end();
-    }
-
-    /****** Getters ******/
-
-    size_t type_hash() const
-    {
-        boost::hash<std::tuple<short,short,short>> hasher;
-        return hasher(std::make_tuple(fst,snd,trd));
-    }
-
-    static const std::tuple<DubinsMove,DubinsMove,DubinsMove> class_id()
-    {
-        return std::make_tuple(fst,snd,trd);
-    }
-
-    const std::vector<DubinsMove> get_all_sections() const
-    {
-        return std::vector({fst,snd,trd});
-    }
-
-    constexpr const std::string get_type_abbr( [[maybe_unused]] bool b=false) const
-    {
-        return class_abbr_name;
-    }
-
-    Pose3D get_position(double len) const override
-    {
-
-#if DubinsFleetPlanner_ASSERTIONS > 0
-        assert(len >= 0);
-#endif
-
-        if (len < fst_length)
-        {
-            return follow_dubins<fst>(start,len,1.,climb,turn_radius);
-        }
-        else
-        {
-            len -= fst_length;
-            if (len < snd_length)
-            {
-                return follow_dubins<snd>(intermediate_pose_1,len,1.,climb,turn_radius);
-            }
-            else
-            {
-                len -= snd_length;
-                len = std::min(len,trd_length);
-                return follow_dubins<trd>(intermediate_pose_2,len,1.,climb,turn_radius);
-            }
-        }
-    }
-
-    
-    std::vector<double> get_junction_locs() const override
-    {
-        return std::vector<double>({fst_length,fst_length+snd_length});
-    }
-
-    std::vector<Pose3D> get_junction_points() const override
-    {
-        return std::vector<Pose3D>({intermediate_pose_1,intermediate_pose_2});
-    }
-
-    DubinsMove get_section_type(double loc) const override
-    {
-        if (loc < fst_length)
-        {
-            return fst;
-        }
-        else
-        {
-            if (loc < fst_length+snd_length)
-            {
-                return snd;
-            }
-            else
-            {
-                return trd;
-            }
-        }
-    }
-};
+// BasePathShapeGenerator for the 8 basic Dubins Paths 
+std::vector<DynamicPathShape> set_radius_RSR(const Pose3D& start, const Pose3D& end, double turn_radius);
+std::vector<DynamicPathShape> set_radius_LSL(const Pose3D& start, const Pose3D& end, double turn_radius);
+std::vector<DynamicPathShape> set_radius_RSL(const Pose3D& start, const Pose3D& end, double turn_radius);
+std::vector<DynamicPathShape> set_radius_LSR(const Pose3D& start, const Pose3D& end, double turn_radius);
+std::vector<DynamicPathShape> set_radius_RLR(const Pose3D& start, const Pose3D& end, double turn_radius);
+std::vector<DynamicPathShape> set_radius_LRL(const Pose3D& start, const Pose3D& end, double turn_radius);
+std::vector<DynamicPathShape> set_radius_SRS(const Pose3D& start, const Pose3D& end, double turn_radius);
+std::vector<DynamicPathShape> set_radius_SLS(const Pose3D& start, const Pose3D& end, double turn_radius);
 
 
-typedef BaseDubins<DubinsMove::LEFT,DubinsMove::STRAIGHT,DubinsMove::LEFT> BaseDubinsLSL;       // LSL
-typedef BaseDubins<DubinsMove::LEFT,DubinsMove::STRAIGHT,DubinsMove::RIGHT> BaseDubinsLSR;      // LSR
-typedef BaseDubins<DubinsMove::RIGHT,DubinsMove::STRAIGHT,DubinsMove::RIGHT> BaseDubinsRSR;     // RSR
-typedef BaseDubins<DubinsMove::RIGHT,DubinsMove::STRAIGHT,DubinsMove::LEFT> BaseDubinsRSL;      // RSL
-typedef BaseDubins<DubinsMove::RIGHT,DubinsMove::LEFT,DubinsMove::RIGHT> BaseDubinsRLR;         // RLR
-typedef BaseDubins<DubinsMove::LEFT,DubinsMove::RIGHT,DubinsMove::LEFT> BaseDubinsLRL;          // LRL
-typedef BaseDubins<DubinsMove::STRAIGHT,DubinsMove::RIGHT,DubinsMove::STRAIGHT> BaseDubinsSRS;  // SRS
-typedef BaseDubins<DubinsMove::STRAIGHT,DubinsMove::LEFT,DubinsMove::STRAIGHT> BaseDubinsSLS;   // SLS
+/**
+ * @brief Produces the path shapes making a path of given length. Output has size 0 if unrealisable.
+ * 
+ * @param start         Start pose
+ * @param end           End pose
+ * @param turn_radius   Minimal turn radius
+ * @param target_len    Target length
+ * @param tol           Fitted length tolerance
+ * @return std::vector<DynamicPathShape> 
+ */
+typedef std::vector<DynamicPathShape> (*FittedPathShapeGenerator)(const Pose3D&, const Pose3D&, double, double, double);
 
-typedef std::tuple<
-    BaseDubinsLSL,
-    BaseDubinsLSR,
-    BaseDubinsRSR,
-    BaseDubinsRSL,
-    BaseDubinsRLR,
-    BaseDubinsLRL,
-    BaseDubinsSRS,
-    BaseDubinsSLS> 
-        AllBaseDubins;
-
-constexpr size_t NumberOfBaseDubins = std::tuple_size_v<AllBaseDubins>;
+// FittedPathShapeGenerator for the 8 basic Dubins Paths 
+std::vector<DynamicPathShape> set_length_RSR(const Pose3D& start, const Pose3D& end, double turn_radius, double target_len, double tol);
+std::vector<DynamicPathShape> set_length_LSL(const Pose3D& start, const Pose3D& end, double turn_radius, double target_len, double tol);
+std::vector<DynamicPathShape> set_length_RSL(const Pose3D& start, const Pose3D& end, double turn_radius, double target_len, double tol);
+std::vector<DynamicPathShape> set_length_LSR(const Pose3D& start, const Pose3D& end, double turn_radius, double target_len, double tol);
+std::vector<DynamicPathShape> set_length_RLR(const Pose3D& start, const Pose3D& end, double turn_radius, double target_len, double tol);
+std::vector<DynamicPathShape> set_length_LRL(const Pose3D& start, const Pose3D& end, double turn_radius, double target_len, double tol);
+std::vector<DynamicPathShape> set_length_SRS(const Pose3D& start, const Pose3D& end, double turn_radius, double target_len, double tol);
+std::vector<DynamicPathShape> set_length_SLS(const Pose3D& start, const Pose3D& end, double turn_radius, double target_len, double tol);
 
 
-// -- Single thread, single owner version
-typedef std::array<std::unique_ptr<Dubins>,std::tuple_size_v<AllBaseDubins>> ArrayOfBaseDubins;
-
-ArrayOfBaseDubins list_all_baseDubins(double _climb, double _turn_radius, const Pose3D& _start, const Pose3D& _end);
-ArrayOfBaseDubins fit_all_baseDubins(double _climb, double _turn_radius, const Pose3D& _start, const Pose3D& _end,
-    double target_len, double tol);
-
+/**
+ * @brief List all possible basic Dubins path (LSL,RSR,RSL,LSR,LRL,RLR,SLS,SRS) of with the given climb rate and turn radius
+ * 
+ * @param _climb        Climb rate at unit speed
+ * @param _turn_radius  Turn radius for Dubins
+ * @param _start        Starting point
+ * @param _end          Ending point
+ * @return std::vector<std::unique_ptr<Dubins>> 
+ */
 std::vector<std::unique_ptr<Dubins>> list_possible_baseDubins(double _climb, double _turn_radius, const Pose3D& _start, const Pose3D& _end);
 
 /**
  * @brief Provide the shortest Dubins path for the given configuration (TODO: Take wind into account)
  * 
- * @param _climb        Climb rate at unique speed
+ * @param _climb        Climb rate at unit speed
  * @param _turn_radius  Turn radius for Dubins
  * @param _start        Starting point
  * @param _end          Ending point
@@ -242,11 +88,22 @@ std::vector<std::unique_ptr<Dubins>> list_possible_baseDubins(double _climb, dou
  * @return std::unique_ptr<Dubins> 
  */
 std::unique_ptr<Dubins> shortest_possible_baseDubins(double _climb, double _turn_radius, const Pose3D& _start, const Pose3D& _end, double wind_x = 0., double wind_y = 0.);
-std::vector<std::unique_ptr<Dubins>> fit_possible_baseDubins(double _climb, double _turn_radius, const Pose3D& _start, const Pose3D& _end,
+
+/**
+ * @brief List all possible basic Dubins path (LSL,RSR,RSL,LSR,LRL,RLR,SLS,SRS) of fitting the target length
+ * 
+ * TODO: Handle verticality
+ * 
+ * @param _climb        Climb rate at unit speed
+ * @param _turn_radius  Minimal turn radius for Dubins
+ * @param _start        Starting point
+ * @param _end          Ending point
+ * @param target_len    Target length
+ * @param tol           Tolerance for target length solver
+ * @return std::vector<Dubins> 
+ */
+std::vector<std::unique_ptr<Dubins>> fit_possible_baseDubins([[maybe_unused]] double _climb, double _turn_radius, const Pose3D& _start, const Pose3D& _end,
     double target_len, double tol);
 
+const uint NumberOfBaseDubins = 8;
 
-// -- Conversion to shared ptr
-typedef std::array<std::shared_ptr<Dubins>,std::tuple_size_v<AllBaseDubins>> SharedArrayOfBaseDubins;
-
-SharedArrayOfBaseDubins make_baseDubins_array_shared(ArrayOfBaseDubins&);

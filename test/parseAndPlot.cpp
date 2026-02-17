@@ -8,7 +8,6 @@
 
 #include "ioUtils.hpp"
 #include "Aircraft.h"
-#include "GenericDubins.hpp"
 
 namespace fs = std::filesystem;
 namespace po = boost::program_options;

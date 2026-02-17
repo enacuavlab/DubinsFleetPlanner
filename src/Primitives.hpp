@@ -17,6 +17,7 @@
 
 #pragma once
 
+#include <assert.h>
 #include <limits>
 #include <cmath>
 #include <tuple>
@@ -25,6 +26,7 @@
 
 #include "utils.hpp"
 #include "Aircraft.h"
+#include "ProjectHeader.h"
 
 
 /********************  Fundamental Dubins path computing  ********************/
@@ -206,7 +208,7 @@ struct DynamicPathShape
     double p3;      ///< Vertical speed
     double p4;      ///< For a Straight: unused, set to 0   | For a turn: initial angle
     DubinsMove m;   ///< Type of the path shape, as a variable
-    double length = NAN;  ///< Length of the shape (if finite)
+    double length = NAN;  ///< GROUND Length of the shape (if finite)
 };
 
 template<DubinsMove m>
@@ -221,6 +223,22 @@ DynamicPathShape to_dynamic_PathShape(const PathShape<m>& p)
         .p3 = p.p3,
         .p4 = p.p4,
         .m  = m
+    };
+}
+
+template<DubinsMove m>
+PathShape<m> to_static_shape(const DynamicPathShape& p)
+{
+    assert(m == p.m);
+
+    return {
+        .x  = p.x,
+        .y  = p.y,
+        .z  = p.z,
+        .p1 = p.p1,
+        .p2 = p.p2,
+        .p3 = p.p3,
+        .p4 = p.p4
     };
 }
 
@@ -282,6 +300,26 @@ inline void path_set_planar_speed(PathShape<m>& s, double speed)
     s.p2 = ((m == LEFT) ? 1. : -1.) * speed/s.p1;
 }
 
+inline void path_set_planar_speed(DynamicPathShape& s, double speed)
+{
+    double initial_duration = s.length/path_planar_speed(s);
+    double dz = s.p3*initial_duration;
+
+    if (s.m == STRAIGHT)
+    {
+        double curr_speed = path_planar_speed(s);
+        s.p1 *= speed/curr_speed;
+        s.p2 *= speed/curr_speed;
+    }
+    else
+    {
+        s.p2 = ((s.m == LEFT) ? 1. : -1.) * speed/s.p1;
+    }
+
+    double duration = s.length/speed;
+    s.p3 = dz/duration;
+}
+
 /**
  * @brief Compute the initial XY direction of the given shape
  * 
@@ -325,7 +363,31 @@ PathShape<m> compute_params(const Pose3D& start, const Pose3D& end, const Aircra
     return compute_params<m>(start,end,stats.airspeed,stats.turn_radius,stats.climb);
 }
 
+/**
+ * @brief Compute the path shape between two points given some path characteristics.
+ * 
+ * @param m         Shape type
+ * @param start     Start pose
+ * @param end       End pose
+ * @param h_speed   XY speed
+ * @param turn_radius Turn radius
+ * @param v_speed   Vertical speed
+ * @return DynamicPathShape 
+ */
+DynamicPathShape compute_params(DubinsMove m, const Pose3D& start, const Pose3D& end, double h_speed, double turn_radius, double v_speed);
 
+/**
+ * @brief Compute the shape equivalent to following the given movement from a starting point
+ * 
+ * @param m         Shape type
+ * @param start     Start pose
+ * @param duration  Duration
+ * @param h_speed   XY speed
+ * @param turn_radius  Turn radius
+ * @param v_speed   Vertical speed
+ * @return DynamicPathShape 
+ */
+DynamicPathShape compute_params(DubinsMove m, const Pose3D& start, double duration, double h_speed, double turn_radius, double v_speed);
 
 /**
  * @brief Follow a Dubins move for a given duration (adapted for PathShape shorthand)
@@ -337,6 +399,15 @@ PathShape<m> compute_params(const Pose3D& start, const Pose3D& end, const Aircra
  */
 template<DubinsMove m>
 Pose3D follow_dubins(const PathShape<m>& s, double duration);
+
+/**
+ * @brief Follow a Dubins move for a given duration (adapted for DynamicPathShape shorthand)
+ * 
+ * @param s         Structure describing the shape to follow (including speed and starting point)
+ * @param duration  Move duration (s)
+ * @return Pose3d   Resulting pose
+ */
+Pose3D follow_dubins(const DynamicPathShape& s, double duration);
 
 /**
  * @brief Compute the initial pose for a PathShape
@@ -352,6 +423,21 @@ Pose3D initial_pose(const PathShape<m>& s)
 }
 
 /**
+ * @brief Compute the initial pose for a DynamicPathShape
+ * 
+ * @tparam m        Type of move (Straight, Left turn, Right turn)
+ * @param s         Structure describing the shape to follow (including speed and starting point)
+ * @return Pose3d   Starting pose
+ */
+Pose3D initial_pose(const DynamicPathShape& s);
+/**
+ * @brief Compute the final pose for a DynamicPathShape
+ * 
+ * @param s         Structure describing the shape to follow (including speed and starting point)
+ * @return Pose3d   Starting pose
+ */
+Pose3D final_pose(const DynamicPathShape& s);
+/**
  * @brief Compute an equivalent path shape by shifting the starting point to the location after the given duration
  * 
  * @tparam m        Type of move (Straight, Left turn, Right turn)
@@ -362,4 +448,14 @@ Pose3D initial_pose(const PathShape<m>& s)
 template<DubinsMove m>
 [[gnu::pure]]
 PathShape<m> shift_start(const PathShape<m>& s, double duration);
+
+/**
+ * @brief Compute an equivalent path shape by shifting the starting point to the location after the given duration
+ * 
+ * @param s         Structure describing the shape to follow (including speed and starting point)
+ * @param duration  Duration of path following shifting the start
+ * @return          New structure with shifted start
+ */
+[[gnu::pure]]
+DynamicPathShape shift_start(const DynamicPathShape& s, double duration);
 

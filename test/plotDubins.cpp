@@ -18,7 +18,7 @@
 #include "plotDubins.hpp"
 
 #include "BaseDubins.hpp"
-#include "BaseExtendedDubins.hpp"
+#include "ExtendedDubins.hpp"
 
 #ifndef PLOTTING_SAMPLES
 #define PLOTTING_SAMPLES 200
@@ -36,7 +36,6 @@ int main()
     double target_l = 15;
     double tol = 1e-6;
 
-    // auto candidates = list_all_baseDubins(stats.climb,stats.turn_radius,start,end);
     auto candidates = fit_possible_baseDubins(stats.climb,stats.turn_radius,start,end, target_l, tol);
     auto more_candidates = generate_line_extended_base(start,end,stats.climb,stats.turn_radius, target_l, tol,
         {0,0.5,1.});
@@ -48,7 +47,7 @@ int main()
         if (d->is_valid())
         {
             Visualisation::plot_path<PLOTTING_SAMPLES>(plot,*d)
-                .label(d->get_type_abbr(false) + std::string(" ") + std::to_string(d->get_length()))
+                .label(d->get_type_abbr() + std::string(" ") + std::to_string(d->get_length()))
                 .lineColor(color);
             // Visualisation::plot_junctions(plot,*d)
             //     .label(d->get_type_abbr())
@@ -63,7 +62,7 @@ int main()
         if (d->is_valid())
         {
             Visualisation::plot_path<PLOTTING_SAMPLES>(plot,*d)
-                .label(d->get_type_abbr(false) + std::string(" ") + std::to_string(d->get_length()))
+                .label(d->get_type_abbr() + std::string(" ") + std::to_string(d->get_length()))
                 .lineColor(color)
                 .lineType(3);
             // Visualisation::plot_junctions(plot,*d)

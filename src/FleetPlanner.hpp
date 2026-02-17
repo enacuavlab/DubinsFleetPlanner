@@ -33,7 +33,6 @@
 #include "Dubins.hpp"
 #include "BaseDubins.hpp"
 #include "ExtendedDubins.hpp"
-#include "BaseExtendedDubins.hpp"
 
 #include "ConflictList.hpp"
 #include "ioUtils.hpp"
@@ -1349,7 +1348,7 @@ private:
 
     std::vector<std::unique_ptr<Dubins>> generate_possible_paths(const Pose3D& start, const Pose3D& end, const AircraftStats& stats, double target_len) const
     {
-        return generate_all_fitted_base_extended(start,end,start_lengths,end_lengths,stats.climb,stats.turn_radius,target_len,precision_tol);
+        return generate_all_extended_from_fitted_baseDubins(start,end,start_lengths,end_lengths,stats.climb,stats.turn_radius,target_len,precision_tol);
     }
 
     uint max_path_num() const

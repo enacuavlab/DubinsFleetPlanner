@@ -129,7 +129,7 @@ int main()
 
             double duration = std::min(d1->get_length()/p1_speed,d2->get_length()/p2_speed);
 
-            std::cout << "Checking for pair " << d1->get_type_abbr(true) << " " << d2->get_type_abbr(true) << "...";
+            std::cout << "Checking for pair " << d1->get_type_abbr() << " " << d2->get_type_abbr() << "...";
             if (d1->is_XY_separated_from(*d2,p1_speed,p2_speed,duration,min_separation))
             {
                 std::cout << " Valid!" << std::endl
@@ -167,7 +167,7 @@ int main()
     {
         auto& d1 = p1_possibilities[i1];
         Visualisation::plot_path<samples>(plot,*d1)
-            .label(std::string("1: ") + d1->get_type_abbr(true))
+            .label(std::string("1: ") + d1->get_type_abbr())
             .lineColor("blue")
             .dashType(i1);
     }
@@ -184,7 +184,7 @@ int main()
     {
         auto& d2 = p2_possibilities[i2];
         Visualisation::plot_path<samples>(plot,*d2)
-            .label(std::string("2: ") + d2->get_type_abbr(true))
+            .label(std::string("2: ") + d2->get_type_abbr())
             .lineColor("red")
             .dashType(i2);
     }

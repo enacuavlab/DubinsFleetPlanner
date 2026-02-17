@@ -52,7 +52,19 @@
  * @return double The minimal XY separation distance, with its location parameter with respect to the first and second paths
  */
 template<DubinsMove m1, DubinsMove m2>
-std::tuple<double,double,double> geometric_XY_dist(const PathShape<m1> &s1, const PathShape<m2> &s2, double duration);
+std::tuple<double,double,double> geometric_XY_dist(const PathShape<m1>& s1, const PathShape<m2>& s2, double duration);
+
+/**
+ * @brief Given two shapes described by paths, compute their XY geometric separation 
+ * 
+ * This amount to the minimal euclidean distance between the two shapes, *ignoring* the vertical component.
+ * 
+ * @param s1 First shape
+ * @param s2 Second shape
+ * @param duration Duration (in s) for which the shape are followed, defining segment and circle arcs
+ * @return double The minimal XY separation distance, with its location parameter with respect to the first and second paths
+ */
+std::tuple<double,double,double> geometric_XY_dist(const DynamicPathShape& s1, const DynamicPathShape& s2, double duration);
 
 /**
  * @brief Given two shapes described by paths, compute their XY geometric separation by sampling
@@ -142,6 +154,23 @@ std::pair<double,double> temporal_3D_dist(const PathShape<m1> &s1, const PathSha
  */
 template<DubinsMove m1, DubinsMove m2, bool use_derivatives=DubinsFleetPlanner_SOLVE_WITH_DERIVATIVES>
 std::pair<double,double> temporal_XY_dist(const PathShape<m1> &s1, const PathShape<m2> &s2, double duration, double tol);
+
+/**
+ * @brief Given two base trajectories, find the minimal XY euclidean distance between them on the given time interval
+ * using a global minimum solver.
+ * 
+ * This amount to the minimal planar euclidean distance between the two trajectories, *ignoring* the vertical component.
+ * 
+ * @tparam use_derivatives Set if the solver should use the derivatives for computations of not (may improve speed)
+ * @param s1 First trajectory
+ * @param s2 Second trajectory
+ * @param duration Duration (in s) of the trajectories
+ * @param tol Solver tolerance when looking for the minimum distance
+ * @return std::pair<double,double> Location and value of the minimal 2D euclidean distance in the given duration
+ */
+template<bool use_derivatives=DubinsFleetPlanner_SOLVE_WITH_DERIVATIVES>
+std::pair<double,double> temporal_XY_dist(const DynamicPathShape &s1, const DynamicPathShape &s2, double duration, double tol);
+
 
 
 /**

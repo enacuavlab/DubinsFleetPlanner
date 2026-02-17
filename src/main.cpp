@@ -441,7 +441,7 @@ std::tuple<int,SharedDubinsResults,ExtraPPResults> solve_case(const fs::path& in
         }
 
         obstacle_paths.insert(obstacle_paths.end(),
-            std::move(sols.value().begin()),std::move(sols.value().end()));
+            std::move_iterator(sols.value().begin()),std::move_iterator(sols.value().end()));
 
         obstacle_stats.insert(obstacle_stats.end(),
             stats.begin(),stats.end());

@@ -119,7 +119,7 @@ int main()
         std::ofstream output("/home/mael/Programming/DubinsFleetPlanner/" + std::to_string(i) + "_chained.json");
         if (output)
         {
-            DubinsPP::OutputPrinter::print_paths_as_JSON(output,results_vec,stats_vec,min_sep,wind_x,wind_y);
+            DubinsPP::OutputPrinter::print_paths_as_ModernJSON(output,results_vec,stats_vec,min_sep,wind_x,wind_y);
             output.close();
         }
         else

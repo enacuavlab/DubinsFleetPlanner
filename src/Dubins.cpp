@@ -80,6 +80,7 @@ static bool check_XY_separation(const PathShape<m1>& p1, const PathShape<m2>& p2
  * 
  * @tparam m1 Type of the first element
  * @tparam m2 Type of the second element
+ * @tparam use_derivatives Use derivatives based global minimum seeking method. Default to true.
  * @param p1 First path
  * @param p2 Second path
  * @param duration Time duration of the section to study
@@ -195,6 +196,129 @@ std::pair<double,double> compute_XY_separation(
     return output;
 }
 
+/**
+ * @brief Compute the minimal XY distance between two paths elements 
+ * 
+ * @tparam use_derivatives Use derivatives based global minimum seeking method. Default to true.
+ * @param p1 First path
+ * @param p2 Second path
+ * @param duration Time duration of the section to study
+ * @param min_sep Minial required distance
+ * @param tol Precision with respect
+ * @return A pair: Location and value of the minimal distance between two paths
+ */
+template<bool use_derivatives=true>
+std::pair<double,double> compute_XY_separation(
+    const DynamicPathShape& p1, const DynamicPathShape& p2, double duration, double min_sep, double tol,
+    uint rec=DubinsDistDefaultRec)
+{
+    std::pair<double,double> output;
+
+    DubinsMove m1 = p1.m;
+    DubinsMove m2 = p2.m;
+
+    // Degenerate case: negligible duration -> move to point-point distance
+    if (duration < tol)
+    {
+        Pose3D p1_start = initial_pose(p1);
+        Pose3D p2_start = initial_pose(p2);
+
+        output.first = duration/2.;
+        output.second = pose_dist_XY(p1_start,p2_start);
+
+        return output;
+    }
+
+    
+    // In the straight-straight case, analytic exact solution exists    
+    if ((m1 == STRAIGHT) && (m2 == STRAIGHT))
+    {
+        output = temporal_XY_dist<STRAIGHT,STRAIGHT,true>(
+            to_static_shape<STRAIGHT>(p1),
+            to_static_shape<STRAIGHT>(p2),duration,tol);
+    }
+    else
+    {
+        double geo_dist;
+        double t1,t2;
+        std::tie(geo_dist,t1,t2) = geometric_XY_dist(p1,p2,duration);
+
+        // If there may be a conflict, do a detailed search
+        if (geo_dist < min_sep)
+        {
+            // If recursive computation is enabled, retry computing separation using geometry
+            if (rec > 0)
+            {
+                auto shifted_p1 = shift_start(p1,duration/2);
+                auto shifted_p2 = shift_start(p2,duration/2);
+
+
+                // If the geometric test suggests there is a collision in the second half, look at the second half first
+                if (t1 >= duration/2 && t2 >= duration/2)
+                {
+                    output = compute_XY_separation(shifted_p1,shifted_p2,duration/2,min_sep,tol,rec-1);
+                    output.first += duration/2; // Location needs to be corrected due to shifting
+
+                    // If the recursive search found a conflict, output it
+                    if (output.second < min_sep)
+                    {
+                        return output;
+                    }
+                    // Otherwise, explore the other branch and output the smallest distance value
+                    else
+                    {
+                        auto output_bis = compute_XY_separation(p1,p2,duration/2,min_sep,tol,rec-1);
+                        if (output_bis.second < output.second)
+                        {
+                            return output_bis;
+                        }
+                        else
+                        {
+                            return output;
+                        }
+                    }
+                }
+                else
+                {
+                    output = compute_XY_separation(p1,p2,duration/2,min_sep,tol,rec-1);
+
+                    // If the recursive search found a conflict, output it
+                    if (output.second < min_sep)
+                    {
+                        return output;
+                    }
+                    // Otherwise, explore the other branch and output the smallest distance value
+                    else
+                    {
+                        auto output_bis = compute_XY_separation(shifted_p1,shifted_p2,duration/2,min_sep,tol,rec-1);
+                        output_bis.first += duration/2; // Location needs to be corrected due to shifting
+                        if (output_bis.second < output.second)
+                        {
+                            return output_bis;
+                        }
+                        else
+                        {
+                            return output;
+                        }
+                    }
+                }
+            }
+            else // Otherwise, fallback on temporal method
+            {
+                output = temporal_XY_dist<use_derivatives>(p1,p2,duration,tol);
+            }
+        }
+        // Otherwise, use the result of the geometric separation
+        else
+        {
+            output.first = duration/2.;
+            output.second = geo_dist;
+        }
+    }
+
+    return output;
+}
+
 // ---------- Separation between Dubins ---------- //
 
 /**
@@ -266,127 +390,6 @@ static std::pair<double,double> compute_XY_separation_between_trajectories(
                     duration,min_dist,tol,rec);
 }
 
-static std::pair<double,double> _compute_XY_separation_between_Dubins_on_interval(
-    const Dubins& curr, double curr_speed,
-    const Dubins& other, double other_speed,
-    double min_dist, double tol,
-    double t_start, double t_end,
-    uint rec
-)
-{
-    double curr_turn_radius = curr.get_turn_radius();
-    double curr_vspeed      = curr.get_climb();
-
-    double other_turn_radius = other.get_turn_radius();
-    double other_vspeed      = other.get_climb();
-
-    Pose3D curr_start   = curr.get_position(t_start , curr_speed);
-    Pose3D curr_end     = curr.get_position(t_end   , curr_speed);
-    Pose3D other_start  = other.get_position(t_start, other_speed);
-    Pose3D other_end    = other.get_position(t_end  , other_speed);
-    DubinsMove curr_type    = curr.get_section_type((t_start+t_end)*curr_speed/2);
-    DubinsMove other_type   = other.get_section_type((t_start+t_end)*other_speed/2);
-    double duration = t_end - t_start;
-
-    std::pair<double,double> output;
-
-    // Double switch-case to go through all pairs of (DubinsMove,DubinsMove)
-    switch (curr_type)
-    {
-    case STRAIGHT:
-        switch (other_type)
-        {
-        case STRAIGHT:
-            output = compute_XY_separation_between_trajectories<STRAIGHT,STRAIGHT>(
-                    curr_start,curr_end,curr_speed,curr_turn_radius,curr_vspeed,
-                    other_start,other_end,other_speed,other_turn_radius,other_vspeed,
-                    duration,min_dist,tol,rec);
-            break;
-            
-        case LEFT:
-            output = compute_XY_separation_between_trajectories<STRAIGHT,LEFT>(
-                    curr_start,curr_end,curr_speed,curr_turn_radius,curr_vspeed,
-                    other_start,other_end,other_speed,other_turn_radius,other_vspeed,
-                    duration,min_dist,tol,rec);
-            break;
-
-        case RIGHT:
-            output = compute_XY_separation_between_trajectories<STRAIGHT,RIGHT>(
-                    curr_start,curr_end,curr_speed,curr_turn_radius,curr_vspeed,
-                    other_start,other_end,other_speed,other_turn_radius,other_vspeed,
-                    duration,min_dist,tol,rec);
-            break;
-
-        default:
-            exit(EXIT_FAILURE);
-        }
-        break;
-        
-    case LEFT:
-        switch (other_type)
-        {
-        case STRAIGHT:
-            output = compute_XY_separation_between_trajectories<LEFT,STRAIGHT>(
-                curr_start,curr_end,curr_speed,curr_turn_radius,curr_vspeed,
-                other_start,other_end,other_speed,other_turn_radius,other_vspeed,
-                duration,min_dist,tol,rec);
-            break;
-            
-        case LEFT:
-            output = compute_XY_separation_between_trajectories<LEFT,LEFT>(
-                curr_start,curr_end,curr_speed,curr_turn_radius,curr_vspeed,
-                other_start,other_end,other_speed,other_turn_radius,other_vspeed,
-                duration,min_dist,tol,rec);
-            break;
-
-        case RIGHT:
-            output = compute_XY_separation_between_trajectories<LEFT,RIGHT>(
-                curr_start,curr_end,curr_speed,curr_turn_radius,curr_vspeed,
-                other_start,other_end,other_speed,other_turn_radius,other_vspeed,
-                duration,min_dist,tol,rec);
-            break;
-
-        default:
-            exit(EXIT_FAILURE);
-        }
-        break;
-
-    case RIGHT:
-        switch (other_type)
-        {
-        case STRAIGHT:
-            output = compute_XY_separation_between_trajectories<RIGHT,STRAIGHT>(
-                curr_start,curr_end,curr_speed,curr_turn_radius,curr_vspeed,
-                other_start,other_end,other_speed,other_turn_radius,other_vspeed,
-                duration,min_dist,tol,rec);
-            break;
-            
-        case LEFT:
-            output = compute_XY_separation_between_trajectories<RIGHT,LEFT>(
-                curr_start,curr_end,curr_speed,curr_turn_radius,curr_vspeed,
-                other_start,other_end,other_speed,other_turn_radius,other_vspeed,
-                duration,min_dist,tol,rec);
-            break;
-
-        case RIGHT:
-            output = compute_XY_separation_between_trajectories<RIGHT,RIGHT>(
-                curr_start,curr_end,curr_speed,curr_turn_radius,curr_vspeed,
-                other_start,other_end,other_speed,other_turn_radius,other_vspeed,
-                duration,min_dist,tol,rec);
-            break;
-
-        default:
-            exit(EXIT_FAILURE);
-        }
-        break;
-
-    default:
-        exit(EXIT_FAILURE);
-    }
-
-    output.first += t_start;
-    return output;
-}
 
 std::pair<double,double> Dubins::XY_distance_to(const Dubins& other, double this_speed, double other_speed, 
         double duration, double min_dist, double tol, std::optional<double> hotstart, uint rec) const
@@ -397,13 +400,6 @@ std::pair<double,double> Dubins::XY_distance_to(const Dubins& other, double this
 #endif
 
     std::vector<double> timepoints = compute_timepoints(*this, other, this_speed, other_speed, duration);
-
-    double this_turn_radius = this->get_turn_radius();
-    double this_vspeed      = this->get_climb();
-
-    double other_turn_radius = other.get_turn_radius();
-    double other_vspeed      = other.get_climb();
-
     std::pair<double,double> output = {0.,INFINITY};
 
 
@@ -412,17 +408,31 @@ std::pair<double,double> Dubins::XY_distance_to(const Dubins& other, double this
     if (hotstart.has_value())
     {
         index = binary_search(timepoints,hotstart.value());
-        std::pair<double,double> current = _compute_XY_separation_between_Dubins_on_interval(
-            *this,this_speed,other,other_speed,min_dist,tol,timepoints[index],timepoints[index+1],rec
-        );
+        double duration = timepoints[index+1]-timepoints[index];
 
-        if (current.second < min_dist)
+        std::vector<double> times{timepoints[index],timepoints[index+1]};
+
+        const DynamicPathShape& curr_ref_shape  = this->get_pathshape((times.front()+times.back())/2);
+        const DynamicPathShape& other_ref_shape = other.get_pathshape((times.front()+times.back())/2);
+
+        std::vector<Pose3D> curr_poses  = this->get_positions(times,this_speed,true);
+        std::vector<Pose3D> other_poses = other.get_positions(times,other_speed,true);
+
+        DynamicPathShape curr_shape  = compute_params(curr_ref_shape.m,
+            curr_poses.front(),curr_poses.back(),this_speed,curr_ref_shape.p1,curr_ref_shape.p3);
+
+        DynamicPathShape other_shape = compute_params(other_ref_shape.m,
+            other_poses.front(),other_poses.back(),other_speed,other_ref_shape.p1,other_ref_shape.p3);
+
+        std::pair<double,double> current_sep = compute_XY_separation(curr_shape,other_shape,duration,min_dist,tol,rec);
+
+        if (current_sep.second < min_dist)
         {
-            return current;
+            return current_sep;
         }
         else
         {
-            output = current;
+            output = current_sep;
         }
 
     }
@@ -431,27 +441,53 @@ std::pair<double,double> Dubins::XY_distance_to(const Dubins& other, double this
         index = timepoints.size(); // Return past-the-post value to avoid skipping
     }
 
+    std::vector<Pose3D> curr_poses = this->get_positions(timepoints,this_speed,true);
+    std::vector<Pose3D> other_poses = other.get_positions(timepoints,other_speed,true);
+
+    std::vector<double> curr_endlocs = this->get_endpoints_locs();
+    std::vector<double> other_endlocs = other.get_endpoints_locs();
+
+    uint curr_sec_index = 0;
+    uint other_sec_index = 0;
 
     // For each base case, compute the distance
     for(size_t i = 0; i < timepoints.size()-1; i++)
     {
+        // Update section tracker
+        if (curr_endlocs[curr_sec_index+1] < timepoints[i+1]*this_speed*(1-1e-6))
+        {
+            curr_sec_index++;
+        }
+
+        if (other_endlocs[other_sec_index+1] < timepoints[i+1]*other_speed*(1-1e-6))
+        {
+            other_sec_index++;
+        }
+
         // Skip the hot start
         if (i == index)
         {
             continue;
         }
 
-        std::pair<double,double> current = _compute_XY_separation_between_Dubins_on_interval(
-            *this,this_speed,other,other_speed,min_dist,tol,timepoints[i],timepoints[i+1],rec
-        );
+        const DynamicPathShape& curr_ref_shape = sections[curr_sec_index];
+        const DynamicPathShape& other_ref_shape = other.sections[other_sec_index];
 
-        if (current.second < min_dist)
+        DynamicPathShape curr_shape  = compute_params(curr_ref_shape.m,
+            curr_poses[i], curr_poses[i+1], this_speed, curr_ref_shape.p1, curr_ref_shape.p3);
+
+        DynamicPathShape other_shape = compute_params(other_ref_shape.m,
+            other_poses[i], other_poses[i+1], other_speed, other_ref_shape.p1, other_ref_shape.p3);
+
+        std::pair<double,double> current_sep = compute_XY_separation(curr_shape,other_shape,(timepoints[i+1] - timepoints[i]),min_dist,tol,rec);
+
+        if (current_sep.second < min_dist)
         {
-            return current;
+            return current_sep;
         }
-        else if (current.second < output.second)
+        else if (current_sep.second < output.second)
         {
-            output = current;
+            output = current_sep;
         }
         
     }
@@ -460,7 +496,7 @@ std::pair<double,double> Dubins::XY_distance_to(const Dubins& other, double this
 }
 
 bool Dubins::is_XY_separated_from(const Dubins& other, double this_speed, double other_speed, 
-        double duration, double min_dist, double tol, uint rec) const
+        double duration, double min_dist, double tol, std::optional<double> hotstart, uint rec) const
 {
 #if defined(DubinsFleetPlanner_ASSERTIONS) && DubinsFleetPlanner_ASSERTIONS > 0
     assert((this_speed > 0) && (other_speed > 0));
@@ -468,24 +504,88 @@ bool Dubins::is_XY_separated_from(const Dubins& other, double this_speed, double
 #endif
 
     std::vector<double> timepoints = compute_timepoints(*this, other, this_speed, other_speed, duration);
+    std::pair<double,double> output = {0.,INFINITY};
 
-    double this_turn_radius = this->get_turn_radius();
-    double this_vspeed      = this->get_climb();
 
-    double other_turn_radius = other.get_turn_radius();
-    double other_vspeed      = other.get_climb();
+    size_t index; // Path section index for hot start
+
+    if (hotstart.has_value())
+    {
+        index = binary_search(timepoints,hotstart.value());
+        double duration = timepoints[index+1]-timepoints[index];
+
+        std::vector<double> times{timepoints[index],timepoints[index+1]};
+
+        const DynamicPathShape& curr_ref_shape  = this->get_pathshape((times.front()+times.back())/2);
+        const DynamicPathShape& other_ref_shape = other.get_pathshape((times.front()+times.back())/2);
+
+        std::vector<Pose3D> curr_poses  = this->get_positions(times,this_speed,true);
+        std::vector<Pose3D> other_poses = other.get_positions(times,other_speed,true);
+
+        DynamicPathShape curr_shape  = compute_params(curr_ref_shape.m,
+            curr_poses.front(),curr_poses.back(),this_speed,curr_ref_shape.p1,curr_ref_shape.p3);
+        
+        DynamicPathShape other_shape = compute_params(other_ref_shape.m,
+            other_poses.front(),other_poses.back(),other_speed,other_ref_shape.p1,other_ref_shape.p3);
+
+        std::pair<double,double> current_sep = compute_XY_separation(curr_shape,other_shape,duration,min_dist,tol,rec);
+
+        if (current_sep.second < min_dist)
+        {
+            return false;
+        }
+
+    }
+    else
+    {
+        index = timepoints.size(); // Return past-the-post value to avoid skipping
+    }
+
+    std::vector<Pose3D> curr_poses = this->get_positions(timepoints,this_speed,true);
+    std::vector<Pose3D> other_poses = other.get_positions(timepoints,other_speed,true);
+
+    std::vector<double> curr_endlocs = this->get_endpoints_locs();
+    std::vector<double> other_endlocs = other.get_endpoints_locs();
+
+    uint curr_sec_index = 0;
+    uint other_sec_index = 0;
 
     // For each base case, compute the distance
     for(size_t i = 0; i < timepoints.size()-1; i++)
     {
-        std::pair<double,double> current = _compute_XY_separation_between_Dubins_on_interval(
-            *this,this_speed,other,other_speed,min_dist,tol,timepoints[i],timepoints[i+1],rec
-        );
+        // Update section tracker
+        if (curr_endlocs[curr_sec_index+1] < timepoints[i+1]*this_speed*(1-1e-6))
+        {
+            curr_sec_index++;
+        }
 
-        if (current.second < min_dist)
+        if (other_endlocs[other_sec_index+1] < timepoints[i+1]*other_speed*(1-1e-6))
+        {
+            other_sec_index++;
+        }
+
+        // Skip the hot start
+        if (i == index)
+        {
+            continue;
+        }
+
+        const DynamicPathShape& curr_ref_shape = sections[curr_sec_index];
+        const DynamicPathShape& other_ref_shape = other.sections[other_sec_index];
+
+        DynamicPathShape curr_shape  = compute_params(curr_ref_shape.m,
+            curr_poses[i], curr_poses[i+1], this_speed, curr_ref_shape.p1, curr_ref_shape.p3);
+
+        DynamicPathShape other_shape = compute_params(other_ref_shape.m,
+            other_poses[i], other_poses[i+1], other_speed, other_ref_shape.p1, other_ref_shape.p3);
+
+        std::pair<double,double> current_sep = compute_XY_separation(curr_shape,other_shape,(timepoints[i+1] - timepoints[i]),min_dist,tol,rec);
+
+        if (current_sep.second < min_dist)
         {
             return false;
         }
+        
     }
 
     return true;

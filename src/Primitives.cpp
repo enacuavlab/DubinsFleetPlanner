@@ -770,6 +770,54 @@ template Pose3D follow_dubins(const PathShape<STRAIGHT>&    s, double duration);
 template Pose3D follow_dubins(const PathShape<RIGHT>&       s, double duration);
 template Pose3D follow_dubins(const PathShape<LEFT>&        s, double duration);
 
+Pose3D follow_dubins(const DynamicPathShape& s, double duration)
+{
+
+#if DubinsFleetPlanner_ASSERTIONS > 0
+    assert(std::isfinite(duration) && duration >= 0);
+#endif
+
+    Pose3D start;
+    double speed = path_planar_speed(s);
+    double climb_rate = s.p3;
+
+    DubinsMove m = s.m;
+
+    if (m == STRAIGHT)
+    {
+        start.x = s.x;
+        start.y = s.y;
+        start.z = s.z;
+        start.theta = atan2(s.p2,s.p1);
+
+        return follow_dubins<STRAIGHT>(start,duration,speed,climb_rate,0.);
+    }
+    else
+    {
+        start.z = s.z;
+
+        double start_angle = s.p4;
+        double turn_radius = s.p1;
+
+        start.x = s.x + turn_radius* cos(start_angle);
+        start.y = s.y + turn_radius* sin(start_angle);
+        start.theta = start_angle + M_PI_2 * ((m==LEFT) ? (1) : (-1));
+
+        if (m == LEFT)
+        {
+            return follow_dubins<LEFT>(start,duration,speed,climb_rate,turn_radius);
+        }
+        else if (m == RIGHT)
+        {
+            return follow_dubins<RIGHT>(start,duration,speed,climb_rate,turn_radius);
+        }
+        else
+        {
+            throw std::runtime_error("Unknown DubinsMove");
+        }
+    }
+}
+
 /********************  Recover path shape from two points and a hint  ********************/
 
 template<>
@@ -786,7 +834,8 @@ PathShape<LEFT> compute_params<LEFT>(const Pose3D& start, const Pose3D& end, dou
     output.z = start.z;
 
     double dz = end.z - start.z;
-    double length = abs(end.theta-start.theta)*turn_radius;
+    double dtheta = mod_2pi(end.theta - start.theta);
+    double length = dtheta*turn_radius;
 
     if (abs(dz) > v_speed)
     {
@@ -799,7 +848,7 @@ PathShape<LEFT> compute_params<LEFT>(const Pose3D& start, const Pose3D& end, dou
 
     output.p1 = turn_radius;
     output.p2 = h_speed/turn_radius;
-    output.p4 = start.theta-M_PI_2;
+    output.p4 = mod_2pi(start.theta-M_PI_2);
 
     return output;
 }
@@ -818,7 +867,8 @@ PathShape<RIGHT> compute_params<RIGHT>(const Pose3D& start, const Pose3D& end, d
     output.z = start.z;
 
     double dz = end.z - start.z;
-    double length = abs(end.theta-start.theta)*turn_radius;
+    double dtheta = mod_2pi(start.theta - end.theta);
+    double length = dtheta*turn_radius;
 
     if (abs(dz) > v_speed)
     {
@@ -879,6 +929,151 @@ PathShape<STRAIGHT> compute_params<STRAIGHT>(const Pose3D& start, const Pose3D& 
     return output;
 }
 
+DynamicPathShape compute_params(DubinsMove m, const Pose3D& start, const Pose3D& end, double h_speed, double turn_radius, double v_speed)
+{
+    DynamicPathShape output;
+    output.m = m;
+    if (m == STRAIGHT)
+    {
+        output.x = start.x;
+        output.y = start.y;
+        output.z = start.z;
+
+        double dx,dy,dz;
+        dx = end.x - start.x;
+        dy = end.y - start.y;
+        dz = end.z - start.z;
+
+        double d_norm = std::sqrt(dx*dx + dy*dy);
+        
+        if (d_norm < 1e-9)
+        {
+            output.p1 = h_speed;
+            output.p2 = 0;
+        }
+        else
+        {
+            output.p1 = h_speed*dx/d_norm;
+            output.p2 = h_speed*dy/d_norm;
+        }
+
+        output.p4 = 0.;
+        output.length = d_norm;
+    }
+    else
+    {
+        if (m != LEFT && m != RIGHT)
+        {
+            throw std::runtime_error("Unkown DubinsMove");
+        }
+
+        double ox,oy;
+
+        if (m == LEFT)
+        {
+            ox = turn_radius*std::cos(start.theta+M_PI_2);
+            oy = turn_radius*std::sin(start.theta+M_PI_2);
+            double dtheta = mod_2pi(end.theta - start.theta);
+            output.length = dtheta*turn_radius;
+        }
+        else
+        {
+            ox = turn_radius*std::cos(start.theta-M_PI_2);
+            oy = turn_radius*std::sin(start.theta-M_PI_2);
+            double dtheta = mod_2pi(start.theta - end.theta);
+            output.length = dtheta*turn_radius;
+        }
+        
+
+        output.x = start.x+ox;
+        output.y = start.y+oy;
+        output.z = start.z;
+
+        output.p1 = turn_radius;
+        output.p2 = h_speed/turn_radius * ((m == RIGHT) ? (-1) : (1));
+        output.p4 = start.theta + ((m == RIGHT) ? (M_PI_2) : (-M_PI_2));
+    }
+
+    double time = output.length/path_planar_speed(output);
+    if (time < 1e-9)
+    {
+        output.p3 = 0.;
+    }
+    else
+    {
+        output.p3 = (end.z - start.z)/time;
+    }
+    
+
+// #if defined(DubinsFleetPlanner_ASSERTIONS) && DubinsFleetPlanner_ASSERTIONS > 0
+//     Pose3D computed_start = initial_pose(output);
+//     Pose3D computed_end  = final_pose(output);
+
+//     assert(pose_dist(computed_start,start) < DubinsFleetPlanner_PRECISION);
+//     assert(pose_dist(computed_end,end) < DubinsFleetPlanner_PRECISION);
+// #endif
+    return output;
+}
+
+DynamicPathShape compute_params(DubinsMove m, const Pose3D& start, double duration, double h_speed, double turn_radius, double v_speed)
+{
+    DynamicPathShape output;
+    output.m = m;
+    output.length = duration * h_speed;
+    output.p3 = v_speed;
+
+    if (m == STRAIGHT)
+    {
+        output.x = start.x;
+        output.y = start.y;
+        output.z = start.z;
+
+        output.p1 = cos(start.theta)*h_speed;
+        output.p2 = sin(start.theta)*h_speed;
+        output.p4 = 0.;
+    }
+    else
+    {
+        if (m != LEFT && m != RIGHT)
+        {
+            throw std::runtime_error("Unkown DubinsMove");
+        }
+
+        double ox,oy;
+
+        if (m == LEFT)
+        {
+            ox = turn_radius*std::cos(start.theta+M_PI_2);
+            oy = turn_radius*std::sin(start.theta+M_PI_2);
+        }
+        else
+        {
+            ox = turn_radius*std::cos(start.theta-M_PI_2);
+            oy = turn_radius*std::sin(start.theta-M_PI_2);
+        }
+
+        output.x = start.x+ox;
+        output.y = start.y+oy;
+        output.z = start.z;
+
+        double dz = start.z + duration*v_speed;
+
+        if (abs(dz) > v_speed)
+        {
+            output.p3 = (dz > 0) ? v_speed : -v_speed;
+        }
+        else
+        {
+            output.p3 = (output.length > 0) ? (dz/(output.length/h_speed)) : 0.;
+        }
+
+        output.p1 = turn_radius;
+        output.p2 = h_speed/turn_radius * ((m == RIGHT) ? (-1) : (1));
+        output.p4 = start.theta + ((m == RIGHT) ? (M_PI_2) : (-M_PI_2));
+    }
+    return output;
+}
+
 /********************  Modify a path by shifting its starting point  ********************/
 
 template<>
@@ -915,3 +1110,37 @@ PathShape<m> shift_start(const PathShape<m>& s, double duration)
 
 template PathShape<LEFT> shift_start(const PathShape<LEFT>&, double);
 template PathShape<RIGHT> shift_start(const PathShape<RIGHT>&, double);
+
+[[gnu::pure]]
+DynamicPathShape shift_start(const DynamicPathShape& s, double duration)
+{
+    DynamicPathShape output(s);
+    if (s.m == STRAIGHT)
+    {
+        double sx = s.x;
+        double sy = s.y;
+        double sz = s.z;
+        
+        output.x = sx + s.p1*duration;
+        output.y = sy + s.p2*duration;
+        output.z = sz + s.p3*duration;
+    }
+    else
+    {
+        output.z += s.p3*duration;
+        output.p4 += s.p2*duration;
+    }
+
+    return output;
+}
+
+
+Pose3D initial_pose(const DynamicPathShape& s)
+{
+    return follow_dubins(s,0.);
+}
+
+Pose3D final_pose(const DynamicPathShape& s)
+{
+    return follow_dubins(s,s.length/path_planar_speed(s));
+}

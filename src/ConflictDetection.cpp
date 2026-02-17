@@ -761,6 +761,113 @@ template std::tuple<double,double,double> geometric_XY_dist<RIGHT,LEFT>       (c
 template std::tuple<double,double,double> geometric_XY_dist<LEFT,RIGHT>       (const PathShape<LEFT>&     , const PathShape<RIGHT>&   , double);
 template std::tuple<double,double,double> geometric_XY_dist<RIGHT,RIGHT>      (const PathShape<RIGHT>&    , const PathShape<RIGHT>&   , double);
 
+// Work around for the dynamic case
+std::tuple<double,double,double> geometric_XY_dist(const DynamicPathShape& s1, const DynamicPathShape& s2, double duration)
+{
+    switch (s1.m)
+    {
+    case STRAIGHT:
+        switch (s2.m)
+        {
+        case STRAIGHT:
+            return geometric_XY_dist(
+                to_static_shape<STRAIGHT>(s1),
+                to_static_shape<STRAIGHT>(s2),
+                duration
+            );
+
+        case LEFT:
+            return geometric_XY_dist(
+                to_static_shape<STRAIGHT>(s1),
+                to_static_shape<LEFT>(s2),
+                duration
+            );
+            break;
+
+        case RIGHT:
+            return geometric_XY_dist(
+                to_static_shape<STRAIGHT>(s1),
+                to_static_shape<RIGHT>(s2),
+                duration
+            );
+            break;
+        
+        default:
+            throw std::runtime_error("Unknown DubinsMove");
+            break;
+        }
+        break;
+    
+    case LEFT:
+        switch (s2.m)
+        {
+        case STRAIGHT:
+            return geometric_XY_dist(
+                to_static_shape<LEFT>(s1),
+                to_static_shape<STRAIGHT>(s2),
+                duration
+            );
+
+        case LEFT:
+            return geometric_XY_dist(
+                to_static_shape<LEFT>(s1),
+                to_static_shape<LEFT>(s2),
+                duration
+            );
+            break;
+
+        case RIGHT:
+            return geometric_XY_dist(
+                to_static_shape<LEFT>(s1),
+                to_static_shape<RIGHT>(s2),
+                duration
+            );
+            break;
+        
+        default:
+            throw std::runtime_error("Unknown DubinsMove");
+            break;
+        }
+        break;
+
+    case RIGHT:
+        switch (s2.m)
+        {
+        case STRAIGHT:
+            return geometric_XY_dist(
+                to_static_shape<RIGHT>(s1),
+                to_static_shape<STRAIGHT>(s2),
+                duration
+            );
+
+        case LEFT:
+            return geometric_XY_dist(
+                to_static_shape<RIGHT>(s1),
+                to_static_shape<LEFT>(s2),
+                duration
+            );
+            break;
+
+        case RIGHT:
+            return geometric_XY_dist(
+                to_static_shape<RIGHT>(s1),
+                to_static_shape<RIGHT>(s2),
+                duration
+            );
+            break;
+        
+        default:
+            throw std::runtime_error("Unknown DubinsMove");
+            break;
+        }
+        break;
+
+    default:
+        throw std::runtime_error("Unknown DubinsMove");
+        break;
+    }
+}
+
 // ----- Z distances ----- //
 
 template<DubinsMove m1, DubinsMove m2> [[gnu::pure]]
@@ -1023,6 +1130,117 @@ template std::pair<double,double> temporal_XY_dist<LEFT,RIGHT,true>        (cons
 template std::pair<double,double> temporal_XY_dist<LEFT,RIGHT,false>       (const PathShape<LEFT>&     , const PathShape<RIGHT>&   , double, double);
 template std::pair<double,double> temporal_XY_dist<RIGHT,RIGHT,true>       (const PathShape<RIGHT>&    , const PathShape<RIGHT>&   , double, double);
 template std::pair<double,double> temporal_XY_dist<RIGHT,RIGHT,false>      (const PathShape<RIGHT>&    , const PathShape<RIGHT>&   , double, double);
+
+
+template<bool use_derivatives>
+std::pair<double,double> temporal_XY_dist(const DynamicPathShape &s1, const DynamicPathShape &s2, double duration, double tol)
+{
+    switch (s1.m)
+    {
+    case STRAIGHT:
+        switch (s2.m)
+        {
+        case STRAIGHT:
+            return temporal_XY_dist<STRAIGHT,STRAIGHT,use_derivatives>(
+                to_static_shape<STRAIGHT>(s1),
+                to_static_shape<STRAIGHT>(s2),
+                duration, tol
+            );
+
+        case LEFT:
+            return temporal_XY_dist<STRAIGHT,LEFT,use_derivatives>(
+                to_static_shape<STRAIGHT>(s1),
+                to_static_shape<LEFT>(s2),
+                duration, tol
+            );
+            break;
+
+        case RIGHT:
+            return temporal_XY_dist<STRAIGHT,RIGHT,use_derivatives>(
+                to_static_shape<STRAIGHT>(s1),
+                to_static_shape<RIGHT>(s2),
+                duration, tol
+            );
+            break;
+        
+        default:
+            throw std::runtime_error("Unknown DubinsMove");
+            break;
+        }
+        break;
+    
+    case LEFT:
+        switch (s2.m)
+        {
+        case STRAIGHT:
+            return temporal_XY_dist<LEFT,STRAIGHT,use_derivatives>(
+                to_static_shape<LEFT>(s1),
+                to_static_shape<STRAIGHT>(s2),
+                duration, tol
+            );
+
+        case LEFT:
+            return temporal_XY_dist<LEFT,LEFT,use_derivatives>(
+                to_static_shape<LEFT>(s1),
+                to_static_shape<LEFT>(s2),
+                duration, tol
+            );
+            break;
+
+        case RIGHT:
+            return temporal_XY_dist<LEFT,RIGHT,use_derivatives>(
+                to_static_shape<LEFT>(s1),
+                to_static_shape<RIGHT>(s2),
+                duration, tol
+            );
+            break;
+        
+        default:
+            throw std::runtime_error("Unknown DubinsMove");
+            break;
+        }
+        break;
+
+    case RIGHT:
+        switch (s2.m)
+        {
+        case STRAIGHT:
+            return temporal_XY_dist<RIGHT,STRAIGHT,use_derivatives>(
+                to_static_shape<RIGHT>(s1),
+                to_static_shape<STRAIGHT>(s2),
+                duration, tol
+            );
+
+        case LEFT:
+            return temporal_XY_dist<RIGHT,LEFT,use_derivatives>(
+                to_static_shape<RIGHT>(s1),
+                to_static_shape<LEFT>(s2),
+                duration, tol
+            );
+            break;
+
+        case RIGHT:
+            return temporal_XY_dist<RIGHT,RIGHT,use_derivatives>(
+                to_static_shape<RIGHT>(s1),
+                to_static_shape<RIGHT>(s2),
+                duration, tol
+            );
+            break;
+        
+        default:
+            throw std::runtime_error("Unknown DubinsMove");
+            break;
+        }
+        break;
+
+    default:
+        throw std::runtime_error("Unknown DubinsMove");
+        break;
+    }
+}
+
+template std::pair<double,double> temporal_XY_dist<true>(const DynamicPathShape &s1, const DynamicPathShape &s2, double duration, double tol);
+template std::pair<double,double> temporal_XY_dist<false>(const DynamicPathShape &s1, const DynamicPathShape &s2, double duration, double tol);
 
 
 template<DubinsMove m1, DubinsMove m2>

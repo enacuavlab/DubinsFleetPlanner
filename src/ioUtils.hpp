@@ -35,7 +35,6 @@
 #include "Aircraft.h"
 #include "utils.hpp"
 #include "Dubins.hpp"
-#include "GenericDubins.hpp"
 #include "ConflictList.hpp"
 
 
@@ -97,26 +96,6 @@ namespace DubinsPP
 
     namespace OutputPrinter
     {
-        /**
-         * @brief Print to a stream a Dubins Path planning in a JSON format according to the specs given in `USAGE.md` 
-         * 
-         * Use an handmade serializer
-         * 
-         * @param s         Output stream
-         * @param paths     Solution Dubins paths
-         * @param stats     Statistics of the aircraft
-         * @param min_sep   Minimal separation requested
-         * @param wind_x    Wind, X component
-         * @param wind_y    Wind, Y component
-         * @param z_alpha   The distortion value for computing vertical separation (currently unused)
-         */
-        void print_paths_as_JSON(std::ostream& s, 
-            const std::vector<std::shared_ptr<Dubins>>& paths,
-            const std::vector<AircraftStats>& stats,
-            double min_sep,
-            double wind_x, double wind_y,
-            double z_alpha=1.);
-
         /**
          * @brief Print to a stream a Dubins Path planning in a JSON format according to the specs given in `USAGE.md` 
          * 

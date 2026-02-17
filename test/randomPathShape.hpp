@@ -61,6 +61,45 @@ PathShape<m> generate_random_shape(int seed, double range, double max_speed)
     return output;
 }
 
+DynamicPathShape generate_random_dynamic_shape(DubinsMove m, int seed, double range, double max_speed)
+{
+    std::default_random_engine gen(seed); // Some seeded RNG 
+
+    range = std::abs(range);
+    max_speed = std::abs(max_speed);
+
+    std::uniform_real_distribution<double> dis_pos(-range, range);
+    std::uniform_real_distribution<double> dis_speedn(max_speed/10, max_speed);
+    std::uniform_real_distribution<double> dis_angle(-M_PI,M_PI);
+
+    DynamicPathShape output;
+
+    output.m = m;
+    output.x = dis_pos(gen);
+    output.y = dis_pos(gen);
+    output.z = dis_pos(gen);
+
+    output.p3 = dis_speedn(gen)/10 * (dis_pos(gen) > 0 ? 1 : -1);
+
+    double speed_n = dis_speedn(gen);
+
+    double angle = dis_angle(gen);
+
+    if (output.m == STRAIGHT)
+    {
+        output.p1 = speed_n * std::cos(angle);
+        output.p2 = speed_n * std::sin(angle);
+    }
+    else
+    {
+        output.p1 = dis_speedn(gen);
+        output.p2 = speed_n/output.p1 * ((m == LEFT) ? 1 : -1);
+        output.p4 = angle;
+    }
+
+    return output;
+}
+
 [[gnu::const]]
 inline Eigen::Vector2d angle_vector(double angle)
 {
@@ -95,6 +134,43 @@ inline auto samples_generator(const PathShape<m>& s)
 
 template<DubinsMove m1, DubinsMove m2, size_t samples>
 std::pair<double,double> sample_temporal_XY_dist(const PathShape<m1>& s1, const PathShape<m2>& s2, double duration)
+{
+    static_assert(samples > 1);
+    Pose3D p1,p2;
+
+    double t = 0.;
+    p1 = follow_dubins(s1,t);
+    p2 = follow_dubins(s2,t);
+
+    double dx = p1.x - p2.x;
+    double dy = p1.y - p2.y;
+
+    double min_dist = dx*dx + dy*dy;
+    double min_loc = 0.;
+    
+    for(size_t i = 1; i < samples; i++)
+    {
+        t = i*duration/(samples-1);
+
+        p1 = follow_dubins(s1,t);
+        p2 = follow_dubins(s2,t);
+
+        dx = p1.x - p2.x;
+        dy = p1.y - p2.y;
+
+        double dist = dx*dx + dy*dy;
+        if (dist < min_dist)
+        {
+            min_dist = dist;
+            min_loc = t;
+        }
+    }
+
+    return {min_loc,sqrt(min_dist)};
+}
+
+template<size_t samples>
+std::pair<double,double> sample_temporal_XY_dist(const DynamicPathShape& s1, const DynamicPathShape& s2, double duration)
 {
     static_assert(samples > 1);
     Pose3D p1,p2;

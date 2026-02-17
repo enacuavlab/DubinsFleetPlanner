@@ -18,6 +18,7 @@ else()
 endif()
 
 set(PRECISION 1e-3)
+set(ZERO_TOLERANCE 1e-9)
 set(SOLVE_WITH_DERIVATIVES 0)
 set(DEBUG_MSG 1)
 
@@ -30,7 +31,6 @@ configure_file(ProjectHeader.h.in ProjectHeader.h)
 set(DubinsFleetPlannerLib_SRC
     Aircraft.cpp
     BaseDubins.cpp
-    BaseExtendedDubins.cpp
     ConflictDetection.cpp
     ConflictList.cpp
     Dubins.cpp

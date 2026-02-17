@@ -237,7 +237,7 @@ int main()
         }
         else if (file_format == "json")
         {
-            DubinsPP::OutputPrinter::print_paths_as_JSON(output,results_vec,stats_vec,sampled_min_dist,wind_x,wind_y);
+            DubinsPP::OutputPrinter::print_paths_as_ModernJSON(output,results_vec,stats_vec,sampled_min_dist,wind_x,wind_y);
         }
         else
         {
