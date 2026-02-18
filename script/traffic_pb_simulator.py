@@ -221,7 +221,9 @@ class ArrivalsSimulator:
     
     
     
-    def step(self,timedelta:pd.Timedelta,reschedule_threshold:pd.Timedelta,reschedule:bool=False,threads:int=0) -> list[tuple[ACStats,Pose3D]]:
+    def step(self,timedelta:pd.Timedelta,
+             reschedule_threshold:pd.Timedelta,final_time:pd.Timedelta,
+             reschedule:bool=False,threads:int=0) -> list[tuple[ACStats,Pose3D]]:
         output:list[tuple[ACStats,Pose3D]] = []
         
         ### Time forward
@@ -333,7 +335,7 @@ class ArrivalsSimulator:
                 except KeyError:
                     pass
             
-                if self.tasklist[self.__task_index[id]].end_time - new_t <= reschedule_threshold:
+                if self.tasklist[self.__task_index[id]].end_time - new_t <= final_time:
                     no_reschedule.add(id)
                     continue
                     
@@ -435,7 +437,10 @@ class ArrivalsSimulator:
             
         return output
     
-    def simulate(self, timestep:pd.Timedelta, time_threshold:pd.Timedelta, reschedule_threshold:pd.Timedelta, ac_num_threshold:int,
+    def simulate(self, timestep:pd.Timedelta,
+                 time_threshold:pd.Timedelta, reschedule_threshold:pd.Timedelta,
+                 ac_num_threshold:int,
+                 final_time:pd.Timedelta,
                  threads:int) -> list[tuple[pd.Timestamp,list[tuple[ACStats,Pose3D]]]]:
         log = []
         
@@ -458,7 +463,7 @@ class ArrivalsSimulator:
                 do_schedule = unscheduled >= ac_num_threshold
             
             
-            poss = self.step(timestep,reschedule_threshold,do_schedule,threads)
+            poss = self.step(timestep,reschedule_threshold,final_time,do_schedule,threads)
             log.append((self.__t,poss))
             if self.__encountered_exception is not None:
                 break
@@ -515,7 +520,10 @@ def main():
     parser.add_argument('-n','--ac-threshold',dest='ac_threshold',type=int,
                         help="Minimal number of unscheduled aircraft triggering a rescheduling. Default to 1.", default=1)
     parser.add_argument('-t','--time-threshold',dest='time_threshold',type=float,
-                        help="Time threshold (in minutes) triggering rescheduling. Default to 10 minutes.",default=10)
+                        help="Duration ellapsed after which we reschedule aircraft. Default to 10 minutes.",default=10)
+    parser.add_argument('-f','--final-time',dest='final_time',type=float,
+                        help="Final duration in minutes. If an aircraft is less than this duration away from landing, it cannot be rescheduled. Default to 5 minutes.",
+                        default=5)
     parser.add_argument('--threads',dest="threads",type=int,
                         help="Number of threads to be used by the solver. 0 allows it to autoselect. Default to 0.",default=0)
     
@@ -581,6 +589,7 @@ def main():
         pd.Timedelta(f"{args.time_threshold} minute"),
         pd.Timedelta(f"{args.time_threshold/3} minute"),
         args.ac_threshold,
+        pd.Timedelta(f"{args.final_time} minute"),
         args.threads
     )
     
