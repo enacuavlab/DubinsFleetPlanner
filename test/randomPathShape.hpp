@@ -251,6 +251,24 @@ std::pair<double,double> sample_temporal_XY_dist(const Dubins& s1, const Dubins&
     return {min_loc,sqrt(min_dist)};
 }
 
+Pose3D generate_pose_2D(int seed, double xy_limit)
+{
+    std::default_random_engine gen(seed); // Some seeded RNG 
+
+    xy_limit    = std::abs(xy_limit);
+
+    std::uniform_real_distribution<double> dis_pos(-xy_limit, xy_limit);
+    std::uniform_real_distribution<double> dis_angle(-M_PI,M_PI);
+
+    Pose3D output;
+    output.x = dis_pos(gen);
+    output.y = dis_pos(gen);
+    output.z = 0.;
+    output.theta = dis_angle(gen);
+
+    return output;
+}
+
 Pose3D generate_pose(int seed, double xy_limit, double z_limit)
 {
     std::default_random_engine gen(seed); // Some seeded RNG 

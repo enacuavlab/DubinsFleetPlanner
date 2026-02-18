@@ -29,17 +29,17 @@
  * @param turn_radius   Turn radius
  * @return std::vector<DynamicPathShape> 
  */
-typedef std::vector<DynamicPathShape> (*BasePathShapeGenerator)(const Pose3D&, const Pose3D&, double);
+typedef std::vector<DynamicPathShape> (*BasePathShapeGenerator)(const Pose3D&, const Pose3D&, double, double);
 
 // BasePathShapeGenerator for the 8 basic Dubins Paths 
-std::vector<DynamicPathShape> set_radius_RSR(const Pose3D& start, const Pose3D& end, double turn_radius);
-std::vector<DynamicPathShape> set_radius_LSL(const Pose3D& start, const Pose3D& end, double turn_radius);
-std::vector<DynamicPathShape> set_radius_RSL(const Pose3D& start, const Pose3D& end, double turn_radius);
-std::vector<DynamicPathShape> set_radius_LSR(const Pose3D& start, const Pose3D& end, double turn_radius);
-std::vector<DynamicPathShape> set_radius_RLR(const Pose3D& start, const Pose3D& end, double turn_radius);
-std::vector<DynamicPathShape> set_radius_LRL(const Pose3D& start, const Pose3D& end, double turn_radius);
-std::vector<DynamicPathShape> set_radius_SRS(const Pose3D& start, const Pose3D& end, double turn_radius);
-std::vector<DynamicPathShape> set_radius_SLS(const Pose3D& start, const Pose3D& end, double turn_radius);
+std::vector<DynamicPathShape> set_radius_RSR(const Pose3D& start, const Pose3D& end, double turn_radius, double tol = DubinsFleetPlanner_PRECISION);
+std::vector<DynamicPathShape> set_radius_LSL(const Pose3D& start, const Pose3D& end, double turn_radius, double tol = DubinsFleetPlanner_PRECISION);
+std::vector<DynamicPathShape> set_radius_RSL(const Pose3D& start, const Pose3D& end, double turn_radius, double tol = DubinsFleetPlanner_PRECISION);
+std::vector<DynamicPathShape> set_radius_LSR(const Pose3D& start, const Pose3D& end, double turn_radius, double tol = DubinsFleetPlanner_PRECISION);
+std::vector<DynamicPathShape> set_radius_RLR(const Pose3D& start, const Pose3D& end, double turn_radius, double tol = DubinsFleetPlanner_PRECISION);
+std::vector<DynamicPathShape> set_radius_LRL(const Pose3D& start, const Pose3D& end, double turn_radius, double tol = DubinsFleetPlanner_PRECISION);
+std::vector<DynamicPathShape> set_radius_SRS(const Pose3D& start, const Pose3D& end, double turn_radius, double tol = DubinsFleetPlanner_PRECISION);
+std::vector<DynamicPathShape> set_radius_SLS(const Pose3D& start, const Pose3D& end, double turn_radius, double tol = DubinsFleetPlanner_PRECISION);
 
 
 /**

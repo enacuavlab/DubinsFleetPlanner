@@ -73,28 +73,20 @@ int main()
     // -------------------- Generate test cases -------------------- //
     uint i = 10;
 
-    Pose3D p1_start = ac10_start;//generate_pose(5*i+1, TEST_POS_RANGE, 0.1);
-    Pose3D p1_end   = ac10_end;//generate_pose(5*i+2, TEST_POS_RANGE, 0.1);
+    Pose3D p1_start = ac10_start;
+    Pose3D p1_end   = ac10_end;
 
-    Pose3D p2_start = ac13_start;//generate_pose(5*i+3, TEST_POS_RANGE, 0.1);
-    Pose3D p2_end   = ac13_end;//generate_pose(5*i+4, TEST_POS_RANGE, 0.1);
+    Pose3D p2_start = ac13_start;
+    Pose3D p2_end   = ac13_end;
 
     std::default_random_engine gen(5*i); // Some seeded RNG 
     std::uniform_real_distribution<double> dis_speedn(TEST_SPEED_RANGE/10, TEST_SPEED_RANGE);
 
-    // double p1_speed = dis_speedn(gen);
-    // double p2_speed = dis_speedn(gen);
     double min_separation = TEST_MIN_SEPARATION;
 
-    // std::vector<std::unique_ptr<Dubins>> p1_possibilities = list_possible_baseDubins(1.,TEST_MIN_TURN_RADIUS,p1_start,p1_end);
-    // std::vector<std::unique_ptr<Dubins>> p2_possibilities = list_possible_baseDubins(1.,TEST_MIN_TURN_RADIUS,p2_start,p2_end);
 
-    // double target_duration = 3*TEST_POS_RANGE;
-    // double p1_speed = 1.6;
-    // double p2_speed = 1.6;
-    double target_length_1 = 59.302868877849335;//target_duration*p1_speed;
-    double target_length_2 = 59.302868877849335;//target_duration*p2_speed;
-    // double min_separation = 1.;
+    double target_length_1 = 59.302868877849335;
+    double target_length_2 = 59.302868877849335;
 
     std::vector<std::unique_ptr<Dubins>> p1_possibilities = fit_possible_baseDubins(1.,TEST_MIN_TURN_RADIUS,
         p1_start,p1_end,target_length_1,DubinsFleetPlanner_PRECISION);

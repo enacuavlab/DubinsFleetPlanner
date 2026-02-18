@@ -92,13 +92,13 @@ void setup_base_model(Highs* highs, uint AC_count, uint max_paths_count, int ver
     std::fill(uppers.begin(),uppers.end(),1.);
 
 
-    // Objective : chose lower path index for each AC (assume paths ordered by time)
+    // Objective : arbitrary (everything has same cost)
     std::vector<double> costs(var_num);
     for(uint ac = 0; ac < AC_count; ac++)
     {
         for(uint p_index = 0; p_index < max_paths_count; p_index++)
         {
-            costs[ac*max_paths_count+p_index] = p_index+1.;
+            costs[ac*max_paths_count+p_index] = 1.;
         }
     }
 
@@ -127,35 +127,106 @@ void setup_base_model(Highs* highs, uint AC_count, uint max_paths_count, int ver
     }
 }
 
-std::optional<std::vector<std::shared_ptr<Dubins>>> find_pathplanning_LP_solution(
+std::vector<Dubins> find_pathplanning_LP_solution(
     SharedListOfPossibilities& list_of_possibilites,
     const std::vector<AircraftStats>& stats,
     const std::vector<Conflict_T>& conflicts,
-    uint max_path_num, int THREADS,
-    const Highs* preset_model)
+    uint max_path_num, int THREADS, bool duration_based_costs, int verbosity)
 {
 
-    uint N = list_of_possibilites.size();
+    uint AC_num = stats.size();
+    uint var_num = AC_num * max_path_num;
 
 #if defined(DubinsFleetPlanner_ASSERTIONS) && DubinsFleetPlanner_ASSERTIONS > 0
     assert(list_of_possibilites.size() == stats.size());
 #endif
     
-    // -- Use preset model
-
     Highs model;
+    // -- Setup model
 
-    if (preset_model == nullptr)
+    // - General Options
+
+    model.setOptionValue("threads",THREADS);
+    model.setOptionValue("output_flag",true);
+    model.setOptionValue("presolve","on");
+    model.setOptionValue("parallel","on");
+    // model.setOptionValue("log_file","highs.log");
+    model.setOptionValue("mip_abs_gap", 1-1e-5); // Since all variables in the objective are binary, it should stop when the absolute gap is below 1
+    // model.setOptionValue('random_seed', SEED)
+
+    if (verbosity >= DubinsFleetPlanner_VERY_VERBOSE)
     {
-        setup_base_model(&model,N,max_path_num);
+        model.setOptionValue("log_to_console",true);
     }
     else
     {
-        assert(HighsStatus::kOk == model.passOptions(preset_model->getOptions()));
-        assert(HighsStatus::kOk == model.passModel(preset_model->getModel()));
+        model.setOptionValue("log_to_console",false);
     }
 
-    model.setOptionValue("threads",THREADS);
+    // -- Define variables with bounds (01-LP problem)
+
+    // - Setup costs based on path durations
+    std::vector<double> costs(var_num);
+    if (duration_based_costs)
+    {
+        std::vector<double> costs(var_num);
+        for(uint ac = 0; ac < AC_num; ac++)
+        {
+            const auto& list = list_of_possibilites[ac];
+            const AircraftStats& stat = stats[ac];
+
+            uint p_index = 0;
+            for(const std::shared_ptr<Dubins>& p : list)
+            {
+                costs[ac*max_path_num+p_index]  = p->get_length()/stat.airspeed;
+                p_index++;
+            }
+            while(p_index < max_path_num)
+            {
+                costs[ac*max_path_num+p_index]  = 1e9;
+                p_index++;
+            }
+        }
+    }
+    else
+    {
+        // Objective : arbitrary (everything has same cost)
+        
+        for(uint ac = 0; ac < AC_num; ac++)
+        {
+            for(uint p_index = 0; p_index < max_path_num; p_index++)
+            {
+                costs[ac*max_path_num+p_index] = 1.;
+            }
+        }
+    }
+
+    std::vector<double> lowers(var_num);
+    std::fill(lowers.begin(),lowers.end(),0.);
+    std::vector<double> uppers(var_num);
+    std::fill(uppers.begin(),uppers.end(),1.);
+
+    model.addCols(var_num,costs.data(),lowers.data(),uppers.data(),0,nullptr,nullptr,nullptr);
+
+    std::vector<HighsVarType> integrality(var_num);
+    std::fill(integrality.begin(),integrality.end(),HighsVarType::kInteger);
+    model.changeColsIntegrality(0,var_num-1,integrality.data());
+
+    // -- Constraints 
+
+    std::vector<int> indices(max_path_num);
+
+
+    // Unique path for each AC
+    for(uint ac_id = 0; ac_id < AC_num; ac_id++)
+    {
+        for(uint i = 0; i < max_path_num; i++)
+        {
+            indices[i] = ac_id*max_path_num+i;
+        }
+
+        model.addRow(1.,1.,max_path_num,indices.data(),uppers.data());
+    }
 
     // -- Remove impossible paths by adding constraints
 
@@ -205,22 +276,19 @@ std::optional<std::vector<std::shared_ptr<Dubins>>> find_pathplanning_LP_solutio
 
     auto highs_ret = model.run();
 
-    model.getInfo();
-
-    model.getICrashInfo();
-
     if (highs_ret != HighsStatus::kOk)
     {
         std::cerr   << "ERROR: HiGHS Failure" << std::endl
                     << " Model status     : " << model.modelStatusToString(model.getModelStatus()) << std::endl << std::endl;
 
-        return std::nullopt;
+        
+        return {};
     }
 
 
     if (model.getModelStatus() == HighsModelStatus::kOptimal)
     {
-        std::vector<std::shared_ptr<Dubins>> output;
+        std::vector<Dubins> output;
         uint i = 0;
         for(double val : model.getSolution().col_value)
         {
@@ -228,7 +296,7 @@ std::optional<std::vector<std::shared_ptr<Dubins>>> find_pathplanning_LP_solutio
             {
                 uint ac_id = i / max_path_num;
                 uint path_id = i % max_path_num;
-                output.push_back(list_of_possibilites[ac_id][path_id]);
+                output.push_back(*list_of_possibilites[ac_id][path_id]);
             }
 
             i++;
@@ -237,6 +305,6 @@ std::optional<std::vector<std::shared_ptr<Dubins>>> find_pathplanning_LP_solutio
     }
     else
     {
-        return std::nullopt;
+        return {};
     }
 }

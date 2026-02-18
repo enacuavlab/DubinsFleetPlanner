@@ -49,9 +49,6 @@
 
 namespace chrono = boost::chrono;
 
-typedef std::optional<std::vector<std::unique_ptr<Dubins>>> UniqueDubinsResults;
-typedef std::optional<std::vector<std::shared_ptr<Dubins>>> SharedDubinsResults;
-
 namespace oprint = DubinsPP::OutputPrinter;
 
 // ---------- Metadata processing ---------- //
@@ -60,15 +57,15 @@ class ExtraPPResults
 {
 public:
     std::string case_name;
-    bool success;
+    bool success = false;
     bool false_positive = false;
-    uint iterations;
+    uint iterations = 0;
     chrono::nanoseconds duration;
-    uint threads;
-    uint possible_paths_num;
-    double initial_path_time;
-    double final_path_time;
-    double worst_improvement_rate;
+    uint threads = 0;
+    uint possible_paths_num = 0;
+    double initial_path_time = 0;
+    double final_path_time = 0;
+    double worst_improvement_rate = 0;
 
     std::string format() const
     {
@@ -158,7 +155,7 @@ std::set<uint> acs_without_paths(const ListOfPossibilities& all_paths);
  */
 template<Dubins::DubinsDistanceFunction distance_function>
 void filter_colliding_paths(ListOfPossibilities& all_paths, const std::vector<AircraftStats> &stats,
-    const std::vector<std::shared_ptr<Dubins>>& obstacle_paths, const std::vector<AircraftStats>& obstacle_stats,
+    const std::vector<Dubins>& obstacle_paths, const std::vector<AircraftStats>& obstacle_stats,
     double min_sep)
 {
     for(uint i = 0; i < stats.size(); i++)
@@ -174,7 +171,7 @@ void filter_colliding_paths(ListOfPossibilities& all_paths, const std::vector<Ai
             for(uint j = 0; j < obstacle_stats.size(); j++)
             {
                 const Dubins& p = *p_ptr;
-                const Dubins& c = *obstacle_paths[j];
+                const Dubins& c = obstacle_paths[j];
                 const AircraftStats& cs = obstacle_stats[j];
                  
 
@@ -322,7 +319,6 @@ protected:
 
     double precision_tol;               // Precision when looking for collisions
     double maximal_relative_duration;   // Maximum distance (as a multiplicative factor from the lowest possible distance)
-    mutable Highs* ref_model = nullptr;            // Reference HiGHS model for fast init
     mutable bool first_log = true;      // When logging, state whether it is the first log or not
 
     /*******************************************************************************/
@@ -475,10 +471,10 @@ protected:
      * @param all_paths List of all possible path for each agent
      * @param stats     Statistics of each agent
      * @param min_sep   Minimal distance required
-     * @return UniqueDubinsResults
+     * @return std::vector<Dubins>
      */
     template<Dubins::DubinsSeparationFunction separation_function>
-    UniqueDubinsResults pathfinder_separated(
+    std::vector<Dubins> pathfinder_separated(
         ListOfPossibilities& all_paths, const std::vector<AircraftStats>& stats, double min_sep) const
     {
         uint current_index = 0;
@@ -488,18 +484,18 @@ protected:
         bool success = recursive_pathfinder<separation_function>(all_paths,stats,min_sep,current_index,choices,conflicts_memo);
         if (success)
         {
-            std::vector<std::unique_ptr<Dubins>> output(all_paths.size());
+            std::vector<Dubins> output(all_paths.size());
 
             for(uint i = 0; i < all_paths.size(); i++)
             {
-                output[i] = std::move(all_paths[i][choices[i]]);
+                output[i] = *all_paths[i][choices[i]];
             }
 
             return output;
         }
         else
         {
-            return std::nullopt;
+            return {};
         }
     }
 
@@ -518,10 +514,10 @@ protected:
      * @param all_paths List of all possible path for each agent
      * @param stats     Statistics of each agent
      * @param min_sep   Minimal distance required
-     * @return UniqueDubinsResults
+     * @return std::vector<Dubins>
      */
     template<Dubins::DubinsSeparationFunction separation_function>
-    UniqueDubinsResults find_solution(
+    std::vector<Dubins> find_solution(
         ListOfPossibilities& possibilites, const std::vector<AircraftStats>& stats, double min_sep) const
     {
         return pathfinder_separated<separation_function>(possibilites,stats,min_sep);
@@ -536,11 +532,12 @@ protected:
      * @param stats     Statistics of each agent
      * @param min_sep   Minimal distance required
      * @param threads   Number of threads to use
-     * @return SharedDubinsResults
+     * @return std::vector<Dubins>
      */
     template<Dubins::DubinsSeparationFunction separation_function, Dubins::DubinsDistanceFunction distance_function>
-    SharedDubinsResults find_solution_parallel(
-        ListOfPossibilities& possibilites, const std::vector<AircraftStats>& stats, double min_sep, uint max_pathnum, uint threads=0,
+    std::vector<Dubins> find_solution_parallel(
+        ListOfPossibilities& possibilites, const std::vector<AircraftStats>& stats, double min_sep, uint max_pathnum, 
+        uint threads, bool duration_based_cost,
         bool list_conflicts=true, double timetag=0.) const
     {
         SharedListOfPossibilities shared_list;
@@ -554,7 +551,7 @@ protected:
         // If the minimum separation is too small, assume it is null and return no conflicts
         if (min_sep < DubinsFleetPlanner_PRECISION) 
         {
-            return find_pathplanning_LP_solution(shared_list,stats,conflicts,max_pathnum,threads,ref_model);
+            return find_pathplanning_LP_solution(shared_list,stats,conflicts,max_pathnum,threads,duration_based_cost,verbosity);
         } 
 
         if (list_conflicts)
@@ -583,7 +580,7 @@ protected:
             conflicts = generic_parallel_compute_separations<separation_function>(threads,shared_list,stats,min_sep);
         }
 
-        return find_pathplanning_LP_solution(shared_list,stats,conflicts,max_pathnum,threads,ref_model);
+        return find_pathplanning_LP_solution(shared_list,stats,conflicts,max_pathnum,threads,duration_based_cost,verbosity);
     }
 
     /**
@@ -693,6 +690,7 @@ public:
      * 
      * @tparam separation_function  Function to assert if two paths are separated or not
      * @tparam distance_function    Function computing the distance between two path (usually underline the separation one)
+     * @param res       A reference for the solution (if it exists)
      * @param extra     Extra info regarding the solving process
      * @param starts    List of starting poses 
      * @param ends      List of ending poses
@@ -705,21 +703,20 @@ public:
      *                      If nonpositive, disable threading
      *                      If 1, set the number of threads to std::thread::hardware_concurrency()
      *                      Otherwise, use the given value
-     * @param init_ref_model If true, initialize the `ref_model` attribute (required for using the HiGHS solver)
      * @param obstacle_paths Paths acting as obstacles (representing other aircraft)
      * @param obstacle_stats Flight characteristics of the obstacle aircraft
-     * @return std::pair<SharedDubinsResults,std::set<uint>> Returns a pair, with first a solution (if it exists) and second
-     *  the set of aircraft IDs with no possible paths
+     * @return std::set<uint> The set of aircraft IDs with no possible paths
      */
     template<Dubins::DubinsSeparationFunction separation_function, Dubins::DubinsDistanceFunction distance_function>
-    std::pair<SharedDubinsResults,std::set<uint>> solve_once(
+    std::set<uint> solve_once(
+        std::vector<Dubins>& res,
         ExtraPPResults& extra,
         const std::vector<Pose3D>& starts, const std::vector<Pose3D>& ends,
         const std::vector<AircraftStats>& stats, double min_sep,
         const std::vector<double>& times,
         double wind_x = 0., double wind_y = 0.,
-        int threads = 0, bool init_ref_model=true,
-        const std::vector<std::shared_ptr<Dubins>>& obstacle_paths = {}, const std::vector<AircraftStats>& obstacle_stats = {}
+        int threads = 0,
+        const std::vector<Dubins>& obstacle_paths = {}, const std::vector<AircraftStats>& obstacle_stats = {}
     ) const
     {
         // Timing
@@ -759,40 +756,24 @@ public:
 
         std::set<uint> nopaths_acs = acs_without_paths(possibilities);
 
-        SharedDubinsResults sol;
+        std::vector<Dubins> sol = {};
 
         if (nopaths_acs.size() == 0)
         {
             if (threads > 1)
             {
-                if (init_ref_model)
-                {
-                    ref_model = new Highs();
-                    setup_base_model(ref_model,starts.size(),max_path_num(),verbosity);
-                }
-
                 sol = find_solution_parallel<separation_function,distance_function>(possibilities,stats,min_sep,max_path_num(),threads,
+                    false,
                     verbosity >= DubinsFleetPlanner_VERY_VERBOSE,
                     *times.begin());
             }
             else
             {
-                UniqueDubinsResults tmp_sol = find_solution<separation_function>(possibilities,stats,min_sep);
-
-                if (tmp_sol.has_value())
-                {
-                    sol = make_shared(tmp_sol.value());
-                }
-                else
-                {
-                    sol = std::nullopt;
-                }
+                sol = find_solution<separation_function>(possibilities,stats,min_sep);
             }
         } 
         else
         {
-            sol = std::nullopt;
-
             if (verbosity >= DubinsFleetPlanner_VERY_VERBOSE)
             {
                 std::cout   << "AC numbers : ";
@@ -806,10 +787,11 @@ public:
 
         auto end = clk.now();
 
-        extra.success = sol.has_value();
+        extra.success = sol.size() == stats.size();
         extra.duration = end - start;
 
-        return std::make_pair(sol,nopaths_acs);
+        res = sol;
+        return nopaths_acs;
     }
 
     /**
@@ -818,6 +800,7 @@ public:
      * 
      * @tparam separation_function  Function to assert if two paths are separated or not
      * @tparam distance_function    Function computing the minimal distance location and value between two trajectories
+     * @param res           Passed by ref, where to put the result
      * @param extra         Extra information regarding the solving process
      * @param starts        List of starting poses 
      * @param ends          List of ending poses
@@ -835,10 +818,10 @@ public:
      *                          Otherwise, use the given value
      * @param obstacle_paths Paths acting as obstacles (representing other aircraft)
      * @param obstacle_stats Flight characteristics of the obstacle aircraft
-     * @return SharedDubinsResults
      */
     template<Dubins::DubinsSeparationFunction separation_function, Dubins::DubinsDistanceFunction distance_function>
-    SharedDubinsResults solve(
+    void solve(
+        std::vector<Dubins>& res,
         ExtraPPResults& extra,
         const std::vector<Pose3D>& starts, const std::vector<Pose3D>& ends,
         const std::vector<AircraftStats>& stats, double min_sep,
@@ -848,7 +831,7 @@ public:
         double min_weave_delta =1., double min_weave_frac =0.0001,
         int threads = -1,
         int max_time_s = 60,
-        const std::vector<std::shared_ptr<Dubins>>& obstacle_paths = {}, const std::vector<AircraftStats>& obstacle_stats = {}
+        const std::vector<Dubins>& obstacle_paths = {}, const std::vector<AircraftStats>& obstacle_stats = {}
     ) const
     {
         // Timing
@@ -901,7 +884,7 @@ public:
         auto iter = samples.begin();
 
         uint iter_count = 0;
-        SharedDubinsResults best_sol;
+        std::vector<Dubins> best_sol;
         double best_time = max_time;
 
         auto solve_timepoint = start;
@@ -963,24 +946,25 @@ public:
             std::vector<double> times = compute_arrival_times(delta_t,target_time);
 
 
-            SharedDubinsResults sol;
+            std::vector<Dubins> sol;
             std::set<uint> nopaths_acs;
-            std::tie(sol,nopaths_acs) = solve_once<separation_function,distance_function>(
+            nopaths_acs = solve_once<separation_function,distance_function>(
+                sol,
                 extra,starts,ends,
                 stats,
                 min_sep,times,
                 wind_x,wind_y,
-                threads,false,
+                threads,
                 obstacle_paths,obstacle_stats);
 
             iter->NoPathsACs = nopaths_acs;
             iter->done = true;
 
-            if (sol.has_value())
+            if (sol.size() == stats.size())
             {
                 iter->success = true;
 
-                best_sol = sol.value();
+                best_sol = sol;
 
                 auto now = chrono::thread_clock::now();
                 chrono::nanoseconds dt = now - solve_timepoint;
@@ -1041,12 +1025,12 @@ public:
             std::cout << "WARNING: Timeout stop!" << std::endl;
         }
 
-        extra.success = best_sol.has_value();
+        extra.success = best_sol.size() == stats.size();
 
         extra.worst_improvement_rate = solver_rate;
         extra.iterations        = iter_count;
         extra.final_path_time   = best_time;
-        return best_sol;
+        res = best_sol;
     }
 
     /**
@@ -1054,6 +1038,7 @@ public:
      * 
      * @tparam separation_function  Function to assert if two paths are separated or not
      * @tparam distance_function    Function computing the minimal distance location and value between two trajectories
+     * @param res           Passed by ref, where to put the result
      * @param extra         Extra information regarding the solving process
      * @param starts        List of starting poses 
      * @param ends          List of ending poses
@@ -1068,17 +1053,18 @@ public:
      *                          Otherwise, use the given value
      * @param obstacle_paths Paths acting as obstacles (representing other aircraft)
      * @param obstacle_stats Flight characteristics of the obstacle aircraft
-     * @return SharedDubinsResults
+     * @return std::set<uint> The set of aircraft IDs with no possible paths
      */
     template<Dubins::DubinsSeparationFunction separation_function, Dubins::DubinsDistanceFunction distance_function>
-    std::pair<SharedDubinsResults,std::set<uint>> solve_with_timeslots(
+    std::set<uint> solve_with_timeslots(
+        std::vector<Dubins>& res,
         ExtraPPResults& extra,
         const std::vector<Pose3D>& starts, const std::vector<Pose3D>& ends,
         const std::vector<AircraftStats>& stats, double min_sep,
         const std::vector<std::vector<double>>& timeslots,
         double wind_x = 0., double wind_y = 0.,
         int threads = -1,
-        const std::vector<std::shared_ptr<Dubins>>& obstacle_paths = {}, const std::vector<AircraftStats>& obstacle_stats = {}
+        const std::vector<Dubins>& obstacle_paths = {}, const std::vector<AircraftStats>& obstacle_stats = {}
     ) const
     {
         // Timing
@@ -1121,36 +1107,23 @@ public:
 
         std::set<uint> nopaths_acs = acs_without_paths(possibilities);
 
-        SharedDubinsResults sol;
+        std::vector<Dubins> sol = {};
 
         if (nopaths_acs.size() == 0)
         {
             if (threads > 1)
             {
-                ref_model = new Highs();
-                setup_base_model(ref_model,starts.size(),max_timeslots*max_path_num(),verbosity);
-
                 sol = find_solution_parallel<separation_function,distance_function>(
-                    possibilities,stats,min_sep,max_timeslots*max_path_num(),threads, verbosity >= DubinsFleetPlanner_VERY_VERBOSE);
+                    possibilities,stats,min_sep,max_timeslots*max_path_num(),threads,true,
+                    verbosity >= DubinsFleetPlanner_VERY_VERBOSE);
             }
             else
             {
-                UniqueDubinsResults tmp_sol = find_solution<separation_function>(possibilities,stats,min_sep);
-
-                if (tmp_sol.has_value())
-                {
-                    sol = make_shared(tmp_sol.value());
-                }
-                else
-                {
-                    sol = std::nullopt;
-                }
+                sol = find_solution<separation_function>(possibilities,stats,min_sep);
             }
         } 
         else
         {
-            sol = std::nullopt;
-
             if (verbosity >= DubinsFleetPlanner_VERY_VERBOSE)
             {
                 std::cout   << "AC numbers : ";
@@ -1164,7 +1137,7 @@ public:
 
         auto end = clk.now();
 
-        extra.success = sol.has_value();
+        extra.success = sol.size() == stats.size();
         extra.duration = end - start;
         extra.iterations = 1;
         for (const auto& tslots : timeslots)
@@ -1172,21 +1145,21 @@ public:
             extra.iterations *= tslots.size();
         }
 
-        if (sol.has_value())
+        if (extra.success)
         {
             uint i = 0;
             double max_duration = 0.;
-            for(const auto& d : sol.value())
+            for(const auto& d : sol)
             {
                 const auto& s = stats[i];
-                max_duration = std::max(max_duration,d->get_duration(s.airspeed));
+                max_duration = std::max(max_duration,d.get_duration(s.airspeed));
                 i++;
             }
             extra.final_path_time = max_duration;
         }
 
-
-        return std::make_pair(sol,nopaths_acs);
+        res = sol;
+        return nopaths_acs;
     }
     
 };

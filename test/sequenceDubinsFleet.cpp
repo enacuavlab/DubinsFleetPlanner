@@ -99,27 +99,19 @@ int main()
 
 
         ExtraPPResults extra;
+        std::vector<Dubins> results;
+        solver.solve<Dubins::are_XY_separated,Dubins::compute_XY_distance>(results,extra,starts,ends,stats_vec,min_sep,delta_t,wind_x,wind_y,500);
 
-        auto opt_result = solver.solve<Dubins::are_XY_separated,Dubins::compute_XY_distance>(extra,starts,ends,stats_vec,min_sep,delta_t,wind_x,wind_y,500);
-
-        if (!opt_result.has_value())
+        if (results.size() != stats_vec.size())
         {
             std::cout << std::endl << "| ***** !! No solution found !! ***** |" << std::endl;
             exit(1);
         }
 
-        auto& results = opt_result.value();    
-
-        std::vector<std::shared_ptr<Dubins>> results_vec(results.size());
-        for(uint i = 0; i < results.size(); i++)
-        {
-            results_vec[i] = results[i];//std::move(results[i]);
-        }
-
         std::ofstream output("/home/mael/Programming/DubinsFleetPlanner/" + std::to_string(i) + "_chained.json");
         if (output)
         {
-            DubinsPP::OutputPrinter::print_paths_as_ModernJSON(output,results_vec,stats_vec,min_sep,wind_x,wind_y);
+            DubinsPP::OutputPrinter::print_paths_as_ModernJSON(output,results,stats_vec,min_sep,wind_x,wind_y);
             output.close();
         }
         else

@@ -53,13 +53,13 @@ std::vector<std::unique_ptr<Dubins>> generate_extended_fitted_dubins(
     for(double sl : start_lens)
     {
 
-        Pose3D shift_start = follow_dubins<beginMove>(start,sl,1.,_climb, _turn_radius);
-        DynamicPathShape shape_start = compute_params(beginMove, start, shift_start, 1., _turn_radius, _climb);
+        Pose3D shift_start = follow_dubins<beginMove>(start,sl,1.,0., _turn_radius);
+        DynamicPathShape shape_start = compute_params(beginMove, start, shift_start, 1., _turn_radius, 0.);
 
         for(double el : end_lens)
         {
-            Pose3D shift_end = follow_dubins<endMove>(end,-el,1.,_climb, _turn_radius);
-            DynamicPathShape shape_end = compute_params(beginMove, shift_end, end, 1., _turn_radius, _climb);
+            Pose3D shift_end = follow_dubins<endMove>(end,-el,1.,0., _turn_radius);
+            DynamicPathShape shape_end = compute_params(beginMove, shift_end, end, 1., _turn_radius, 0.);
 
             if (target_len - sl - el < 0.)
             {

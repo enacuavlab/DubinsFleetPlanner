@@ -19,7 +19,7 @@
 
 /********************  Given radius basic planning  ********************/
 
-std::vector<DynamicPathShape> set_radius_LSL(const Pose3D &start, const Pose3D &end, double turn_radius)
+std::vector<DynamicPathShape> set_radius_LSL(const Pose3D &start, const Pose3D &end, double turn_radius, double tol)
 {
     double a, b, d, theta;
     std::tie(a, b, d, theta) = normalize_poses(start, end);
@@ -47,30 +47,32 @@ std::vector<DynamicPathShape> set_radius_LSL(const Pose3D &start, const Pose3D &
     DynamicPathShape s2 = compute_params(STRAIGHT, junc_1, junc_2, 1., radius, snd_climb);
     DynamicPathShape s3 = compute_params(LEFT, junc_2, end, 1., radius, trd_climb);
 
-    if (pose_dist(end, final_pose(s3)) >= DubinsFleetPlanner_PRECISION)
+    std::vector<DynamicPathShape> output;
+    if (s1.length > DubinsFleetPlanner_ZERO_TOLERANCE)
+    {
+        output.push_back(s1);
+    }
+    if (s2.length > DubinsFleetPlanner_ZERO_TOLERANCE)
+    {
+        output.push_back(s2);
+    }
+    if (s3.length > DubinsFleetPlanner_ZERO_TOLERANCE)
+    {
+        output.push_back(s3);
+    }
+
+    Pose3D computed_end = final_pose(output.back());
+    if ((pose_dist(end, computed_end) >= tol) || (abs(pose_aligned(end, computed_end)) >= tol))
     {
         return {};
     }
     else
     {
-        std::vector<DynamicPathShape> output;
-        if (s1.length > DubinsFleetPlanner_ZERO_TOLERANCE)
-        {
-            output.push_back(s1);
-        }
-        if (s2.length > DubinsFleetPlanner_ZERO_TOLERANCE)
-        {
-            output.push_back(s2);
-        }
-        if (s3.length > DubinsFleetPlanner_ZERO_TOLERANCE)
-        {
-            output.push_back(s3);
-        }
         return output;
     }
 }
 
-std::vector<DynamicPathShape> set_radius_RSR(const Pose3D &start, const Pose3D &end, double turn_radius)
+std::vector<DynamicPathShape> set_radius_RSR(const Pose3D &start, const Pose3D &end, double turn_radius, double tol)
 {
     double a, b, d, theta;
     std::tie(a, b, d, theta) = normalize_poses(start, end);
@@ -97,30 +99,32 @@ std::vector<DynamicPathShape> set_radius_RSR(const Pose3D &start, const Pose3D &
     DynamicPathShape s2 = compute_params(STRAIGHT, junc_1, junc_2, 1., radius, snd_climb);
     DynamicPathShape s3 = compute_params(RIGHT, junc_2, end, 1., radius, trd_climb);
 
-    if (pose_dist(end, final_pose(s3)) >= DubinsFleetPlanner_PRECISION)
+    std::vector<DynamicPathShape> output;
+    if (s1.length > DubinsFleetPlanner_ZERO_TOLERANCE)
+    {
+        output.push_back(s1);
+    }
+    if (s2.length > DubinsFleetPlanner_ZERO_TOLERANCE)
+    {
+        output.push_back(s2);
+    }
+    if (s3.length > DubinsFleetPlanner_ZERO_TOLERANCE)
+    {
+        output.push_back(s3);
+    }
+
+    Pose3D computed_end = final_pose(output.back());
+    if ((pose_dist(end, computed_end) >= tol) || (abs(pose_aligned(end, computed_end)) >= tol))
     {
         return {};
     }
     else
     {
-        std::vector<DynamicPathShape> output;
-        if (s1.length > DubinsFleetPlanner_ZERO_TOLERANCE)
-        {
-            output.push_back(s1);
-        }
-        if (s2.length > DubinsFleetPlanner_ZERO_TOLERANCE)
-        {
-            output.push_back(s2);
-        }
-        if (s3.length > DubinsFleetPlanner_ZERO_TOLERANCE)
-        {
-            output.push_back(s3);
-        }
         return output;
     }
 }
 
-std::vector<DynamicPathShape> set_radius_RSL(const Pose3D &start, const Pose3D &end, double turn_radius)
+std::vector<DynamicPathShape> set_radius_RSL(const Pose3D &start, const Pose3D &end, double turn_radius, double tol)
 {
     double a, b, d, theta;
     std::tie(a, b, d, theta) = normalize_poses(start, end);
@@ -151,30 +155,32 @@ std::vector<DynamicPathShape> set_radius_RSL(const Pose3D &start, const Pose3D &
     DynamicPathShape s2 = compute_params(STRAIGHT, junc_1, junc_2, 1., radius, snd_climb);
     DynamicPathShape s3 = compute_params(LEFT, junc_2, end, 1., radius, trd_climb);
 
-    if (pose_dist(end, final_pose(s3)) >= DubinsFleetPlanner_PRECISION)
+    std::vector<DynamicPathShape> output;
+    if (s1.length > DubinsFleetPlanner_ZERO_TOLERANCE)
+    {
+        output.push_back(s1);
+    }
+    if (s2.length > DubinsFleetPlanner_ZERO_TOLERANCE)
+    {
+        output.push_back(s2);
+    }
+    if (s3.length > DubinsFleetPlanner_ZERO_TOLERANCE)
+    {
+        output.push_back(s3);
+    }
+
+    Pose3D computed_end = final_pose(output.back());
+    if ((pose_dist(end, computed_end) >= tol) || (abs(pose_aligned(end, computed_end)) >= tol))
     {
         return {};
     }
     else
     {
-        std::vector<DynamicPathShape> output;
-        if (s1.length > DubinsFleetPlanner_ZERO_TOLERANCE)
-        {
-            output.push_back(s1);
-        }
-        if (s2.length > DubinsFleetPlanner_ZERO_TOLERANCE)
-        {
-            output.push_back(s2);
-        }
-        if (s3.length > DubinsFleetPlanner_ZERO_TOLERANCE)
-        {
-            output.push_back(s3);
-        }
         return output;
     }
 }
 
-std::vector<DynamicPathShape> set_radius_LSR(const Pose3D &start, const Pose3D &end, double turn_radius)
+std::vector<DynamicPathShape> set_radius_LSR(const Pose3D &start, const Pose3D &end, double turn_radius, double tol)
 {
     double a, b, d, theta;
     std::tie(a, b, d, theta) = normalize_poses(start, end);
@@ -205,30 +211,32 @@ std::vector<DynamicPathShape> set_radius_LSR(const Pose3D &start, const Pose3D &
     DynamicPathShape s2 = compute_params(STRAIGHT, junc_1, junc_2, 1., radius, snd_climb);
     DynamicPathShape s3 = compute_params(RIGHT, junc_2, end, 1., radius, trd_climb);
 
-    if (pose_dist(end, final_pose(s3)) >= DubinsFleetPlanner_PRECISION)
+    std::vector<DynamicPathShape> output;
+    if (s1.length > DubinsFleetPlanner_ZERO_TOLERANCE)
+    {
+        output.push_back(s1);
+    }
+    if (s2.length > DubinsFleetPlanner_ZERO_TOLERANCE)
+    {
+        output.push_back(s2);
+    }
+    if (s3.length > DubinsFleetPlanner_ZERO_TOLERANCE)
+    {
+        output.push_back(s3);
+    }
+
+    Pose3D computed_end = final_pose(output.back());
+    if ((pose_dist(end, computed_end) >= tol) || (abs(pose_aligned(end, computed_end)) >= tol))
     {
         return {};
     }
     else
     {
-        std::vector<DynamicPathShape> output;
-        if (s1.length > DubinsFleetPlanner_ZERO_TOLERANCE)
-        {
-            output.push_back(s1);
-        }
-        if (s2.length > DubinsFleetPlanner_ZERO_TOLERANCE)
-        {
-            output.push_back(s2);
-        }
-        if (s3.length > DubinsFleetPlanner_ZERO_TOLERANCE)
-        {
-            output.push_back(s3);
-        }
         return output;
     }
 }
 
-std::vector<DynamicPathShape> set_radius_RLR(const Pose3D &start, const Pose3D &end, double turn_radius)
+std::vector<DynamicPathShape> set_radius_RLR(const Pose3D &start, const Pose3D &end, double turn_radius, double tol)
 {
     double a, b, d, theta;
     std::tie(a, b, d, theta) = normalize_poses(start, end);
@@ -259,30 +267,32 @@ std::vector<DynamicPathShape> set_radius_RLR(const Pose3D &start, const Pose3D &
     DynamicPathShape s2 = compute_params(LEFT, junc_1, junc_2, 1., radius, snd_climb);
     DynamicPathShape s3 = compute_params(RIGHT, junc_2, end, 1., radius, trd_climb);
 
-    if (pose_dist(end, final_pose(s3)) >= DubinsFleetPlanner_PRECISION)
+    std::vector<DynamicPathShape> output;
+    if (s1.length > DubinsFleetPlanner_ZERO_TOLERANCE)
+    {
+        output.push_back(s1);
+    }
+    if (s2.length > DubinsFleetPlanner_ZERO_TOLERANCE)
+    {
+        output.push_back(s2);
+    }
+    if (s3.length > DubinsFleetPlanner_ZERO_TOLERANCE)
+    {
+        output.push_back(s3);
+    }
+
+    Pose3D computed_end = final_pose(output.back());
+    if ((pose_dist(end, computed_end) >= tol) || (abs(pose_aligned(end, computed_end)) >= tol))
     {
         return {};
     }
     else
     {
-        std::vector<DynamicPathShape> output;
-        if (s1.length > DubinsFleetPlanner_ZERO_TOLERANCE)
-        {
-            output.push_back(s1);
-        }
-        if (s2.length > DubinsFleetPlanner_ZERO_TOLERANCE)
-        {
-            output.push_back(s2);
-        }
-        if (s3.length > DubinsFleetPlanner_ZERO_TOLERANCE)
-        {
-            output.push_back(s3);
-        }
         return output;
     }
 }
 
-std::vector<DynamicPathShape> set_radius_LRL(const Pose3D &start, const Pose3D &end, double turn_radius)
+std::vector<DynamicPathShape> set_radius_LRL(const Pose3D &start, const Pose3D &end, double turn_radius, double tol)
 {
     double a, b, d, theta;
     std::tie(a, b, d, theta) = normalize_poses(start, end);
@@ -313,30 +323,32 @@ std::vector<DynamicPathShape> set_radius_LRL(const Pose3D &start, const Pose3D &
     DynamicPathShape s2 = compute_params(RIGHT, junc_1, junc_2, 1., radius, snd_climb);
     DynamicPathShape s3 = compute_params(LEFT, junc_2, end, 1., radius, trd_climb);
 
-    if (pose_dist(end, final_pose(s3)) >= DubinsFleetPlanner_PRECISION)
+    std::vector<DynamicPathShape> output;
+    if (s1.length > DubinsFleetPlanner_ZERO_TOLERANCE)
+    {
+        output.push_back(s1);
+    }
+    if (s2.length > DubinsFleetPlanner_ZERO_TOLERANCE)
+    {
+        output.push_back(s2);
+    }
+    if (s3.length > DubinsFleetPlanner_ZERO_TOLERANCE)
+    {
+        output.push_back(s3);
+    }
+
+    Pose3D computed_end = final_pose(output.back());
+    if ((pose_dist(end, computed_end) >= tol) || (abs(pose_aligned(end, computed_end)) >= tol))
     {
         return {};
     }
     else
     {
-        std::vector<DynamicPathShape> output;
-        if (s1.length > DubinsFleetPlanner_ZERO_TOLERANCE)
-        {
-            output.push_back(s1);
-        }
-        if (s2.length > DubinsFleetPlanner_ZERO_TOLERANCE)
-        {
-            output.push_back(s2);
-        }
-        if (s3.length > DubinsFleetPlanner_ZERO_TOLERANCE)
-        {
-            output.push_back(s3);
-        }
         return output;
     }
 }
 
-std::vector<DynamicPathShape> set_radius_SRS(const Pose3D &start, const Pose3D &end, double turn_radius)
+std::vector<DynamicPathShape> set_radius_SRS(const Pose3D &start, const Pose3D &end, double turn_radius, double tol)
 {
     double a, b, d, theta;
     std::tie(a, b, d, theta) = normalize_poses(start, end);
@@ -367,30 +379,32 @@ std::vector<DynamicPathShape> set_radius_SRS(const Pose3D &start, const Pose3D &
     DynamicPathShape s2 = compute_params(RIGHT, junc_1, junc_2, 1., radius, snd_climb);
     DynamicPathShape s3 = compute_params(STRAIGHT, junc_2, end, 1., radius, trd_climb);
 
-    if (pose_dist(end, final_pose(s3)) >= DubinsFleetPlanner_PRECISION)
+    std::vector<DynamicPathShape> output;
+    if (s1.length > DubinsFleetPlanner_ZERO_TOLERANCE)
+    {
+        output.push_back(s1);
+    }
+    if (s2.length > DubinsFleetPlanner_ZERO_TOLERANCE)
+    {
+        output.push_back(s2);
+    }
+    if (s3.length > DubinsFleetPlanner_ZERO_TOLERANCE)
+    {
+        output.push_back(s3);
+    }
+
+    Pose3D computed_end = final_pose(output.back());
+    if ((pose_dist(end, computed_end) >= tol) || (abs(pose_aligned(end, computed_end)) >= tol))
     {
         return {};
     }
     else
     {
-        std::vector<DynamicPathShape> output;
-        if (s1.length > DubinsFleetPlanner_ZERO_TOLERANCE)
-        {
-            output.push_back(s1);
-        }
-        if (s2.length > DubinsFleetPlanner_ZERO_TOLERANCE)
-        {
-            output.push_back(s2);
-        }
-        if (s3.length > DubinsFleetPlanner_ZERO_TOLERANCE)
-        {
-            output.push_back(s3);
-        }
         return output;
     }
 }
 
-std::vector<DynamicPathShape> set_radius_SLS(const Pose3D &start, const Pose3D &end, double turn_radius)
+std::vector<DynamicPathShape> set_radius_SLS(const Pose3D &start, const Pose3D &end, double turn_radius, double tol)
 {
     double a, b, d, theta;
     std::tie(a, b, d, theta) = normalize_poses(start, end);
@@ -421,25 +435,27 @@ std::vector<DynamicPathShape> set_radius_SLS(const Pose3D &start, const Pose3D &
     DynamicPathShape s2 = compute_params(LEFT, junc_1, junc_2, 1., radius, snd_climb);
     DynamicPathShape s3 = compute_params(STRAIGHT, junc_2, end, 1., radius, trd_climb);
 
-    if (pose_dist(end, final_pose(s3)) >= DubinsFleetPlanner_PRECISION)
+    std::vector<DynamicPathShape> output;
+    if (s1.length > DubinsFleetPlanner_ZERO_TOLERANCE)
+    {
+        output.push_back(s1);
+    }
+    if (s2.length > DubinsFleetPlanner_ZERO_TOLERANCE)
+    {
+        output.push_back(s2);
+    }
+    if (s3.length > DubinsFleetPlanner_ZERO_TOLERANCE)
+    {
+        output.push_back(s3);
+    }
+
+    Pose3D computed_end = final_pose(output.back());
+    if ((pose_dist(end, computed_end) >= tol) || (abs(pose_aligned(end, computed_end)) >= tol))
     {
         return {};
     }
     else
     {
-        std::vector<DynamicPathShape> output;
-        if (s1.length > DubinsFleetPlanner_ZERO_TOLERANCE)
-        {
-            output.push_back(s1);
-        }
-        if (s2.length > DubinsFleetPlanner_ZERO_TOLERANCE)
-        {
-            output.push_back(s2);
-        }
-        if (s3.length > DubinsFleetPlanner_ZERO_TOLERANCE)
-        {
-            output.push_back(s3);
-        }
         return output;
     }
 }
@@ -461,7 +477,7 @@ std::vector<DynamicPathShape> set_length_LSL(const Pose3D &start, const Pose3D &
     double trd_length = LSL_last_distance(a, b, d / radius) * radius;
 
 #if defined(DubinsFleetPlanner_ASSERTIONS) && DubinsFleetPlanner_ASSERTIONS > 0
-    assert(std::abs(fst_length + snd_length + trd_length - target_len) < DubinsFleetPlanner_PRECISION);
+    assert(std::abs(fst_length + snd_length + trd_length - target_len) < tol);
 #endif
 
     double length = fst_length + snd_length + trd_length;
@@ -477,25 +493,27 @@ std::vector<DynamicPathShape> set_length_LSL(const Pose3D &start, const Pose3D &
     DynamicPathShape s2 = compute_params(STRAIGHT, junc_1, junc_2, 1., radius, snd_climb);
     DynamicPathShape s3 = compute_params(LEFT, junc_2, end, 1., radius, trd_climb);
 
-    if (pose_dist(end, final_pose(s3)) >= tol)
+    std::vector<DynamicPathShape> output;
+    if (s1.length > DubinsFleetPlanner_ZERO_TOLERANCE)
+    {
+        output.push_back(s1);
+    }
+    if (s2.length > DubinsFleetPlanner_ZERO_TOLERANCE)
+    {
+        output.push_back(s2);
+    }
+    if (s3.length > DubinsFleetPlanner_ZERO_TOLERANCE)
+    {
+        output.push_back(s3);
+    }
+
+    Pose3D computed_end = final_pose(output.back());
+    if ((pose_dist(end, computed_end) >= tol) || (abs(pose_aligned(end, computed_end)) >= tol))
     {
         return {};
     }
     else
     {
-        std::vector<DynamicPathShape> output;
-        if (s1.length > DubinsFleetPlanner_ZERO_TOLERANCE)
-        {
-            output.push_back(s1);
-        }
-        if (s2.length > DubinsFleetPlanner_ZERO_TOLERANCE)
-        {
-            output.push_back(s2);
-        }
-        if (s3.length > DubinsFleetPlanner_ZERO_TOLERANCE)
-        {
-            output.push_back(s3);
-        }
         return output;
     }
 }
@@ -515,7 +533,7 @@ std::vector<DynamicPathShape> set_length_RSR(const Pose3D &start, const Pose3D &
     double trd_length = RSR_last_distance(a, b, d / radius) * radius;
 
 #if defined(DubinsFleetPlanner_ASSERTIONS) && DubinsFleetPlanner_ASSERTIONS > 0
-    assert(std::abs(fst_length + snd_length + trd_length - target_len) < DubinsFleetPlanner_PRECISION);
+    assert(std::abs(fst_length + snd_length + trd_length - target_len) < tol);
 #endif
 
     double length = fst_length + snd_length + trd_length;
@@ -531,25 +549,27 @@ std::vector<DynamicPathShape> set_length_RSR(const Pose3D &start, const Pose3D &
     DynamicPathShape s2 = compute_params(STRAIGHT, junc_1, junc_2, 1., radius, snd_climb);
     DynamicPathShape s3 = compute_params(RIGHT, junc_2, end, 1., radius, trd_climb);
 
-    if (pose_dist(end, final_pose(s3)) >= tol)
+    std::vector<DynamicPathShape> output;
+    if (s1.length > DubinsFleetPlanner_ZERO_TOLERANCE)
+    {
+        output.push_back(s1);
+    }
+    if (s2.length > DubinsFleetPlanner_ZERO_TOLERANCE)
+    {
+        output.push_back(s2);
+    }
+    if (s3.length > DubinsFleetPlanner_ZERO_TOLERANCE)
+    {
+        output.push_back(s3);
+    }
+
+    Pose3D computed_end = final_pose(output.back());
+    if ((pose_dist(end, computed_end) >= tol) || (abs(pose_aligned(end, computed_end)) >= tol))
     {
         return {};
     }
     else
     {
-        std::vector<DynamicPathShape> output;
-        if (s1.length > DubinsFleetPlanner_ZERO_TOLERANCE)
-        {
-            output.push_back(s1);
-        }
-        if (s2.length > DubinsFleetPlanner_ZERO_TOLERANCE)
-        {
-            output.push_back(s2);
-        }
-        if (s3.length > DubinsFleetPlanner_ZERO_TOLERANCE)
-        {
-            output.push_back(s3);
-        }
         return output;
     }
 }
@@ -569,7 +589,7 @@ std::vector<DynamicPathShape> set_length_RSL(const Pose3D &start, const Pose3D &
     double trd_length = RSL_last_distance(a, b, d / radius) * radius;
 
 #if defined(DubinsFleetPlanner_ASSERTIONS) && DubinsFleetPlanner_ASSERTIONS > 0
-    assert(std::abs(fst_length + snd_length + trd_length - target_len) < DubinsFleetPlanner_PRECISION);
+    assert(std::abs(fst_length + snd_length + trd_length - target_len) < tol);
 #endif
 
     double length = fst_length + snd_length + trd_length;
@@ -585,25 +605,27 @@ std::vector<DynamicPathShape> set_length_RSL(const Pose3D &start, const Pose3D &
     DynamicPathShape s2 = compute_params(STRAIGHT, junc_1, junc_2, 1., radius, snd_climb);
     DynamicPathShape s3 = compute_params(LEFT, junc_2, end, 1., radius, trd_climb);
 
-    if (pose_dist(end, final_pose(s3)) >= tol)
+    std::vector<DynamicPathShape> output;
+    if (s1.length > DubinsFleetPlanner_ZERO_TOLERANCE)
+    {
+        output.push_back(s1);
+    }
+    if (s2.length > DubinsFleetPlanner_ZERO_TOLERANCE)
+    {
+        output.push_back(s2);
+    }
+    if (s3.length > DubinsFleetPlanner_ZERO_TOLERANCE)
+    {
+        output.push_back(s3);
+    }
+
+    Pose3D computed_end = final_pose(output.back());
+    if ((pose_dist(end, computed_end) >= tol) || (abs(pose_aligned(end, computed_end)) >= tol))
     {
         return {};
     }
     else
     {
-        std::vector<DynamicPathShape> output;
-        if (s1.length > DubinsFleetPlanner_ZERO_TOLERANCE)
-        {
-            output.push_back(s1);
-        }
-        if (s2.length > DubinsFleetPlanner_ZERO_TOLERANCE)
-        {
-            output.push_back(s2);
-        }
-        if (s3.length > DubinsFleetPlanner_ZERO_TOLERANCE)
-        {
-            output.push_back(s3);
-        }
         return output;
     }
 }
@@ -623,7 +645,7 @@ std::vector<DynamicPathShape> set_length_LSR(const Pose3D &start, const Pose3D &
     double trd_length = LSR_last_distance(a, b, d / radius) * radius;
 
 #if defined(DubinsFleetPlanner_ASSERTIONS) && DubinsFleetPlanner_ASSERTIONS > 0
-    assert(std::abs(fst_length + snd_length + trd_length - target_len) < DubinsFleetPlanner_PRECISION);
+    assert(std::abs(fst_length + snd_length + trd_length - target_len) < tol);
 #endif
 
     double length = fst_length + snd_length + trd_length;
@@ -639,25 +661,27 @@ std::vector<DynamicPathShape> set_length_LSR(const Pose3D &start, const Pose3D &
     DynamicPathShape s2 = compute_params(STRAIGHT, junc_1, junc_2, 1., radius, snd_climb);
     DynamicPathShape s3 = compute_params(RIGHT, junc_2, end, 1., radius, trd_climb);
 
-    if (pose_dist(end, final_pose(s3)) >= tol)
+    std::vector<DynamicPathShape> output;
+    if (s1.length > DubinsFleetPlanner_ZERO_TOLERANCE)
+    {
+        output.push_back(s1);
+    }
+    if (s2.length > DubinsFleetPlanner_ZERO_TOLERANCE)
+    {
+        output.push_back(s2);
+    }
+    if (s3.length > DubinsFleetPlanner_ZERO_TOLERANCE)
+    {
+        output.push_back(s3);
+    }
+
+    Pose3D computed_end = final_pose(output.back());
+    if ((pose_dist(end, computed_end) >= tol) || (abs(pose_aligned(end, computed_end)) >= tol))
     {
         return {};
     }
     else
     {
-        std::vector<DynamicPathShape> output;
-        if (s1.length > DubinsFleetPlanner_ZERO_TOLERANCE)
-        {
-            output.push_back(s1);
-        }
-        if (s2.length > DubinsFleetPlanner_ZERO_TOLERANCE)
-        {
-            output.push_back(s2);
-        }
-        if (s3.length > DubinsFleetPlanner_ZERO_TOLERANCE)
-        {
-            output.push_back(s3);
-        }
         return output;
     }
 }
@@ -677,7 +701,7 @@ std::vector<DynamicPathShape> set_length_RLR(const Pose3D &start, const Pose3D &
     double trd_length = RLR_last_distance(a, b, d / radius) * radius;
 
 #if defined(DubinsFleetPlanner_ASSERTIONS) && DubinsFleetPlanner_ASSERTIONS > 0
-    assert(std::abs(fst_length + snd_length + trd_length - target_len) < DubinsFleetPlanner_PRECISION);
+    assert(std::abs(fst_length + snd_length + trd_length - target_len) < tol);
 #endif
 
     double length = fst_length + snd_length + trd_length;
@@ -693,25 +717,27 @@ std::vector<DynamicPathShape> set_length_RLR(const Pose3D &start, const Pose3D &
     DynamicPathShape s2 = compute_params(LEFT, junc_1, junc_2, 1., radius, snd_climb);
     DynamicPathShape s3 = compute_params(RIGHT, junc_2, end, 1., radius, trd_climb);
 
-    if (pose_dist(end, final_pose(s3)) >= tol)
+    std::vector<DynamicPathShape> output;
+    if (s1.length > DubinsFleetPlanner_ZERO_TOLERANCE)
+    {
+        output.push_back(s1);
+    }
+    if (s2.length > DubinsFleetPlanner_ZERO_TOLERANCE)
+    {
+        output.push_back(s2);
+    }
+    if (s3.length > DubinsFleetPlanner_ZERO_TOLERANCE)
+    {
+        output.push_back(s3);
+    }
+
+    Pose3D computed_end = final_pose(output.back());
+    if ((pose_dist(end, computed_end) >= tol) || (abs(pose_aligned(end, computed_end)) >= tol))
     {
         return {};
     }
     else
     {
-        std::vector<DynamicPathShape> output;
-        if (s1.length > DubinsFleetPlanner_ZERO_TOLERANCE)
-        {
-            output.push_back(s1);
-        }
-        if (s2.length > DubinsFleetPlanner_ZERO_TOLERANCE)
-        {
-            output.push_back(s2);
-        }
-        if (s3.length > DubinsFleetPlanner_ZERO_TOLERANCE)
-        {
-            output.push_back(s3);
-        }
         return output;
     }
 }
@@ -731,7 +757,7 @@ std::vector<DynamicPathShape> set_length_LRL(const Pose3D &start, const Pose3D &
     double trd_length = LRL_last_distance(a, b, d / radius) * radius;
 
 #if defined(DubinsFleetPlanner_ASSERTIONS) && DubinsFleetPlanner_ASSERTIONS > 0
-    assert(std::abs(fst_length + snd_length + trd_length - target_len) < DubinsFleetPlanner_PRECISION);
+    assert(std::abs(fst_length + snd_length + trd_length - target_len) < tol);
 #endif
 
     double length = fst_length + snd_length + trd_length;
@@ -747,25 +773,27 @@ std::vector<DynamicPathShape> set_length_LRL(const Pose3D &start, const Pose3D &
     DynamicPathShape s2 = compute_params(RIGHT, junc_1, junc_2, 1., radius, snd_climb);
     DynamicPathShape s3 = compute_params(LEFT, junc_2, end, 1., radius, trd_climb);
 
-    if (pose_dist(end, final_pose(s3)) >= tol)
+    std::vector<DynamicPathShape> output;
+    if (s1.length > DubinsFleetPlanner_ZERO_TOLERANCE)
+    {
+        output.push_back(s1);
+    }
+    if (s2.length > DubinsFleetPlanner_ZERO_TOLERANCE)
+    {
+        output.push_back(s2);
+    }
+    if (s3.length > DubinsFleetPlanner_ZERO_TOLERANCE)
+    {
+        output.push_back(s3);
+    }
+
+    Pose3D computed_end = final_pose(output.back());
+    if ((pose_dist(end, computed_end) >= tol) || (abs(pose_aligned(end, computed_end)) >= tol))
     {
         return {};
     }
     else
     {
-        std::vector<DynamicPathShape> output;
-        if (s1.length > DubinsFleetPlanner_ZERO_TOLERANCE)
-        {
-            output.push_back(s1);
-        }
-        if (s2.length > DubinsFleetPlanner_ZERO_TOLERANCE)
-        {
-            output.push_back(s2);
-        }
-        if (s3.length > DubinsFleetPlanner_ZERO_TOLERANCE)
-        {
-            output.push_back(s3);
-        }
         return output;
     }
 }
@@ -785,7 +813,7 @@ std::vector<DynamicPathShape> set_length_SRS(const Pose3D &start, const Pose3D &
     double trd_length = SRS_last_distance(a, b, d / radius) * radius;
 
 #if defined(DubinsFleetPlanner_ASSERTIONS) && DubinsFleetPlanner_ASSERTIONS > 0
-    assert(std::abs(fst_length + snd_length + trd_length - target_len) < DubinsFleetPlanner_PRECISION);
+    assert(std::abs(fst_length + snd_length + trd_length - target_len) < tol);
 #endif
 
     double length = fst_length + snd_length + trd_length;
@@ -801,25 +829,27 @@ std::vector<DynamicPathShape> set_length_SRS(const Pose3D &start, const Pose3D &
     DynamicPathShape s2 = compute_params(RIGHT, junc_1, junc_2, 1., radius, snd_climb);
     DynamicPathShape s3 = compute_params(STRAIGHT, junc_2, end, 1., radius, trd_climb);
 
-    if (pose_dist(end, final_pose(s3)) >= tol)
+    std::vector<DynamicPathShape> output;
+    if (s1.length > DubinsFleetPlanner_ZERO_TOLERANCE)
+    {
+        output.push_back(s1);
+    }
+    if (s2.length > DubinsFleetPlanner_ZERO_TOLERANCE)
+    {
+        output.push_back(s2);
+    }
+    if (s3.length > DubinsFleetPlanner_ZERO_TOLERANCE)
+    {
+        output.push_back(s3);
+    }
+
+    Pose3D computed_end = final_pose(output.back());
+    if ((pose_dist(end, computed_end) >= tol) || (abs(pose_aligned(end, computed_end)) >= tol))
     {
         return {};
     }
     else
     {
-        std::vector<DynamicPathShape> output;
-        if (s1.length > DubinsFleetPlanner_ZERO_TOLERANCE)
-        {
-            output.push_back(s1);
-        }
-        if (s2.length > DubinsFleetPlanner_ZERO_TOLERANCE)
-        {
-            output.push_back(s2);
-        }
-        if (s3.length > DubinsFleetPlanner_ZERO_TOLERANCE)
-        {
-            output.push_back(s3);
-        }
         return output;
     }
 }
@@ -839,7 +869,7 @@ std::vector<DynamicPathShape> set_length_SLS(const Pose3D &start, const Pose3D &
     double trd_length = SLS_last_distance(a, b, d / radius) * radius;
 
 #if defined(DubinsFleetPlanner_ASSERTIONS) && DubinsFleetPlanner_ASSERTIONS > 0
-    assert(std::abs(fst_length + snd_length + trd_length - target_len) < DubinsFleetPlanner_PRECISION);
+    assert(std::abs(fst_length + snd_length + trd_length - target_len) < tol);
 #endif
 
     double length = fst_length + snd_length + trd_length;
@@ -855,25 +885,27 @@ std::vector<DynamicPathShape> set_length_SLS(const Pose3D &start, const Pose3D &
     DynamicPathShape s2 = compute_params(LEFT, junc_1, junc_2, 1., radius, snd_climb);
     DynamicPathShape s3 = compute_params(STRAIGHT, junc_2, end, 1., radius, trd_climb);
 
-    if (pose_dist(end, final_pose(s3)) >= tol)
+    std::vector<DynamicPathShape> output;
+    if (s1.length > DubinsFleetPlanner_ZERO_TOLERANCE)
+    {
+        output.push_back(s1);
+    }
+    if (s2.length > DubinsFleetPlanner_ZERO_TOLERANCE)
+    {
+        output.push_back(s2);
+    }
+    if (s3.length > DubinsFleetPlanner_ZERO_TOLERANCE)
+    {
+        output.push_back(s3);
+    }
+
+    Pose3D computed_end = final_pose(output.back());
+    if ((pose_dist(end, computed_end) >= tol) || (abs(pose_aligned(end, computed_end)) >= tol))
     {
         return {};
     }
     else
     {
-        std::vector<DynamicPathShape> output;
-        if (s1.length > DubinsFleetPlanner_ZERO_TOLERANCE)
-        {
-            output.push_back(s1);
-        }
-        if (s2.length > DubinsFleetPlanner_ZERO_TOLERANCE)
-        {
-            output.push_back(s2);
-        }
-        if (s3.length > DubinsFleetPlanner_ZERO_TOLERANCE)
-        {
-            output.push_back(s3);
-        }
         return output;
     }
 }

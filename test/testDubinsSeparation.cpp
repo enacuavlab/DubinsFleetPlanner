@@ -122,11 +122,11 @@ static void generate_and_test_dubins_sep(AircraftStats a1, AircraftStats a2, dou
     std::uniform_int_distribution dis_ints(INT32_MIN,INT32_MAX);
 
     // Generate endpoints
-    Pose3D p1_start = generate_pose(dis_ints(gen), TEST_POS_RANGE, 0.1);
-    Pose3D p1_end   = generate_pose(dis_ints(gen), TEST_POS_RANGE, 0.1);
+    Pose3D p1_start = generate_pose_2D(dis_ints(gen), TEST_POS_RANGE);
+    Pose3D p1_end   = generate_pose_2D(dis_ints(gen), TEST_POS_RANGE);
 
-    Pose3D p2_start = generate_pose(dis_ints(gen), TEST_POS_RANGE, 0.1);
-    Pose3D p2_end   = generate_pose(dis_ints(gen), TEST_POS_RANGE, 0.1);
+    Pose3D p2_start = generate_pose_2D(dis_ints(gen), TEST_POS_RANGE);
+    Pose3D p2_end   = generate_pose_2D(dis_ints(gen), TEST_POS_RANGE);
 
     // Generate random speeds
     

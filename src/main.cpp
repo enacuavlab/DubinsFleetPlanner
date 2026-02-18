@@ -41,13 +41,13 @@ static void lower_string(std::string& s)
 }
 
 template<Dubins::DubinsSeparationFunction sep_fun>
-bool check_solution(const std::vector<std::shared_ptr<Dubins>>& s, const std::vector<AircraftStats>& stats, double min_sep)
+bool check_solution(const std::vector<Dubins>& s, const std::vector<AircraftStats>& stats, double min_sep)
 {
     SharedListOfPossibilities l;
     
     for(auto &d : s)
     {
-        l.push_back(std::vector<std::shared_ptr<Dubins>>({d}));
+        l.push_back(std::vector<std::shared_ptr<Dubins>>({std::make_shared<Dubins>(d)}));
     }
 
     std::vector<Conflict_T> conflicts = generic_parallel_compute_separations<sep_fun>(2,l,stats,min_sep);
@@ -212,7 +212,7 @@ bool process_command_line(int argc, char* argv[], program_arguments& parsed_args
 
 /******************** Problem solving ********************/
 
-void write_result(const fs::path& out_filepath, vector<std::shared_ptr<Dubins>>& sol, vector<AircraftStats>& stats, program_arguments& args)
+void write_result(const fs::path& out_filepath, vector<Dubins>& sol, vector<AircraftStats>& stats, program_arguments& args)
 {
 
     std::ofstream out_data(out_filepath);
@@ -252,14 +252,14 @@ void write_result(const fs::path& out_filepath, vector<std::shared_ptr<Dubins>>&
     }
 }
 
-std::tuple<int,SharedDubinsResults,ExtraPPResults> solve_case(const fs::path& input_path, const fs::path& output_path, program_arguments& args)
+std::tuple<int,std::vector<Dubins>,ExtraPPResults> solve_case(const fs::path& input_path, const fs::path& output_path, program_arguments& args)
 {
 
     // ----- Parsing obstacle trajectories if existing ----- //
 
     
 
-    std::vector<std::shared_ptr<Dubins>> obstacle_paths = {};
+    std::vector<Dubins> obstacle_paths = {};
     std::vector<AircraftStats> obstacle_stats = {};
     double __wind_x,__wind_y,__min_sep,__z_alpha;
 
@@ -280,7 +280,7 @@ std::tuple<int,SharedDubinsResults,ExtraPPResults> solve_case(const fs::path& in
     {
         std::cerr   << "Error: input path is not a regular file (tried path: " << input_path << " )" << std::endl
         << "Exiting now..." << std::endl;
-        return std::make_tuple(DubinsFleetPlanner_PARSING_FAILURE,std::nullopt,extra);
+        return std::make_tuple(DubinsFleetPlanner_PARSING_FAILURE,std::vector<Dubins>{},extra);
     }
 
     if (args.verbosity >= DubinsFleetPlanner_VERBOSE)
@@ -295,7 +295,7 @@ std::tuple<int,SharedDubinsResults,ExtraPPResults> solve_case(const fs::path& in
     {
         std::cerr   << "Error while reading trying to open the input file (tried path: " << input_path << " )" << std::endl
         << "Exiting now..." << std::endl;
-        return std::make_tuple(DubinsFleetPlanner_PARSING_FAILURE,std::nullopt,extra);
+        return std::make_tuple(DubinsFleetPlanner_PARSING_FAILURE,std::vector<Dubins>{},extra);
     }
     
     
@@ -384,17 +384,17 @@ std::tuple<int,SharedDubinsResults,ExtraPPResults> solve_case(const fs::path& in
 
     auto start = chrono::thread_clock::now(boost::throws());
     
-    SharedDubinsResults sols;
+    std::vector<Dubins> sols;
 
     if (!empty_timeslots)
     {
-        sols = planner->solve_with_timeslots<Dubins::are_XY_separated,Dubins::compute_XY_distance>(extra,starts,ends,stats,args.separation,timeslots,
+        planner->solve_with_timeslots<Dubins::are_XY_separated,Dubins::compute_XY_distance>(sols,extra,starts,ends,stats,args.separation,timeslots,
             args.wind_x,args.wind_y,args.thread_num,
-            obstacle_paths,obstacle_stats).first;
+            obstacle_paths,obstacle_stats);
     }
     else
     {
-        sols = planner->solve<Dubins::are_XY_separated,Dubins::compute_XY_distance>(extra,starts,ends,stats,args.separation,
+        planner->solve<Dubins::are_XY_separated,Dubins::compute_XY_distance>(sols,extra,starts,ends,stats,args.separation,
             dt,args.wind_x,args.wind_y,args.max_iters,args.weave_iters,args.min_weave_dist,args.min_weave_dist_percent,args.thread_num,args.max_solver_time,
             obstacle_paths,obstacle_stats);
     }
@@ -403,7 +403,7 @@ std::tuple<int,SharedDubinsResults,ExtraPPResults> solve_case(const fs::path& in
 
     output_log << "]";
     
-    if (!sols.has_value()) // If no solution, retry without separation
+    if (sols.size() != stats.size()) // If no solution, retry without separation
     {
         ExtraPPResults _backup;
         good_solution = false;
@@ -411,28 +411,28 @@ std::tuple<int,SharedDubinsResults,ExtraPPResults> solve_case(const fs::path& in
         
         if (!empty_timeslots)
         {
-            sols = planner->solve_with_timeslots<Dubins::are_XY_separated,Dubins::compute_XY_distance>(_backup,starts,ends,stats,0,timeslots,
+            planner->solve_with_timeslots<Dubins::are_XY_separated,Dubins::compute_XY_distance>(sols,_backup,starts,ends,stats,0,timeslots,
                 args.wind_x,args.wind_y,args.thread_num,
-                obstacle_paths,obstacle_stats).first;
+                obstacle_paths,obstacle_stats);
         }
         else
         {
-            sols = planner->solve<Dubins::are_XY_separated,Dubins::compute_XY_distance>(_backup,starts,ends,stats,args.separation,
+            planner->solve<Dubins::are_XY_separated,Dubins::compute_XY_distance>(sols,_backup,starts,ends,stats,args.separation,
                 dt,args.wind_x,args.wind_y,args.max_iters,args.weave_iters,args.min_weave_dist,args.min_weave_dist_percent,args.thread_num,args.max_solver_time,
                 obstacle_paths,obstacle_stats);
         }
     }
         
-    if (!sols.has_value())
+    if (sols.size() != stats.size())
     {
         std::cerr << "ERROR: Could not find a solution!" << std::endl;
-        return std::make_tuple(DubinsFleetPlanner_SOLVING_FAILURE,std::nullopt,extra);
+        return std::make_tuple(DubinsFleetPlanner_PARSING_FAILURE,std::vector<Dubins>{},extra);
     }
     else
     {
         if (good_solution)
         {
-            extra.false_positive = !check_solution<Dubins::are_XY_separated_sampling>(sols.value(),stats,args.separation);
+            extra.false_positive = !check_solution<Dubins::are_XY_separated_sampling>(sols,stats,args.separation);
             if (extra.false_positive)
             {
                 good_solution = false;
@@ -441,7 +441,7 @@ std::tuple<int,SharedDubinsResults,ExtraPPResults> solve_case(const fs::path& in
         }
 
         obstacle_paths.insert(obstacle_paths.end(),
-            std::move_iterator(sols.value().begin()),std::move_iterator(sols.value().end()));
+            std::move_iterator(sols.begin()),std::move_iterator(sols.end()));
 
         obstacle_stats.insert(obstacle_stats.end(),
             stats.begin(),stats.end());
@@ -610,7 +610,7 @@ int main(int argc, char *argv[])
         auto __ret = solve_case(src_path,out_path,args);
         
         int code = std::get<0>(__ret);
-        ExtraPPResults& extra = std::get<2>(__ret);
+        const ExtraPPResults& extra = std::get<2>(__ret);
 
         std::cout << extra.format() << std::endl;
 

@@ -22,7 +22,7 @@ using json = nlohmann::json;
 // ---------------------------------------- Misc function ---------------------------------------- //
 
 static double compute_plan_duration(
-    const std::vector<std::shared_ptr<Dubins>>& paths,
+    const std::vector<Dubins>& paths,
     const std::vector<AircraftStats>& stats)
 {
     assert(paths.size() == stats.size());
@@ -32,7 +32,7 @@ static double compute_plan_duration(
 
     for(uint i = 0; i < N; i++)
     {
-        double time = paths[i]->get_length()/stats[i].airspeed;
+        double time = paths[i].get_length()/stats[i].airspeed;
         max_time = std::max(time,max_time);
     }
 
@@ -291,7 +291,7 @@ CaseData DubinsPP::InputParser::parse_data_csv(std::istream& stream)
 // ---------- nlohmann Deserialization (JSON) ---------- //
 
 void parse_json_ModernTrajectory(const json& j, 
-    std::shared_ptr<Dubins>& path,
+    Dubins& path,
     AircraftStats& stats)
 {
     from_json(j.at("stats"),stats);
@@ -313,13 +313,13 @@ void parse_json_ModernTrajectory(const json& j,
         basic_paths.push_back(bshape);
     }
 
-    path = std::make_shared<Dubins>(start,end,basic_paths);
-    assert(pose_dist(path->get_start(),start) < DubinsFleetPlanner_PRECISION);
-    assert(pose_dist(path->get_end(),end) < DubinsFleetPlanner_PRECISION);
+    path = Dubins(start,end,basic_paths);
+    assert(pose_dist(path.get_start(),start) < DubinsFleetPlanner_PRECISION);
+    assert(pose_dist(path.get_end(),end) < DubinsFleetPlanner_PRECISION);
 }
 
 void DubinsPP::InputParser::parse_paths_as_ModernJSON(std::istream& s, 
-    std::vector<std::shared_ptr<Dubins>>& paths,
+    std::vector<Dubins>& paths,
     std::vector<AircraftStats>& stats,
     double& min_sep,
     double& wind_x, double& wind_y,
@@ -346,10 +346,10 @@ void DubinsPP::InputParser::parse_paths_as_ModernJSON(std::istream& s,
         for(uint i = 0; i < N; i++)
         {
             json j_trajectory = trajectories[i];
-            std::shared_ptr<Dubins> path;
+            Dubins path;
             AircraftStats stat;
             parse_json_ModernTrajectory(j_trajectory,path,stat);
-            paths.push_back(std::move(path));
+            paths.push_back(path);
             stats.push_back(stat);
         }
 
@@ -475,7 +475,7 @@ void to_json_ModernTrajectory(json& j,
 }
 
 void DubinsPP::OutputPrinter::print_paths_as_ModernJSON(std::ostream& s, 
-            const std::vector<std::shared_ptr<Dubins>>& paths,
+            const std::vector<Dubins>& paths,
             const std::vector<AircraftStats>& stats,
             double min_sep,
             double wind_x, double wind_y,
@@ -503,7 +503,7 @@ void DubinsPP::OutputPrinter::print_paths_as_ModernJSON(std::ostream& s,
         for(uint i = 0; i < N; i++)
         {
             json j_trajectory;
-            to_json_ModernTrajectory(j_trajectory,*paths[i],stats[i],wind_x,wind_y);
+            to_json_ModernTrajectory(j_trajectory,paths[i],stats[i],wind_x,wind_y);
             trajectories.push_back(j_trajectory);
         }
 
@@ -516,7 +516,7 @@ void DubinsPP::OutputPrinter::print_paths_as_ModernJSON(std::ostream& s,
 // ---------- Handmade Serialization (CSV) ---------- //
 
 void DubinsPP::OutputPrinter::print_paths_as_CSV(std::ostream& s, 
-    const std::vector<std::shared_ptr<Dubins>>& paths,
+    const std::vector<Dubins>& paths,
     const std::vector<AircraftStats>& stats,
     double wind_x, double wind_y, uint samples)
 {
@@ -550,7 +550,7 @@ void DubinsPP::OutputPrinter::print_paths_as_CSV(std::ostream& s,
     
     for(uint i = 0; i < N; i++)
     {
-        pts_storages[i] = paths[i]->get_positions(times,stats[i].airspeed,true);
+        pts_storages[i] = paths[i].get_positions(times,stats[i].airspeed,true);
     }
 
     // Print data

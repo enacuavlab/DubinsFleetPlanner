@@ -175,25 +175,21 @@ int main()
     LineExtendedDubinsFleetPlanner extended_planner(TEST_PRECISION,TEST_MAX_R_LENGTH,{0,0.5,1.},DubinsFleetPlanner_VERY_VERBOSE);
 
     ExtraPPResults extra;
+    std::vector<Dubins> results;
 
-    auto opt_result = basic_planner.solve<Dubins::are_XY_separated,Dubins::compute_XY_distance>(extra,starts_vec,ends_vec,stats_vec,min_sep,delta_t_vec,wind_x,wind_y);
+    basic_planner.solve<Dubins::are_XY_separated,Dubins::compute_XY_distance>(results,extra,starts_vec,ends_vec,stats_vec,min_sep,delta_t_vec,wind_x,wind_y);
     
     // auto opt_result = extended_planner.solve<Dubins::are_XY_separated>(extra,starts_vec,ends_vec,stats_vec,min_sep,delta_t_vec,wind_x,wind_y);
     // auto opt_result = extended_planner.solve_parallel<Dubins::are_XY_separated>(extra,starts_vec,ends_vec,stats_vec,min_sep,delta_t_vec,wind_x,wind_y);
 
-    if (!opt_result.has_value())
+    if (results.size() != stats_vec.size())
     {
         std::cout << std::endl << "| ***** !! No solution found !! ***** |" << std::endl;
         // opt_result = extended_planner.solve_parallel<Dubins::are_XY_separated>(starts_vec,ends_vec,stats_vec,0.,delta_t_vec,wind_x,wind_y);
         // test_name = std::string("COLLIDING_") + test_name;
 
-        if (!opt_result.has_value())
-        {
-            exit(1);
-        }
+        exit(1);
     }
-
-    auto& results = opt_result.value();    
 
     // -------------------- Plotting --------------------
 
@@ -201,13 +197,7 @@ int main()
 
     // ---------- Individual trajectories ---------- //
 
-    std::vector<std::shared_ptr<Dubins>> results_vec(results.size());
-    for(uint i = 0; i < results.size(); i++)
-    {
-        results_vec[i] = std::move(results[i]);
-    }
-
-    double sampled_min_dist = Visualisation::plot_multiple_paths<PLOTTING_SAMPLES>(plot,results_vec,stats_vec,wind_x,wind_y);
+    double sampled_min_dist = Visualisation::plot_multiple_paths<PLOTTING_SAMPLES>(plot,results,stats_vec,wind_x,wind_y);
 
     // ---------- Minimal distance points ---------- //
     
@@ -233,11 +223,11 @@ int main()
     {
         if (file_format == "csv")
         {
-            DubinsPP::OutputPrinter::print_paths_as_CSV(output,results_vec,stats_vec,wind_x,wind_y,PLOTTING_SAMPLES);
+            DubinsPP::OutputPrinter::print_paths_as_CSV(output,results,stats_vec,wind_x,wind_y,PLOTTING_SAMPLES);
         }
         else if (file_format == "json")
         {
-            DubinsPP::OutputPrinter::print_paths_as_ModernJSON(output,results_vec,stats_vec,sampled_min_dist,wind_x,wind_y);
+            DubinsPP::OutputPrinter::print_paths_as_ModernJSON(output,results,stats_vec,sampled_min_dist,wind_x,wind_y);
         }
         else
         {

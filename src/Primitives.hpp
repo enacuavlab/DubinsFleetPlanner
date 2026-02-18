@@ -264,6 +264,7 @@ inline double path_planar_speed(const PathShape<m>& s)
     return std::abs(s.p2*s.p1);
 }
 
+
 inline double path_planar_speed(const DynamicPathShape& s)
 {
     if (s.m == STRAIGHT)
@@ -398,6 +399,7 @@ DynamicPathShape compute_params(DubinsMove m, const Pose3D& start, double durati
  * @return Pose3d   Resulting pose
  */
 template<DubinsMove m>
+[[gnu::pure]]
 Pose3D follow_dubins(const PathShape<m>& s, double duration);
 
 /**
@@ -407,6 +409,7 @@ Pose3D follow_dubins(const PathShape<m>& s, double duration);
  * @param duration  Move duration (s)
  * @return Pose3d   Resulting pose
  */
+[[gnu::pure]]
 Pose3D follow_dubins(const DynamicPathShape& s, double duration);
 
 /**
@@ -417,6 +420,7 @@ Pose3D follow_dubins(const DynamicPathShape& s, double duration);
  * @return Pose3d   Starting pose
  */
 template<DubinsMove m>
+[[gnu::pure]]
 Pose3D initial_pose(const PathShape<m>& s)
 {
     return follow_dubins(s,0.);
@@ -429,6 +433,7 @@ Pose3D initial_pose(const PathShape<m>& s)
  * @param s         Structure describing the shape to follow (including speed and starting point)
  * @return Pose3d   Starting pose
  */
+[[gnu::pure]]
 Pose3D initial_pose(const DynamicPathShape& s);
 /**
  * @brief Compute the final pose for a DynamicPathShape
@@ -436,6 +441,7 @@ Pose3D initial_pose(const DynamicPathShape& s);
  * @param s         Structure describing the shape to follow (including speed and starting point)
  * @return Pose3d   Starting pose
  */
+[[gnu::pure]]
 Pose3D final_pose(const DynamicPathShape& s);
 /**
  * @brief Compute an equivalent path shape by shifting the starting point to the location after the given duration

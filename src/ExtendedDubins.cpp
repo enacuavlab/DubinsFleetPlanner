@@ -19,7 +19,7 @@
 
 template<BasePathShapeGenerator generator_function>
 std::vector<DynamicPathShape> generate_line_extended_pathshapes(
-    const Pose3D& start, const Pose3D& end, double start_len, double end_len, double turn_radius)
+    const Pose3D& start, const Pose3D& end, double start_len, double end_len, double turn_radius, double tol)
 {
     std::vector<DynamicPathShape> output;
 
@@ -29,7 +29,7 @@ std::vector<DynamicPathShape> generate_line_extended_pathshapes(
     DynamicPathShape start_shape = compute_params(STRAIGHT,start,start_len,1.,turn_radius,0.);
     DynamicPathShape end_shape = compute_params(STRAIGHT,shifted_end,end_len,1.,turn_radius,0.);
 
-    std::vector<DynamicPathShape> midshapes = generator_function(shifted_start,shifted_end,turn_radius);
+    std::vector<DynamicPathShape> midshapes = generator_function(shifted_start,shifted_end,turn_radius,tol);
 
     if (midshapes.size() == 0)
     {
@@ -73,7 +73,7 @@ std::vector<std::unique_ptr<Dubins>> generate_line_extended_base(const Pose3D& s
         if (!std::isnan(LSL_length))
         {
             std::vector<DynamicPathShape> shapes = generate_line_extended_pathshapes<set_radius_LSL>(
-                start,end,r*LSL_length,(1-r)*LSL_length,turn_radius);
+                start,end,r*LSL_length,(1-r)*LSL_length,turn_radius,tol);
 
             if (shapes.size() > 0)
             {
@@ -88,7 +88,7 @@ std::vector<std::unique_ptr<Dubins>> generate_line_extended_base(const Pose3D& s
         if (!std::isnan(RSR_length))
         {
             std::vector<DynamicPathShape> shapes = generate_line_extended_pathshapes<set_radius_RSR>(
-                start,end,r*RSR_length,(1-r)*RSR_length,turn_radius);
+                start,end,r*RSR_length,(1-r)*RSR_length,turn_radius,tol);
 
             if (shapes.size() > 0)
             {
@@ -102,7 +102,7 @@ std::vector<std::unique_ptr<Dubins>> generate_line_extended_base(const Pose3D& s
         if (!std::isnan(RSL_length))
         {
             std::vector<DynamicPathShape> shapes = generate_line_extended_pathshapes<set_radius_RSL>(
-                start,end,r*RSL_length,(1-r)*RSL_length,turn_radius);
+                start,end,r*RSL_length,(1-r)*RSL_length,turn_radius,tol);
 
             if (shapes.size() > 0)
             {
@@ -116,7 +116,7 @@ std::vector<std::unique_ptr<Dubins>> generate_line_extended_base(const Pose3D& s
         if (!std::isnan(LSR_length))
         {
             std::vector<DynamicPathShape> shapes = generate_line_extended_pathshapes<set_radius_LSR>(
-                start,end,r*LSR_length,(1-r)*LSR_length,turn_radius);
+                start,end,r*LSR_length,(1-r)*LSR_length,turn_radius,tol);
 
             if (shapes.size() > 0)
             {
@@ -130,7 +130,7 @@ std::vector<std::unique_ptr<Dubins>> generate_line_extended_base(const Pose3D& s
         if (!std::isnan(RLR_length))
         {
             std::vector<DynamicPathShape> shapes = generate_line_extended_pathshapes<set_radius_RLR>(
-                start,end,r*RLR_length,(1-r)*RLR_length,turn_radius);
+                start,end,r*RLR_length,(1-r)*RLR_length,turn_radius,tol);
 
             if (shapes.size() > 0)
             {
@@ -144,7 +144,7 @@ std::vector<std::unique_ptr<Dubins>> generate_line_extended_base(const Pose3D& s
         if (!std::isnan(LRL_length))
         {
             std::vector<DynamicPathShape> shapes = generate_line_extended_pathshapes<set_radius_LRL>(
-                start,end,r*LRL_length,(1-r)*LRL_length,turn_radius);
+                start,end,r*LRL_length,(1-r)*LRL_length,turn_radius,tol);
 
             if (shapes.size() > 0)
             {
@@ -158,7 +158,7 @@ std::vector<std::unique_ptr<Dubins>> generate_line_extended_base(const Pose3D& s
         if (!std::isnan(RLR_length))
         {
             std::vector<DynamicPathShape> shapes = generate_line_extended_pathshapes<set_radius_SLS>(
-                start,end,r*SLS_length,(1-r)*SLS_length,turn_radius);
+                start,end,r*SLS_length,(1-r)*SLS_length,turn_radius,tol);
 
             if (shapes.size() > 0)
             {
@@ -172,7 +172,7 @@ std::vector<std::unique_ptr<Dubins>> generate_line_extended_base(const Pose3D& s
         if (!std::isnan(LRL_length))
         {
             std::vector<DynamicPathShape> shapes = generate_line_extended_pathshapes<set_radius_SRS>(
-                start,end,r*SRS_length,(1-r)*SRS_length,turn_radius);
+                start,end,r*SRS_length,(1-r)*SRS_length,turn_radius,tol);
 
             if (shapes.size() > 0)
             {

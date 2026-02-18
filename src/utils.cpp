@@ -149,6 +149,14 @@ double pose_dist(const Pose3D& p1, const Pose3D& p2)
 }
 
 [[gnu::pure]]
+double pose_aligned(const Pose3D& p1, const Pose3D& p2)
+{
+    double dtheta = p1.theta - p2.theta;
+    double output = central_angle(mod_2pi(dtheta));
+    return output;
+}
+
+[[gnu::pure]]
 double pose_dist_XY(const Pose3D& p1, const Pose3D& p2)
 {
     double dx = p1.x - p2.x;

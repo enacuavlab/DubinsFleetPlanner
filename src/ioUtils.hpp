@@ -84,7 +84,7 @@ namespace DubinsPP
          * @param z_alpha   The distortion value for computing vertical separation (currently unused)
          */
         void parse_paths_as_ModernJSON(std::istream& s, 
-            std::vector<std::shared_ptr<Dubins>>& paths,
+            std::vector<Dubins>& paths,
             std::vector<AircraftStats>& stats,
             double& min_sep,
             double& wind_x, double& wind_y,
@@ -110,7 +110,7 @@ namespace DubinsPP
          * @param z_alpha   The distortion value for computing vertical separation (currently unused)
          */
         void print_paths_as_ModernJSON(std::ostream& s, 
-            const std::vector<std::shared_ptr<Dubins>>& paths,
+            const std::vector<Dubins>& paths,
             const std::vector<AircraftStats>& stats,
             double min_sep,
             double wind_x, double wind_y,
@@ -127,7 +127,7 @@ namespace DubinsPP
          * @param samples   Number of equally spaced samples to take
          */
         void print_paths_as_CSV(std::ostream& s, 
-            const std::vector<std::shared_ptr<Dubins>>& paths,
+            const std::vector<Dubins>& paths,
             const std::vector<AircraftStats>& stats,
             double wind_x, double wind_y, uint samples);
 

@@ -1006,11 +1006,14 @@ DynamicPathShape compute_params(DubinsMove m, const Pose3D& start, const Pose3D&
     
 
 // #if defined(DubinsFleetPlanner_ASSERTIONS) && DubinsFleetPlanner_ASSERTIONS > 0
-//     Pose3D computed_start = initial_pose(output);
-//     Pose3D computed_end  = final_pose(output);
-
-//     assert(pose_dist(computed_start,start) < DubinsFleetPlanner_PRECISION);
-//     assert(pose_dist(computed_end,end) < DubinsFleetPlanner_PRECISION);
+    // Pose3D computed_start = initial_pose(output);
+    // Pose3D computed_end  = final_pose(output);
+// 
+    // assert(pose_dist(computed_start,start) < DubinsFleetPlanner_PRECISION);
+    // assert(pose_dist(computed_end,end) < DubinsFleetPlanner_PRECISION);
+// 
+    // assert(pose_aligned(computed_start,start) < DubinsFleetPlanner_PRECISION);
+    // assert(pose_aligned(computed_end,end) < DubinsFleetPlanner_PRECISION);
 // #endif
     return output;
 }
@@ -1135,11 +1138,13 @@ DynamicPathShape shift_start(const DynamicPathShape& s, double duration)
 }
 
 
+[[gnu::pure]]
 Pose3D initial_pose(const DynamicPathShape& s)
 {
     return follow_dubins(s,0.);
 }
 
+[[gnu::pure]]
 Pose3D final_pose(const DynamicPathShape& s)
 {
     return follow_dubins(s,s.length/path_planar_speed(s));

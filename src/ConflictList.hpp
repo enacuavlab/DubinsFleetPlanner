@@ -180,15 +180,16 @@ void setup_base_model(Highs* highs, uint AC_count, uint max_paths_count, int ver
  * @param conflicts     List of conflicts (paths that cannot be taken together)
  * @param max_path_num  Maximum number of paths for an aircraft
  * @param THREADS       Number of threads to use. 0 choose automatically. Default to 0
+ * @param length_based_costs    If true, the cost of each path is the time taken to realize it. Thus the objective becomes minimizing the sum of times.
+ *                              If false, costs are all set to 1.
  * @param preset_model  A preset HiGHS model to quickly setup
- * @return std::optional<std::vector<std::shared_ptr<Dubins>>> 
+ * @return std::vector<Dubins>
  */
-std::optional<std::vector<std::shared_ptr<Dubins>>> find_pathplanning_LP_solution(
+std::vector<Dubins> find_pathplanning_LP_solution(
     SharedListOfPossibilities& possibilites, 
     const std::vector<AircraftStats>& stats, 
     const std::vector<Conflict_T>& conflicts,
-    uint max_path_num, int THREADS = 0,
-    const Highs* preset_model = nullptr);
+    uint max_path_num, int THREADS, bool duration_based_costs, int verbosity);
 
 
 

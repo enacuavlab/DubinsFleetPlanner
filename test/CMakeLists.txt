@@ -38,6 +38,10 @@ option(DubinsFleetPlanner_VISUALISATION "Include visualisation in the solver (fo
     # For Windows: Prevent overriding the parent project's compiler/linker settings
     FetchContent_MakeAvailable(sciplot)
 
+    add_executable(TestHighs call_highs_from_cpp.cpp)
+    target_link_libraries(TestHighs PUBLIC sciplot DubinsFleetPlannerLib)
+    target_include_directories(TestHighs PUBLIC "${PROJECT_SOURCE_DIR}/src")
+
     add_executable(PlotDubins plotDubins.cpp)
     target_link_libraries(PlotDubins PUBLIC sciplot DubinsFleetPlannerLib)
     target_include_directories(PlotDubins PUBLIC "${PROJECT_SOURCE_DIR}/src")
