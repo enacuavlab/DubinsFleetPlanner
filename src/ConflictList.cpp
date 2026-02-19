@@ -280,8 +280,6 @@ std::vector<Dubins> find_pathplanning_LP_solution(
         std::vector<Dubins> output;
         uint i = 0;
 
-        auto info = model.getInfo();
-
         auto solutions = model.getSolution();
         for(double val : solutions.col_value)
         {

@@ -21,6 +21,8 @@
 #include "Primitives.hpp"
 #include "utils.hpp"
 
+const uint NumberOfBaseDubins = 8;
+
 /**
  * @brief Produces the path shapes making a path of given turn radius. Output has size 0 if unrealisable.
  * 
@@ -105,5 +107,4 @@ std::unique_ptr<Dubins> shortest_possible_baseDubins(double _climb, double _turn
 std::vector<std::unique_ptr<Dubins>> fit_possible_baseDubins([[maybe_unused]] double _climb, double _turn_radius, const Pose3D& _start, const Pose3D& _end,
     double target_len, double tol);
 
-const uint NumberOfBaseDubins = 8;
 

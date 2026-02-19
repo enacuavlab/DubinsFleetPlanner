@@ -210,7 +210,7 @@ std::vector<std::unique_ptr<Dubins>> generate_line_extended_base(const Pose3D& s
  * @param end       End pose
  * @param start_lens    Lengths for the added initial segment
  * @param end_lens      Lengths for the added final segment
- * @param climb         Climb ratio
+ * @param climb         Climb ratio (TODO: Handle verticality)
  * @param turn_radius   Minimal turn radius
  * @param target_len    Target length
  * @param tol           Precision for target length
