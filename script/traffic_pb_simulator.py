@@ -280,7 +280,7 @@ class ArrivalsSimulator:
         
                 
         self.__t = new_t
-        print(f"Set time to {new_t}")
+        # print(f"Set time to {new_t}")
         
         if self.__axes is not None:
             for s,p in output:
@@ -403,7 +403,7 @@ class ArrivalsSimulator:
                 ## Update the task ends with the planning results
                 for s,p in self.scheduled.trajectories:
                     i = self.__task_index[s.id]
-                    print(f"Change in arrival for {s.id}: {(self.tasklist[i].end_time - (pd.Timedelta(minutes=p.duration()) + new_t)).total_seconds()/60:.1f} min")
+                    print(f"Change in arrival for {s.id}: {(pd.Timedelta(minutes=p.duration()) - (self.tasklist[i].end_time - new_t)).total_seconds()/60:.1f} min")
                     self.tasklist[i].end_time = pd.Timedelta(minutes=p.duration()) + new_t
                     
                     if self.__axes is not None:
