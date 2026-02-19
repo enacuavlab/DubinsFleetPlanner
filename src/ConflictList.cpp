@@ -165,11 +165,10 @@ std::vector<Dubins> find_pathplanning_LP_solution(
 
     // -- Define variables with bounds (01-LP problem)
 
-    // - Setup costs based on path durations
-    std::vector<double> costs(var_num);
+    // - Setup costs based on path durations (default to 1 everywhere: all paths are equally good)
+    std::vector<double> costs(var_num,1.);
     if (duration_based_costs)
     {
-        std::vector<double> costs(var_num);
         for(uint ac = 0; ac < AC_num; ac++)
         {
             const auto& list = list_of_possibilites[ac];
@@ -186,18 +185,7 @@ std::vector<Dubins> find_pathplanning_LP_solution(
                 costs[ac*max_path_num+p_index]  = 1e9;
                 p_index++;
             }
-        }
-    }
-    else
-    {
-        // Objective : arbitrary (everything has same cost)
-        
-        for(uint ac = 0; ac < AC_num; ac++)
-        {
-            for(uint p_index = 0; p_index < max_path_num; p_index++)
-            {
-                costs[ac*max_path_num+p_index] = 1.;
-            }
+            std::cout << std::endl;
         }
     }
 
@@ -211,6 +199,7 @@ std::vector<Dubins> find_pathplanning_LP_solution(
     std::vector<HighsVarType> integrality(var_num);
     std::fill(integrality.begin(),integrality.end(),HighsVarType::kInteger);
     model.changeColsIntegrality(0,var_num-1,integrality.data());
+    model.changeObjectiveSense(ObjSense::kMinimize);
 
     // -- Constraints 
 
@@ -290,7 +279,11 @@ std::vector<Dubins> find_pathplanning_LP_solution(
     {
         std::vector<Dubins> output;
         uint i = 0;
-        for(double val : model.getSolution().col_value)
+
+        auto info = model.getInfo();
+
+        auto solutions = model.getSolution();
+        for(double val : solutions.col_value)
         {
             if (val > 0.5)
             {
