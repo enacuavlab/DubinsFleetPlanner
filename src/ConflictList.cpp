@@ -64,69 +64,6 @@ uint number_of_valid_paths(ListOfPossibilities& list)
 
 // ---------------------------------------- LP Solver ---------------------------------------- //
 
-void setup_base_model(Highs* highs, uint AC_count, uint max_paths_count, int verbosity)
-{
-    // -- General Options
-    highs->setOptionValue("output_flag",true);
-    highs->setOptionValue("presolve","on");
-    highs->setOptionValue("parallel","on");
-    // highs.setOptionValue("log_file","highs.log");
-    highs->setOptionValue("mip_abs_gap", 1-1e-5); // Since all variables in the objective are binary, it should stop when the absolute gap is below 1
-    // highs.setOptionValue('random_seed', SEED)
-
-    if (verbosity >= DubinsFleetPlanner_VERY_VERBOSE)
-    {
-        highs->setOptionValue("log_to_console",true);
-    }
-    else
-    {
-        highs->setOptionValue("log_to_console",false);
-    }
-
-    // Define variables with bounds (01-LP problem)
-    uint var_num = AC_count * max_paths_count; 
-
-    std::vector<double> lowers(var_num);
-    std::fill(lowers.begin(),lowers.end(),0.);
-    std::vector<double> uppers(var_num);
-    std::fill(uppers.begin(),uppers.end(),1.);
-
-
-    // Objective : arbitrary (everything has same cost)
-    std::vector<double> costs(var_num);
-    for(uint ac = 0; ac < AC_count; ac++)
-    {
-        for(uint p_index = 0; p_index < max_paths_count; p_index++)
-        {
-            costs[ac*max_paths_count+p_index] = 1.;
-        }
-    }
-
-    highs->addCols(var_num,costs.data(),lowers.data(),uppers.data(),0,nullptr,nullptr,nullptr);
-
-
-    std::vector<HighsVarType> integrality(var_num);
-    std::fill(integrality.begin(),integrality.end(),HighsVarType::kInteger);
-    highs->changeColsIntegrality(0,var_num-1,integrality.data());
-
-
-    // -- Constraints 
-
-    std::vector<int> indices(max_paths_count);
-
-
-    // Unique path for each AC
-    for(uint ac_id = 0; ac_id < AC_count; ac_id++)
-    {
-        for(uint i = 0; i < max_paths_count; i++)
-        {
-            indices[i] = ac_id*max_paths_count+i;
-        }
-
-        highs->addRow(1.,1.,max_paths_count,indices.data(),uppers.data());
-    }
-}
-
 std::vector<Dubins> find_pathplanning_LP_solution(
     SharedListOfPossibilities& list_of_possibilites,
     const std::vector<AircraftStats>& stats,
@@ -165,28 +102,41 @@ std::vector<Dubins> find_pathplanning_LP_solution(
 
     // -- Define variables with bounds (01-LP problem)
 
+    size_t max_section_count = 0;
+    for(const auto& list : list_of_possibilites)
+    {
+        for(const auto& p : list)
+        {
+            max_section_count = std::max(max_section_count,p->section_count());
+        }
+    }
+
     // - Setup costs based on path durations (default to 1 everywhere: all paths are equally good)
     std::vector<double> costs(var_num,1.);
-    if (duration_based_costs)
+    for(uint ac = 0; ac < AC_num; ac++)
     {
-        for(uint ac = 0; ac < AC_num; ac++)
-        {
-            const auto& list = list_of_possibilites[ac];
-            const AircraftStats& stat = stats[ac];
+        const auto& list = list_of_possibilites[ac];
+        const AircraftStats& stat = stats[ac];
 
-            uint p_index = 0;
-            for(const std::shared_ptr<Dubins>& p : list)
+        uint p_index = 0;
+        for(const std::shared_ptr<Dubins>& p : list)
+        {
+            if (duration_based_costs)
             {
-                costs[ac*max_path_num+p_index]  = p->get_length()/stat.airspeed;
-                p_index++;
+                costs[ac*max_path_num+p_index]  = p->get_duration(stat.airspeed) * max_section_count * 2 * M_PI + p->turning_angle();
             }
-            while(p_index < max_path_num)
+            else
             {
-                costs[ac*max_path_num+p_index]  = 1e9;
-                p_index++;
+                costs[ac*max_path_num+p_index]  = p->turning_angle();
             }
-            std::cout << std::endl;
+            p_index++;
         }
+        while(p_index < max_path_num)
+        {
+            costs[ac*max_path_num+p_index]  = 1e9;
+            p_index++;
+        }
+        std::cout << std::endl;
     }
 
     std::vector<double> lowers(var_num);

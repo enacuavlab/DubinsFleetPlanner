@@ -432,7 +432,7 @@ void to_json_ModernTrajectory(json& j,
     {
         for(DynamicPathShape s : path.get_all_sections())
         {
-            path_set_planar_speed(s,stats.airspeed);
+            s.set_planar_speed(stats.airspeed);
             
             json j_section;
 

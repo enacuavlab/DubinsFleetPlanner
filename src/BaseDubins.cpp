@@ -43,9 +43,9 @@ std::vector<DynamicPathShape> set_radius_LSL(const Pose3D &start, const Pose3D &
     Pose3D junc_1 = follow_dubins<LEFT>(start, fst_length, 1., fst_climb, radius);
     Pose3D junc_2 = follow_dubins<STRAIGHT>(junc_1, snd_length, 1., snd_climb, radius);
 
-    DynamicPathShape s1 = compute_params(LEFT, start, junc_1, 1., radius, fst_climb);
-    DynamicPathShape s2 = compute_params(STRAIGHT, junc_1, junc_2, 1., radius, snd_climb);
-    DynamicPathShape s3 = compute_params(LEFT, junc_2, end, 1., radius, trd_climb);
+    DynamicPathShape s1(LEFT, start, junc_1, 1., radius, fst_climb);
+    DynamicPathShape s2(STRAIGHT, junc_1, junc_2, 1., radius, snd_climb);
+    DynamicPathShape s3(LEFT, junc_2, end, 1., radius, trd_climb);
 
     std::vector<DynamicPathShape> output;
     if (s1.length > DubinsFleetPlanner_ZERO_TOLERANCE)
@@ -61,7 +61,7 @@ std::vector<DynamicPathShape> set_radius_LSL(const Pose3D &start, const Pose3D &
         output.push_back(s3);
     }
 
-    Pose3D computed_end = final_pose(output.back());
+    Pose3D computed_end = output.back().final_pose();
     if ((pose_dist(end, computed_end) >= tol) || (abs(pose_aligned(end, computed_end)) >= tol))
     {
         return {};
@@ -95,9 +95,9 @@ std::vector<DynamicPathShape> set_radius_RSR(const Pose3D &start, const Pose3D &
     Pose3D junc_1 = follow_dubins<RIGHT>(start, fst_length, 1., fst_climb, radius);
     Pose3D junc_2 = follow_dubins<STRAIGHT>(junc_1, snd_length, 1., snd_climb, radius);
 
-    DynamicPathShape s1 = compute_params(RIGHT, start, junc_1, 1., radius, fst_climb);
-    DynamicPathShape s2 = compute_params(STRAIGHT, junc_1, junc_2, 1., radius, snd_climb);
-    DynamicPathShape s3 = compute_params(RIGHT, junc_2, end, 1., radius, trd_climb);
+    DynamicPathShape s1(RIGHT, start, junc_1, 1., radius, fst_climb);
+    DynamicPathShape s2(STRAIGHT, junc_1, junc_2, 1., radius, snd_climb);
+    DynamicPathShape s3(RIGHT, junc_2, end, 1., radius, trd_climb);
 
     std::vector<DynamicPathShape> output;
     if (s1.length > DubinsFleetPlanner_ZERO_TOLERANCE)
@@ -113,7 +113,7 @@ std::vector<DynamicPathShape> set_radius_RSR(const Pose3D &start, const Pose3D &
         output.push_back(s3);
     }
 
-    Pose3D computed_end = final_pose(output.back());
+    Pose3D computed_end = output.back().final_pose();
     if ((pose_dist(end, computed_end) >= tol) || (abs(pose_aligned(end, computed_end)) >= tol))
     {
         return {};
@@ -151,9 +151,9 @@ std::vector<DynamicPathShape> set_radius_RSL(const Pose3D &start, const Pose3D &
     Pose3D junc_1 = follow_dubins<RIGHT>(start, fst_length, 1., fst_climb, radius);
     Pose3D junc_2 = follow_dubins<STRAIGHT>(junc_1, snd_length, 1., snd_climb, radius);
 
-    DynamicPathShape s1 = compute_params(RIGHT, start, junc_1, 1., radius, fst_climb);
-    DynamicPathShape s2 = compute_params(STRAIGHT, junc_1, junc_2, 1., radius, snd_climb);
-    DynamicPathShape s3 = compute_params(LEFT, junc_2, end, 1., radius, trd_climb);
+    DynamicPathShape s1(RIGHT, start, junc_1, 1., radius, fst_climb);
+    DynamicPathShape s2(STRAIGHT, junc_1, junc_2, 1., radius, snd_climb);
+    DynamicPathShape s3(LEFT, junc_2, end, 1., radius, trd_climb);
 
     std::vector<DynamicPathShape> output;
     if (s1.length > DubinsFleetPlanner_ZERO_TOLERANCE)
@@ -169,7 +169,7 @@ std::vector<DynamicPathShape> set_radius_RSL(const Pose3D &start, const Pose3D &
         output.push_back(s3);
     }
 
-    Pose3D computed_end = final_pose(output.back());
+    Pose3D computed_end = output.back().final_pose();
     if ((pose_dist(end, computed_end) >= tol) || (abs(pose_aligned(end, computed_end)) >= tol))
     {
         return {};
@@ -207,9 +207,9 @@ std::vector<DynamicPathShape> set_radius_LSR(const Pose3D &start, const Pose3D &
     Pose3D junc_1 = follow_dubins<LEFT>(start, fst_length, 1., fst_climb, radius);
     Pose3D junc_2 = follow_dubins<STRAIGHT>(junc_1, snd_length, 1., snd_climb, radius);
 
-    DynamicPathShape s1 = compute_params(LEFT, start, junc_1, 1., radius, fst_climb);
-    DynamicPathShape s2 = compute_params(STRAIGHT, junc_1, junc_2, 1., radius, snd_climb);
-    DynamicPathShape s3 = compute_params(RIGHT, junc_2, end, 1., radius, trd_climb);
+    DynamicPathShape s1(LEFT, start, junc_1, 1., radius, fst_climb);
+    DynamicPathShape s2(STRAIGHT, junc_1, junc_2, 1., radius, snd_climb);
+    DynamicPathShape s3(RIGHT, junc_2, end, 1., radius, trd_climb);
 
     std::vector<DynamicPathShape> output;
     if (s1.length > DubinsFleetPlanner_ZERO_TOLERANCE)
@@ -225,7 +225,7 @@ std::vector<DynamicPathShape> set_radius_LSR(const Pose3D &start, const Pose3D &
         output.push_back(s3);
     }
 
-    Pose3D computed_end = final_pose(output.back());
+    Pose3D computed_end = output.back().final_pose();
     if ((pose_dist(end, computed_end) >= tol) || (abs(pose_aligned(end, computed_end)) >= tol))
     {
         return {};
@@ -263,9 +263,9 @@ std::vector<DynamicPathShape> set_radius_RLR(const Pose3D &start, const Pose3D &
     Pose3D junc_1 = follow_dubins<RIGHT>(start, fst_length, 1., fst_climb, radius);
     Pose3D junc_2 = follow_dubins<LEFT>(junc_1, snd_length, 1., snd_climb, radius);
 
-    DynamicPathShape s1 = compute_params(RIGHT, start, junc_1, 1., radius, fst_climb);
-    DynamicPathShape s2 = compute_params(LEFT, junc_1, junc_2, 1., radius, snd_climb);
-    DynamicPathShape s3 = compute_params(RIGHT, junc_2, end, 1., radius, trd_climb);
+    DynamicPathShape s1(RIGHT, start, junc_1, 1., radius, fst_climb);
+    DynamicPathShape s2(LEFT, junc_1, junc_2, 1., radius, snd_climb);
+    DynamicPathShape s3(RIGHT, junc_2, end, 1., radius, trd_climb);
 
     std::vector<DynamicPathShape> output;
     if (s1.length > DubinsFleetPlanner_ZERO_TOLERANCE)
@@ -281,7 +281,7 @@ std::vector<DynamicPathShape> set_radius_RLR(const Pose3D &start, const Pose3D &
         output.push_back(s3);
     }
 
-    Pose3D computed_end = final_pose(output.back());
+    Pose3D computed_end = output.back().final_pose();
     if ((pose_dist(end, computed_end) >= tol) || (abs(pose_aligned(end, computed_end)) >= tol))
     {
         return {};
@@ -319,9 +319,9 @@ std::vector<DynamicPathShape> set_radius_LRL(const Pose3D &start, const Pose3D &
     Pose3D junc_1 = follow_dubins<LEFT>(start, fst_length, 1., fst_climb, radius);
     Pose3D junc_2 = follow_dubins<RIGHT>(junc_1, snd_length, 1., snd_climb, radius);
 
-    DynamicPathShape s1 = compute_params(LEFT, start, junc_1, 1., radius, fst_climb);
-    DynamicPathShape s2 = compute_params(RIGHT, junc_1, junc_2, 1., radius, snd_climb);
-    DynamicPathShape s3 = compute_params(LEFT, junc_2, end, 1., radius, trd_climb);
+    DynamicPathShape s1(LEFT, start, junc_1, 1., radius, fst_climb);
+    DynamicPathShape s2(RIGHT, junc_1, junc_2, 1., radius, snd_climb);
+    DynamicPathShape s3(LEFT, junc_2, end, 1., radius, trd_climb);
 
     std::vector<DynamicPathShape> output;
     if (s1.length > DubinsFleetPlanner_ZERO_TOLERANCE)
@@ -337,7 +337,7 @@ std::vector<DynamicPathShape> set_radius_LRL(const Pose3D &start, const Pose3D &
         output.push_back(s3);
     }
 
-    Pose3D computed_end = final_pose(output.back());
+    Pose3D computed_end = output.back().final_pose();
     if ((pose_dist(end, computed_end) >= tol) || (abs(pose_aligned(end, computed_end)) >= tol))
     {
         return {};
@@ -375,9 +375,9 @@ std::vector<DynamicPathShape> set_radius_SRS(const Pose3D &start, const Pose3D &
     Pose3D junc_1 = follow_dubins<STRAIGHT>(start, fst_length, 1., fst_climb, radius);
     Pose3D junc_2 = follow_dubins<RIGHT>(junc_1, snd_length, 1., snd_climb, radius);
 
-    DynamicPathShape s1 = compute_params(STRAIGHT, start, junc_1, 1., radius, fst_climb);
-    DynamicPathShape s2 = compute_params(RIGHT, junc_1, junc_2, 1., radius, snd_climb);
-    DynamicPathShape s3 = compute_params(STRAIGHT, junc_2, end, 1., radius, trd_climb);
+    DynamicPathShape s1(STRAIGHT, start, junc_1, 1., radius, fst_climb);
+    DynamicPathShape s2(RIGHT, junc_1, junc_2, 1., radius, snd_climb);
+    DynamicPathShape s3(STRAIGHT, junc_2, end, 1., radius, trd_climb);
 
     std::vector<DynamicPathShape> output;
     if (s1.length > DubinsFleetPlanner_ZERO_TOLERANCE)
@@ -393,7 +393,7 @@ std::vector<DynamicPathShape> set_radius_SRS(const Pose3D &start, const Pose3D &
         output.push_back(s3);
     }
 
-    Pose3D computed_end = final_pose(output.back());
+    Pose3D computed_end = output.back().final_pose();
     if ((pose_dist(end, computed_end) >= tol) || (abs(pose_aligned(end, computed_end)) >= tol))
     {
         return {};
@@ -431,9 +431,9 @@ std::vector<DynamicPathShape> set_radius_SLS(const Pose3D &start, const Pose3D &
     Pose3D junc_1 = follow_dubins<STRAIGHT>(start, fst_length, 1., fst_climb, radius);
     Pose3D junc_2 = follow_dubins<LEFT>(junc_1, snd_length, 1., snd_climb, radius);
 
-    DynamicPathShape s1 = compute_params(STRAIGHT, start, junc_1, 1., radius, fst_climb);
-    DynamicPathShape s2 = compute_params(LEFT, junc_1, junc_2, 1., radius, snd_climb);
-    DynamicPathShape s3 = compute_params(STRAIGHT, junc_2, end, 1., radius, trd_climb);
+    DynamicPathShape s1(STRAIGHT, start, junc_1, 1., radius, fst_climb);
+    DynamicPathShape s2(LEFT, junc_1, junc_2, 1., radius, snd_climb);
+    DynamicPathShape s3(STRAIGHT, junc_2, end, 1., radius, trd_climb);
 
     std::vector<DynamicPathShape> output;
     if (s1.length > DubinsFleetPlanner_ZERO_TOLERANCE)
@@ -449,7 +449,7 @@ std::vector<DynamicPathShape> set_radius_SLS(const Pose3D &start, const Pose3D &
         output.push_back(s3);
     }
 
-    Pose3D computed_end = final_pose(output.back());
+    Pose3D computed_end = output.back().final_pose();
     if ((pose_dist(end, computed_end) >= tol) || (abs(pose_aligned(end, computed_end)) >= tol))
     {
         return {};
@@ -489,9 +489,9 @@ std::vector<DynamicPathShape> set_length_LSL(const Pose3D &start, const Pose3D &
     Pose3D junc_1 = follow_dubins<LEFT>(start, fst_length, 1., fst_climb, radius);
     Pose3D junc_2 = follow_dubins<STRAIGHT>(junc_1, snd_length, 1., snd_climb, radius);
 
-    DynamicPathShape s1 = compute_params(LEFT, start, junc_1, 1., radius, fst_climb);
-    DynamicPathShape s2 = compute_params(STRAIGHT, junc_1, junc_2, 1., radius, snd_climb);
-    DynamicPathShape s3 = compute_params(LEFT, junc_2, end, 1., radius, trd_climb);
+    DynamicPathShape s1(LEFT, start, junc_1, 1., radius, fst_climb);
+    DynamicPathShape s2(STRAIGHT, junc_1, junc_2, 1., radius, snd_climb);
+    DynamicPathShape s3(LEFT, junc_2, end, 1., radius, trd_climb);
 
     std::vector<DynamicPathShape> output;
     if (s1.length > DubinsFleetPlanner_ZERO_TOLERANCE)
@@ -507,7 +507,7 @@ std::vector<DynamicPathShape> set_length_LSL(const Pose3D &start, const Pose3D &
         output.push_back(s3);
     }
 
-    Pose3D computed_end = final_pose(output.back());
+    Pose3D computed_end = output.back().final_pose();
     if ((pose_dist(end, computed_end) >= tol) || (abs(pose_aligned(end, computed_end)) >= tol))
     {
         return {};
@@ -545,9 +545,9 @@ std::vector<DynamicPathShape> set_length_RSR(const Pose3D &start, const Pose3D &
     Pose3D junc_1 = follow_dubins<RIGHT>(start, fst_length, 1., fst_climb, radius);
     Pose3D junc_2 = follow_dubins<STRAIGHT>(junc_1, snd_length, 1., snd_climb, radius);
 
-    DynamicPathShape s1 = compute_params(RIGHT, start, junc_1, 1., radius, fst_climb);
-    DynamicPathShape s2 = compute_params(STRAIGHT, junc_1, junc_2, 1., radius, snd_climb);
-    DynamicPathShape s3 = compute_params(RIGHT, junc_2, end, 1., radius, trd_climb);
+    DynamicPathShape s1(RIGHT, start, junc_1, 1., radius, fst_climb);
+    DynamicPathShape s2(STRAIGHT, junc_1, junc_2, 1., radius, snd_climb);
+    DynamicPathShape s3(RIGHT, junc_2, end, 1., radius, trd_climb);
 
     std::vector<DynamicPathShape> output;
     if (s1.length > DubinsFleetPlanner_ZERO_TOLERANCE)
@@ -563,7 +563,7 @@ std::vector<DynamicPathShape> set_length_RSR(const Pose3D &start, const Pose3D &
         output.push_back(s3);
     }
 
-    Pose3D computed_end = final_pose(output.back());
+    Pose3D computed_end = output.back().final_pose();
     if ((pose_dist(end, computed_end) >= tol) || (abs(pose_aligned(end, computed_end)) >= tol))
     {
         return {};
@@ -601,9 +601,9 @@ std::vector<DynamicPathShape> set_length_RSL(const Pose3D &start, const Pose3D &
     Pose3D junc_1 = follow_dubins<RIGHT>(start, fst_length, 1., fst_climb, radius);
     Pose3D junc_2 = follow_dubins<STRAIGHT>(junc_1, snd_length, 1., snd_climb, radius);
 
-    DynamicPathShape s1 = compute_params(RIGHT, start, junc_1, 1., radius, fst_climb);
-    DynamicPathShape s2 = compute_params(STRAIGHT, junc_1, junc_2, 1., radius, snd_climb);
-    DynamicPathShape s3 = compute_params(LEFT, junc_2, end, 1., radius, trd_climb);
+    DynamicPathShape s1(RIGHT, start, junc_1, 1., radius, fst_climb);
+    DynamicPathShape s2(STRAIGHT, junc_1, junc_2, 1., radius, snd_climb);
+    DynamicPathShape s3(LEFT, junc_2, end, 1., radius, trd_climb);
 
     std::vector<DynamicPathShape> output;
     if (s1.length > DubinsFleetPlanner_ZERO_TOLERANCE)
@@ -619,7 +619,7 @@ std::vector<DynamicPathShape> set_length_RSL(const Pose3D &start, const Pose3D &
         output.push_back(s3);
     }
 
-    Pose3D computed_end = final_pose(output.back());
+    Pose3D computed_end = output.back().final_pose();
     if ((pose_dist(end, computed_end) >= tol) || (abs(pose_aligned(end, computed_end)) >= tol))
     {
         return {};
@@ -657,9 +657,9 @@ std::vector<DynamicPathShape> set_length_LSR(const Pose3D &start, const Pose3D &
     Pose3D junc_1 = follow_dubins<LEFT>(start, fst_length, 1., fst_climb, radius);
     Pose3D junc_2 = follow_dubins<STRAIGHT>(junc_1, snd_length, 1., snd_climb, radius);
 
-    DynamicPathShape s1 = compute_params(LEFT, start, junc_1, 1., radius, fst_climb);
-    DynamicPathShape s2 = compute_params(STRAIGHT, junc_1, junc_2, 1., radius, snd_climb);
-    DynamicPathShape s3 = compute_params(RIGHT, junc_2, end, 1., radius, trd_climb);
+    DynamicPathShape s1(LEFT, start, junc_1, 1., radius, fst_climb);
+    DynamicPathShape s2(STRAIGHT, junc_1, junc_2, 1., radius, snd_climb);
+    DynamicPathShape s3(RIGHT, junc_2, end, 1., radius, trd_climb);
 
     std::vector<DynamicPathShape> output;
     if (s1.length > DubinsFleetPlanner_ZERO_TOLERANCE)
@@ -675,7 +675,7 @@ std::vector<DynamicPathShape> set_length_LSR(const Pose3D &start, const Pose3D &
         output.push_back(s3);
     }
 
-    Pose3D computed_end = final_pose(output.back());
+    Pose3D computed_end = output.back().final_pose();
     if ((pose_dist(end, computed_end) >= tol) || (abs(pose_aligned(end, computed_end)) >= tol))
     {
         return {};
@@ -713,9 +713,9 @@ std::vector<DynamicPathShape> set_length_RLR(const Pose3D &start, const Pose3D &
     Pose3D junc_1 = follow_dubins<RIGHT>(start, fst_length, 1., fst_climb, radius);
     Pose3D junc_2 = follow_dubins<LEFT>(junc_1, snd_length, 1., snd_climb, radius);
 
-    DynamicPathShape s1 = compute_params(RIGHT, start, junc_1, 1., radius, fst_climb);
-    DynamicPathShape s2 = compute_params(LEFT, junc_1, junc_2, 1., radius, snd_climb);
-    DynamicPathShape s3 = compute_params(RIGHT, junc_2, end, 1., radius, trd_climb);
+    DynamicPathShape s1(RIGHT, start, junc_1, 1., radius, fst_climb);
+    DynamicPathShape s2(LEFT, junc_1, junc_2, 1., radius, snd_climb);
+    DynamicPathShape s3(RIGHT, junc_2, end, 1., radius, trd_climb);
 
     std::vector<DynamicPathShape> output;
     if (s1.length > DubinsFleetPlanner_ZERO_TOLERANCE)
@@ -731,7 +731,7 @@ std::vector<DynamicPathShape> set_length_RLR(const Pose3D &start, const Pose3D &
         output.push_back(s3);
     }
 
-    Pose3D computed_end = final_pose(output.back());
+    Pose3D computed_end = output.back().final_pose();
     if ((pose_dist(end, computed_end) >= tol) || (abs(pose_aligned(end, computed_end)) >= tol))
     {
         return {};
@@ -769,9 +769,9 @@ std::vector<DynamicPathShape> set_length_LRL(const Pose3D &start, const Pose3D &
     Pose3D junc_1 = follow_dubins<LEFT>(start, fst_length, 1., fst_climb, radius);
     Pose3D junc_2 = follow_dubins<RIGHT>(junc_1, snd_length, 1., snd_climb, radius);
 
-    DynamicPathShape s1 = compute_params(LEFT, start, junc_1, 1., radius, fst_climb);
-    DynamicPathShape s2 = compute_params(RIGHT, junc_1, junc_2, 1., radius, snd_climb);
-    DynamicPathShape s3 = compute_params(LEFT, junc_2, end, 1., radius, trd_climb);
+    DynamicPathShape s1(LEFT, start, junc_1, 1., radius, fst_climb);
+    DynamicPathShape s2(RIGHT, junc_1, junc_2, 1., radius, snd_climb);
+    DynamicPathShape s3(LEFT, junc_2, end, 1., radius, trd_climb);
 
     std::vector<DynamicPathShape> output;
     if (s1.length > DubinsFleetPlanner_ZERO_TOLERANCE)
@@ -787,7 +787,7 @@ std::vector<DynamicPathShape> set_length_LRL(const Pose3D &start, const Pose3D &
         output.push_back(s3);
     }
 
-    Pose3D computed_end = final_pose(output.back());
+    Pose3D computed_end = output.back().final_pose();
     if ((pose_dist(end, computed_end) >= tol) || (abs(pose_aligned(end, computed_end)) >= tol))
     {
         return {};
@@ -825,9 +825,9 @@ std::vector<DynamicPathShape> set_length_SRS(const Pose3D &start, const Pose3D &
     Pose3D junc_1 = follow_dubins<STRAIGHT>(start, fst_length, 1., fst_climb, radius);
     Pose3D junc_2 = follow_dubins<RIGHT>(junc_1, snd_length, 1., snd_climb, radius);
 
-    DynamicPathShape s1 = compute_params(STRAIGHT, start, junc_1, 1., radius, fst_climb);
-    DynamicPathShape s2 = compute_params(RIGHT, junc_1, junc_2, 1., radius, snd_climb);
-    DynamicPathShape s3 = compute_params(STRAIGHT, junc_2, end, 1., radius, trd_climb);
+    DynamicPathShape s1(STRAIGHT, start, junc_1, 1., radius, fst_climb);
+    DynamicPathShape s2(RIGHT, junc_1, junc_2, 1., radius, snd_climb);
+    DynamicPathShape s3(STRAIGHT, junc_2, end, 1., radius, trd_climb);
 
     std::vector<DynamicPathShape> output;
     if (s1.length > DubinsFleetPlanner_ZERO_TOLERANCE)
@@ -843,7 +843,7 @@ std::vector<DynamicPathShape> set_length_SRS(const Pose3D &start, const Pose3D &
         output.push_back(s3);
     }
 
-    Pose3D computed_end = final_pose(output.back());
+    Pose3D computed_end = output.back().final_pose();
     if ((pose_dist(end, computed_end) >= tol) || (abs(pose_aligned(end, computed_end)) >= tol))
     {
         return {};
@@ -881,9 +881,9 @@ std::vector<DynamicPathShape> set_length_SLS(const Pose3D &start, const Pose3D &
     Pose3D junc_1 = follow_dubins<STRAIGHT>(start, fst_length, 1., fst_climb, radius);
     Pose3D junc_2 = follow_dubins<LEFT>(junc_1, snd_length, 1., snd_climb, radius);
 
-    DynamicPathShape s1 = compute_params(STRAIGHT, start, junc_1, 1., radius, fst_climb);
-    DynamicPathShape s2 = compute_params(LEFT, junc_1, junc_2, 1., radius, snd_climb);
-    DynamicPathShape s3 = compute_params(STRAIGHT, junc_2, end, 1., radius, trd_climb);
+    DynamicPathShape s1(STRAIGHT, start, junc_1, 1., radius, fst_climb);
+    DynamicPathShape s2(LEFT, junc_1, junc_2, 1., radius, snd_climb);
+    DynamicPathShape s3(STRAIGHT, junc_2, end, 1., radius, trd_climb);
 
     std::vector<DynamicPathShape> output;
     if (s1.length > DubinsFleetPlanner_ZERO_TOLERANCE)
@@ -899,7 +899,7 @@ std::vector<DynamicPathShape> set_length_SLS(const Pose3D &start, const Pose3D &
         output.push_back(s3);
     }
 
-    Pose3D computed_end = final_pose(output.back());
+    Pose3D computed_end = output.back().final_pose();
     if ((pose_dist(end, computed_end) >= tol) || (abs(pose_aligned(end, computed_end)) >= tol))
     {
         return {};

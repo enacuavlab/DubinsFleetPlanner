@@ -73,15 +73,15 @@ protected:
             junctions_locs.push_back(curr_len);
             if (s.m == STRAIGHT)
             {
-                p = follow_dubins<STRAIGHT>(p, s.length, 1., s.p3 / path_planar_speed(s), s.p1);
+                p = follow_dubins<STRAIGHT>(p, s.length, 1., s.p3 / s.planar_speed(), s.p1);
             }
             else if (s.m == LEFT)
             {
-                p = follow_dubins<LEFT>(p, s.length, 1., s.p3 / path_planar_speed(s), s.p1);
+                p = follow_dubins<LEFT>(p, s.length, 1., s.p3 / s.planar_speed(), s.p1);
             }
             else if (s.m == RIGHT)
             {
-                p = follow_dubins<RIGHT>(p, s.length, 1., s.p3 / path_planar_speed(s), s.p1);
+                p = follow_dubins<RIGHT>(p, s.length, 1., s.p3 / s.planar_speed(), s.p1);
             }
             else
             {
@@ -149,11 +149,11 @@ public:
     {
         recompute();
 #if defined(DubinsFleetPlanner_ASSERTIONS) && DubinsFleetPlanner_ASSERTIONS > 0
-        assert(pose_dist(initial_pose(_sections.front()), _start) < DubinsFleetPlanner_PRECISION);
-        assert(pose_dist(final_pose(_sections.back()), _end) < DubinsFleetPlanner_PRECISION);
+        assert(pose_dist(_sections.front().initial_pose(), _start) < DubinsFleetPlanner_PRECISION);
+        assert(pose_dist(_sections.back().final_pose(), _end) < DubinsFleetPlanner_PRECISION);
 
-        assert(abs(pose_aligned(initial_pose(_sections.front()), _start)) < DubinsFleetPlanner_PRECISION);
-        assert(abs(pose_aligned(final_pose(_sections.back()), _end)) < DubinsFleetPlanner_PRECISION);
+        assert(abs(pose_aligned(_sections.front().initial_pose(), _start)) < DubinsFleetPlanner_PRECISION);
+        assert(abs(pose_aligned(_sections.back().final_pose(), _end)) < DubinsFleetPlanner_PRECISION);
 #endif
     }
 
@@ -165,6 +165,42 @@ public:
     double get_length() const { return length; }
     double get_duration(double speed) const { return length / speed; }
     bool is_valid() const { return valid; }
+
+    /**
+     * @brief Return the length spent in turns in this path.
+     * 
+     * It is strictly equal to the total length minus the length of straits
+     * 
+     * @return double 
+     */
+    double turning_length() const
+    {
+        double output = 0.;
+        for(const DynamicPathShape& s : sections)
+        {
+            if (s.is_turning())
+            {
+                output += s.length;
+            }
+        }
+        return output;
+    }
+
+    /**
+     * @brief Return the sum of absolute values of the changes in angle along this path.
+     * This can be seen as "How much turning are we doing along this path" 
+     * 
+     * @return double 
+     */
+    double turning_angle() const
+    {
+        double output = 0.;
+        for(const DynamicPathShape& s : sections)
+        {
+            output += s.turning_angle();
+        }
+        return output;
+    }
 
     /**
      * @brief Get an abridged description of the path by using its components types
@@ -186,7 +222,7 @@ public:
      *
      * @return const std::vector<DubinsMove>
      */
-    const std::vector<DubinsMove> get_all_section_types() const
+    std::vector<DubinsMove> get_all_section_types() const
     {
         std::vector<DubinsMove> output;
         for (const DynamicPathShape &s : sections)
@@ -196,9 +232,19 @@ public:
         return output;
     }
 
+    /**
+     * @brief Get the underlying section list
+     * 
+     * @return const std::vector<DynamicPathShape>& 
+     */
     const std::vector<DynamicPathShape> &get_all_sections() const
     {
         return sections;
+    }
+
+    size_t section_count() const
+    {
+        return sections.size();
     }
 
     /**
@@ -231,15 +277,15 @@ public:
         DynamicPathShape s = sections[i];
         if (s.m == STRAIGHT)
         {
-            return follow_dubins<STRAIGHT>(p, len, 1., s.p3 / path_planar_speed(s), s.p1);
+            return follow_dubins<STRAIGHT>(p, len, 1., s.p3 / s.planar_speed(), s.p1);
         }
         else if (s.m == LEFT)
         {
-            return follow_dubins<LEFT>(p, len, 1., s.p3 / path_planar_speed(s), s.p1);
+            return follow_dubins<LEFT>(p, len, 1., s.p3 / s.planar_speed(), s.p1);
         }
         else if (s.m == RIGHT)
         {
-            return follow_dubins<RIGHT>(p, len, 1., s.p3 / path_planar_speed(s), s.p1);
+            return follow_dubins<RIGHT>(p, len, 1., s.p3 / s.planar_speed(), s.p1);
         }
         else
         {
@@ -306,15 +352,15 @@ public:
                 DynamicPathShape s = sections[i];
                 if (s.m == STRAIGHT)
                 {
-                    output.push_back(follow_dubins<STRAIGHT>(p, len, 1., s.p3 / path_planar_speed(s), s.p1));
+                    output.push_back(follow_dubins<STRAIGHT>(p, len, 1., s.p3 / s.planar_speed(), s.p1));
                 }
                 else if (s.m == LEFT)
                 {
-                    output.push_back(follow_dubins<LEFT>(p, len, 1., s.p3 / path_planar_speed(s), s.p1));
+                    output.push_back(follow_dubins<LEFT>(p, len, 1., s.p3 / s.planar_speed(), s.p1));
                 }
                 else if (s.m == RIGHT)
                 {
-                    output.push_back(follow_dubins<RIGHT>(p, len, 1., s.p3 / path_planar_speed(s), s.p1));
+                    output.push_back(follow_dubins<RIGHT>(p, len, 1., s.p3 / s.planar_speed(), s.p1));
                 }
                 else
                 {

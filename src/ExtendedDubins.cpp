@@ -26,8 +26,8 @@ std::vector<DynamicPathShape> generate_line_extended_pathshapes(
     Pose3D shifted_start = move_straight(start,start_len,1.,0.);
     Pose3D shifted_end = move_straight(end,-end_len,1.,0.);
 
-    DynamicPathShape start_shape = compute_params(STRAIGHT,start,start_len,1.,turn_radius,0.);
-    DynamicPathShape end_shape = compute_params(STRAIGHT,shifted_end,end_len,1.,turn_radius,0.);
+    DynamicPathShape start_shape(STRAIGHT,start,start_len,1.,turn_radius,0.);
+    DynamicPathShape end_shape(STRAIGHT,shifted_end,end_len,1.,turn_radius,0.);
 
     std::vector<DynamicPathShape> midshapes = generator_function(shifted_start,shifted_end,turn_radius,tol);
 

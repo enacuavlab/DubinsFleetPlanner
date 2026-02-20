@@ -140,11 +140,8 @@ std::vector<RichConflict_T> generic_parallel_compute_distances(
     const std::vector<AircraftStats>& stats, double sep,
     const Conflict_Map_T& map, bool all_values);
 
-
-// TODO: Compute the full matrix of separations, in order to find the best global separation
-
 /**
- * @brief Generate a base Highs model for our path finding problem
+ * @brief Solve the path finding problem using HiGHS ILP solver
  * 
  * We denote N the number of aircraft and P the number of paths per aircraft.
  * The decisions variables are the x_{ik} with 0 <= i < N and 0 <= p < P describing
@@ -164,23 +161,12 @@ std::vector<RichConflict_T> generic_parallel_compute_distances(
  *     Forall i,j and forall p,q M_{ijpq} * (x_{ip} + x_{jq}) <= 1
  *   (Note: the indices are flattened, assuming all aircraft have the same number of possible paths)
  * 
- * @param highs HiGHS instance to setup
- * @param AC_count Number of aircraft
- * @param max_paths_count Maximum number of possible paths per aircraft
- * @param verbosity Enable/Disable logging from HiGHS library (logging enabled for verbosity >= DubinsFleetPlanner_VERY_VERBOSE)
- * @return Highs A preconfigured model
- */
-void setup_base_model(Highs* highs, uint AC_count, uint max_paths_count, int verbosity=DubinsFleetPlanner_VERBOSE);
-
-/**
- * @brief Solve the path finding problem using HiGHS ILP solver
- * 
  * @param possibilites  List of possibles paths per aircraft
  * @param stats         Caracteristics of each aircraft
  * @param conflicts     List of conflicts (paths that cannot be taken together)
  * @param max_path_num  Maximum number of paths for an aircraft
  * @param THREADS       Number of threads to use. 0 choose automatically. Default to 0
- * @param length_based_costs    If true, the cost of each path is the time taken to realize it. Thus the objective becomes minimizing the sum of times.
+ * @param duration_based_costs  If true, the cost of each path is the time taken to realize it. Thus the objective becomes minimizing the sum of times.
  *                              If false, costs are all set to 1.
  * @param preset_model  A preset HiGHS model to quickly setup
  * @return std::vector<Dubins>

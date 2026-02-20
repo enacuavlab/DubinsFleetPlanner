@@ -220,8 +220,8 @@ std::pair<double,double> compute_XY_separation(
     // Degenerate case: negligible duration -> move to point-point distance
     if (duration < tol)
     {
-        Pose3D p1_start = initial_pose(p1);
-        Pose3D p2_start = initial_pose(p2);
+        Pose3D p2_start = p2.initial_pose();
+        Pose3D p1_start = p1.initial_pose();
 
         output.first = duration/2.;
         output.second = pose_dist_XY(p1_start,p2_start);
@@ -418,11 +418,11 @@ std::pair<double,double> Dubins::XY_distance_to(const Dubins& other, double this
         std::vector<Pose3D> curr_poses  = this->get_positions(times,this_speed,true);
         std::vector<Pose3D> other_poses = other.get_positions(times,other_speed,true);
 
-        DynamicPathShape curr_shape  = compute_params(curr_ref_shape.m,
-            curr_poses.front(),curr_poses.back(),this_speed,curr_ref_shape.p1,curr_ref_shape.p3);
+        DynamicPathShape curr_shape(curr_ref_shape.m,curr_poses.front(),curr_poses.back(),
+            this_speed,curr_ref_shape.p1,curr_ref_shape.p3);
 
-        DynamicPathShape other_shape = compute_params(other_ref_shape.m,
-            other_poses.front(),other_poses.back(),other_speed,other_ref_shape.p1,other_ref_shape.p3);
+        DynamicPathShape other_shape(other_ref_shape.m,other_poses.front(),other_poses.back(),
+            other_speed,other_ref_shape.p1,other_ref_shape.p3);
 
         std::pair<double,double> current_sep = compute_XY_separation(curr_shape,other_shape,duration,min_dist,tol,rec);
 
@@ -473,11 +473,11 @@ std::pair<double,double> Dubins::XY_distance_to(const Dubins& other, double this
         const DynamicPathShape& curr_ref_shape = sections[curr_sec_index];
         const DynamicPathShape& other_ref_shape = other.sections[other_sec_index];
 
-        DynamicPathShape curr_shape  = compute_params(curr_ref_shape.m,
-            curr_poses[i], curr_poses[i+1], this_speed, curr_ref_shape.p1, curr_ref_shape.p3);
+        DynamicPathShape curr_shape(curr_ref_shape.m,curr_poses[i], curr_poses[i+1],
+            this_speed, curr_ref_shape.p1, curr_ref_shape.p3);
 
-        DynamicPathShape other_shape = compute_params(other_ref_shape.m,
-            other_poses[i], other_poses[i+1], other_speed, other_ref_shape.p1, other_ref_shape.p3);
+        DynamicPathShape other_shape(other_ref_shape.m,other_poses[i], other_poses[i+1],
+            other_speed, other_ref_shape.p1, other_ref_shape.p3);
 
         std::pair<double,double> current_sep = compute_XY_separation(curr_shape,other_shape,(timepoints[i+1] - timepoints[i]),min_dist,tol,rec);
 
@@ -522,11 +522,11 @@ bool Dubins::is_XY_separated_from(const Dubins& other, double this_speed, double
         std::vector<Pose3D> curr_poses  = this->get_positions(times,this_speed,true);
         std::vector<Pose3D> other_poses = other.get_positions(times,other_speed,true);
 
-        DynamicPathShape curr_shape  = compute_params(curr_ref_shape.m,
-            curr_poses.front(),curr_poses.back(),this_speed,curr_ref_shape.p1,curr_ref_shape.p3);
+        DynamicPathShape curr_shape(curr_ref_shape.m,curr_poses.front(),curr_poses.back(),
+            this_speed,curr_ref_shape.p1,curr_ref_shape.p3);
         
-        DynamicPathShape other_shape = compute_params(other_ref_shape.m,
-            other_poses.front(),other_poses.back(),other_speed,other_ref_shape.p1,other_ref_shape.p3);
+        DynamicPathShape other_shape(other_ref_shape.m,other_poses.front(),other_poses.back(),
+            other_speed,other_ref_shape.p1,other_ref_shape.p3);
 
         std::pair<double,double> current_sep = compute_XY_separation(curr_shape,other_shape,duration,min_dist,tol,rec);
 
@@ -573,11 +573,11 @@ bool Dubins::is_XY_separated_from(const Dubins& other, double this_speed, double
         const DynamicPathShape& curr_ref_shape = sections[curr_sec_index];
         const DynamicPathShape& other_ref_shape = other.sections[other_sec_index];
 
-        DynamicPathShape curr_shape  = compute_params(curr_ref_shape.m,
-            curr_poses[i], curr_poses[i+1], this_speed, curr_ref_shape.p1, curr_ref_shape.p3);
+        DynamicPathShape curr_shape(curr_ref_shape.m,curr_poses[i], curr_poses[i+1],
+            this_speed, curr_ref_shape.p1, curr_ref_shape.p3);
 
-        DynamicPathShape other_shape = compute_params(other_ref_shape.m,
-            other_poses[i], other_poses[i+1], other_speed, other_ref_shape.p1, other_ref_shape.p3);
+        DynamicPathShape other_shape(other_ref_shape.m,other_poses[i], other_poses[i+1],
+            other_speed, other_ref_shape.p1, other_ref_shape.p3);
 
         std::pair<double,double> current_sep = compute_XY_separation(curr_shape,other_shape,(timepoints[i+1] - timepoints[i]),min_dist,tol,rec);
 
