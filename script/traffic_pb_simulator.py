@@ -29,10 +29,13 @@ from Dubins import Path,BasicPath,FleetPlan,DubinsMove,Pose2D,Pose3D
 from pyproj import Geod,Transformer
 
 
-from traffic_pb_generator import FlightEndpoints,LatlonPose,extract_flight_endpoints,flight_landing,NM_TO_METERS
+from traffic_pb_generator import FlightEndpoints,LatlonPose,extract_flight_endpoints,flight_landing,NM_TO_METERS,get_other_runway_name,get_runway
 from ioUtils import print_FleetPlan_to_JSON,parse_trajectories_from_JSON
 
-from plotting import plot_pose2d_sequence,transpose_list_of_trajectories
+from plotting import plot_pose2d_sequence,transpose_list_of_trajectories,min_XY_dist
+
+
+
 #################### Ongoing flights simulator ####################
 
 
@@ -97,21 +100,24 @@ class ArrivalsSimulator:
     wind_y:float        = 0. # Overriden by the values in `flying` if it is defined
     scheduled:typing.Optional[FleetPlan] = None
     schedule_counters:dict[int,int]   = dataclasses.field(init=False) # Dict from AC id to number of reschedulings
+    line_buffersize:int = 20 # Number of past points kept in visualisation
     
     __last_global_schedule:pd.Timestamp     = dataclasses.field(init=False)
     __last_schedules:dict[int,pd.Timestamp] = dataclasses.field(init=False)
     __task_index:dict[int,int]    = dataclasses.field(init=False) # Reverse accessor from Aircraft ID to tasklist index
     __t:pd.Timestamp              = dataclasses.field(init=False)
     __end_of_times:pd.Timestamp   = dataclasses.field(init=False)
-    __encountered_exception:typing.Optional[Exception] = dataclasses.field(init=False)
+    __encountered_exception:typing.Optional[Exception] = dataclasses.field(default=None,init=False)
     
-    __axes:typing.Optional[Axes]    = dataclasses.field(init=False)
-    __line_dict:dict[int,Line2D]    = dataclasses.field(init=False)
-    __traj_dict:dict[int,Line2D]    = dataclasses.field(init=False)
-    __quiver_dict:dict[int,Quiver]  = dataclasses.field(init=False)
-    __dest_dict:dict[tuple[str,str],Line2D]    = dataclasses.field(init=False)
-    __color_dict:dict[int,Colortype]= dataclasses.field(init=False)
-    __label_dict:dict[int,Text]     = dataclasses.field(init=False)
+    __axes:typing.Optional[Axes]    = dataclasses.field(default=None,init=False)
+    __line_dict:dict[int,Line2D]    = dataclasses.field(default_factory=dict,init=False)
+    __pos_dict:dict[int,Line2D]     = dataclasses.field(default_factory=dict,init=False)
+    __traj_dict:dict[int,Line2D]    = dataclasses.field(default_factory=dict,init=False)
+    __quiver_dict:dict[int,Quiver]  = dataclasses.field(default_factory=dict,init=False)
+    __dest_dict:dict[tuple[str,str],Line2D]    = dataclasses.field(default_factory=dict,init=False)
+    __color_dict:dict[int,Colortype]= dataclasses.field(default_factory=dict,init=False)
+    __label_dict:dict[int,Text]     = dataclasses.field(default_factory=dict,init=False)
+    __min_dist_line:typing.Optional[Line2D] = dataclasses.field(default=None,init=False)
     
     def __post_init__(self):
         self.schedule_counters = dict()
@@ -138,12 +144,8 @@ class ArrivalsSimulator:
     
     def attach_axes(self,ax:Axes,set_xylims:bool=True):
         self.__axes = ax
-        self.__line_dict = dict()
-        self.__traj_dict = dict()
-        self.__quiver_dict = dict()
-        self.__dest_dict = dict()
-        self.__color_dict = dict()
-        self.__label_dict = dict()
+        self.__min_dist_line = ax.plot([],[],marker='D',linestyle=':',label=f"Min distance (-,-) : - NM",
+                                       markeredgecolor='r',color='k')[0]
         
         # Setting up colors by destination
         icao_rw_colordict = dict()
@@ -186,9 +188,16 @@ class ArrivalsSimulator:
                 color = self.__color_dict[t.id]
                 
                 if (t.dest_ICAO,t.dest_runway) not in self.__dest_dict:
+                    
+                    rw_1 = get_runway(t.dest_ICAO,t.dest_runway)
+                    rw_2 = get_runway(t.dest_ICAO,get_other_runway_name(t.dest_runway))
+                    
+                    proj1 = self.transformer.transform(rw_1.latitude,rw_1.longitude)
+                    proj2 = self.transformer.transform(rw_2.latitude,rw_2.longitude)
+                    
                     dest_line = self.__axes.plot(
-                        [end_p.x,end_proj.x],[end_p.y,end_proj.y],
-                        linestyle='-.',
+                        [proj1[0]/NM_TO_METERS,proj2[0]/NM_TO_METERS],[proj1[1]/NM_TO_METERS,proj2[1]/NM_TO_METERS],
+                        linestyle='-',
                         alpha=0.5,
                         color=color,
                         label=f"{t.dest_ICAO} : {t.dest_runway}"
@@ -282,28 +291,38 @@ class ArrivalsSimulator:
         self.__t = new_t
         # print(f"Set time to {new_t}")
         
-        if self.__axes is not None:
+        if self.__axes is not None:            
             for s,p in output:
                 id = s.id
                 try:
                     line = self.__line_dict[id]
                     xs = np.append(line.get_xdata(),p.x)
                     ys = np.append(line.get_ydata(),p.y)
-                    line.set_xdata(xs)
-                    line.set_ydata(ys)
+                    line.set_xdata(xs[-self.line_buffersize:])
+                    line.set_ydata(ys[-self.line_buffersize:])
                 except KeyError:
                     xs = [p.x]
                     ys = [p.y]
                     color = self.__color_dict[id]
-                    line = self.__axes.plot(xs,ys,alpha=0.5,marker='+',color=color)[0]
+                    line = self.__axes.plot(xs,ys,alpha=0.2,marker=',',color=color)[0]
                 self.__line_dict[id] = line
                 color = line.get_color()
+                
+                try:
+                    endpoint = self.__pos_dict[id]
+                except KeyError:
+                    endpoint = self.__axes.plot([p.x],[p.y],marker='^',markerfacecolor=(0,0,0,0),markeredgecolor=color)[0]
+                    self.__pos_dict[id] = endpoint
+                
+                endpoint.set_xdata([p.x])
+                endpoint.set_ydata([p.y])
                 
                 
                 try:
                     quiver = self.__quiver_dict[id]
                 except KeyError:
-                    quiver = self.__axes.quiver([p.x],[p.y],[np.cos(p.theta)],[np.sin(p.theta)],angles='xy',pivot='middle',color=color)
+                    quiver = self.__axes.quiver([p.x],[p.y],[np.cos(p.theta)*s.airspeed],[np.sin(p.theta)*s.airspeed],angles='xy',pivot='tail',color=color,
+                                                headwidth=0,headlength=0,headaxislength=0,width=0.002)
                 quiver.set_offsets([p.x,p.y])
                 quiver.set_UVC([np.cos(p.theta)],[np.sin(p.theta)])
                 self.__quiver_dict[id] = quiver
@@ -316,7 +335,25 @@ class ArrivalsSimulator:
                     self.__label_dict[id] = text
                 text.set_position((p.x,p.y))
                 t = self.tasklist[self.__task_index[id]]
-                text.set_text(f"{id}: T -{(t.end_time-new_t).total_seconds()/60:.1f} min")
+                text.set_text(f"  {id}: T -{(t.end_time-new_t).total_seconds()/60:.1f} min")
+                
+            
+            if self.__min_dist_line is not None:
+                min_dist, index1, index2 = min_XY_dist(list(p for _,p in output))
+                stat1,p1 = output[index1]
+                stat2,p2 = output[index2]
+                
+                label=f"Min distance ({stat1.id},{stat2.id}) : {min_dist:.2f} NM"
+                
+                self.__min_dist_line.set_xdata([p1.x,p2.x])
+                self.__min_dist_line.set_ydata([p1.y,p2.y])
+                self.__min_dist_line.set_label(label)
+                
+                self.__axes.legend(*self.__axes.get_legend_handles_labels())
+                
+                
+                
+            
                 
         
         # Compute which aircraft can be rescheduled
@@ -426,12 +463,6 @@ class ArrivalsSimulator:
                 
                 
         if self.__axes is not None:
-            # to_legend = []
-            # for l in self.__line_dict.values():
-            #     if l.get_visible():
-            #         to_legend.append(l)
-                    
-            # self.__axes.legend(handles=to_legend)
             self.__axes.set_title(str(new_t))
             plt.pause(0.1)
             
@@ -465,8 +496,8 @@ class ArrivalsSimulator:
             
             poss = self.step(timestep,reschedule_threshold,final_time,do_schedule,threads)
             log.append((self.__t,poss))
-            if self.__encountered_exception is not None:
-                break
+            # if self.__encountered_exception is not None:
+                # break
             
         return log
 
@@ -491,7 +522,7 @@ def main():
     )
     parser.add_argument('solver',help='Location of the DubinsFleetPlanner solver')
     
-    parser.add_argument('-d','--mdist',type=float,help='Minimal distance separating aircraft, in NM. Default to 3.',default=3)
+    parser.add_argument('-d','--mdist',type=float,help='Minimal distance separating aircraft, in NM. Default to 4.',default=4)
     parser.add_argument('-v','--speed',type=float,help='Nominal speed for aircraft, in knots. Default to 250.',default=250)
     parser.add_argument('-r','--turn-radius',dest='turn_radius',
         type=float, help='Minimal turn radius for all aircraft. Default to 1.33 NM (full turn in 2 minutes at 250 kt)',default=1.33)
