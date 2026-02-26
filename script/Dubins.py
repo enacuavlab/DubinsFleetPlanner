@@ -80,7 +80,7 @@ def poses_dist(p1:Pose3D,p2:Pose3D) -> float:
     
     return np.sqrt(dx*dx + dy*dy + dz*dz + dvx*dvx + dvy*dvy)
 
-def poses_XY_dist(p1:Pose3D,p2:Pose3D) -> float:
+def poses_XY_dist(p1:Pose3D|Pose2D,p2:Pose3D|Pose2D) -> float:
     dx = p1.x - p2.x
     dy = p1.y - p2.y
     return np.sqrt(dx*dx+dy*dy)
@@ -481,6 +481,32 @@ class Path:
         else:
             return self.sections[section_id].pose_at(time)
         
+    def poses_at(self,ts:np.ndarray) -> list[Pose3D]:
+        # Check ts is sorted
+        assert np.all(ts[:-1] <= ts[1:])
+        
+        section_id = 0
+        output = []
+        prev_sections_time = 0
+        
+        for time in ts:
+            if time > self.duration():
+                return output
+            
+            while section_id < len(self.junctions) and time > self.junctions[section_id]:
+                prev_sections_time += self.sections[section_id].duration()
+                section_id += 1
+            
+            if (section_id >= len(self.junctions)):
+                output.append(self.sections[-1].pose_at(time-prev_sections_time))
+            else:
+                output.append(self.sections[section_id].pose_at(time-prev_sections_time))
+                
+        return output
+        
+    def sample(self,num:int) -> list[Pose3D]:
+        assert num > 0
+        return self.poses_at(np.linspace(0,self.duration(),num))
     
     def asdict(self) -> dict[str,typing.Any]:
         output = asdict(self)
