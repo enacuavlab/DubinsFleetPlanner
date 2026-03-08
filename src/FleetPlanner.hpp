@@ -671,6 +671,56 @@ protected:
         return output;
     }
 
+    /**
+     * @brief List all possible paths for a fleet given their arrival times, but allow aircraft to reach any arrival point.
+     * 
+     * Two aircraft will never be able to select the same arrival point, since arriving simultaneously will
+     * create a collision.
+     * 
+     * @param starts    Starting poses
+     * @param ends      Ending poses (ground referential)
+     * @param stats     Aircraft statistics
+     * @param times     Time of arrival for each aircraft
+     * @param wind_x    Wind, X component
+     * @param wind_y    Wind, Y component
+     * @return ListOfPossibilities List of possible paths per aircraft
+     */
+    ListOfPossibilities list_all_possibilities_with_reallocation(
+        const std::vector<Pose3D>& starts, const std::vector<Pose3D>& ends,
+        const std::vector<AircraftStats>& stats, const std::vector<double>& times, double wind_x, double wind_y) const
+    {
+#if defined(DubinsFleetPlanner_ASSERTIONS) && DubinsFleetPlanner_ASSERTIONS > 0
+        assert(starts.size() <= ends.size());
+        assert(starts.size() == stats.size());
+        assert(starts.size() == timeslots.size());
+#endif
+        uint N = starts.size();
+
+        ListOfPossibilities output(N);
+
+        for(uint i = 0; i < N; i++)
+        {
+            double target_time = times[i];
+            for(Pose3D end : ends)
+            {
+                // Modify target according to estimated travel time
+                end.x -= target_time*wind_x;
+                end.y -= target_time*wind_y;
+                double target_len = target_time*stats[i].airspeed;
+
+                // Add possibilities to aircraft i
+                auto possibilities = generate_possible_paths(starts[i],end,stats[i],target_len);
+
+                output[i].insert(output[i].end(),
+                    std::make_move_iterator(possibilities.begin()),
+                    std::make_move_iterator(possibilities.end()));
+                
+            }
+        }
+
+        return output;
+    }
+
 
 public:
     int verbosity;
@@ -699,6 +749,7 @@ public:
      * @param times     Target time for each aircraft
      * @param wind_x    X component of the wind vector. Default to no wind.
      * @param wind_y    Y component of the wind vector. Default to no wind.
+     * @param reallocate If true, allow aircraft to swap endpoints. Default to false.
      * @param threads   Number of threads to use for solving. 
      *                      If nonpositive, disable threading
      *                      If 1, set the number of threads to std::thread::hardware_concurrency()
@@ -715,6 +766,7 @@ public:
         const std::vector<AircraftStats>& stats, double min_sep,
         const std::vector<double>& times,
         double wind_x = 0., double wind_y = 0.,
+        bool reallocate = false,
         int threads = 0,
         const std::vector<Dubins>& obstacle_paths = {}, const std::vector<AircraftStats>& obstacle_stats = {}
     ) const
@@ -750,7 +802,15 @@ public:
         }
 #endif
 
-        ListOfPossibilities possibilities = list_all_possibilities(starts,ends,stats,times,wind_x,wind_y);
+        ListOfPossibilities possibilities;
+        if (reallocate)
+        {
+            possibilities = list_all_possibilities_with_reallocation(starts,ends,stats,times,wind_x,wind_y);
+        }
+        else
+        {
+            possibilities = list_all_possibilities(starts,ends,stats,times,wind_x,wind_y);
+        }
 
         filter_colliding_paths<distance_function>(possibilities,stats,obstacle_paths,obstacle_stats,min_sep);
 
@@ -762,7 +822,13 @@ public:
         {
             if (threads > 1)
             {
-                sol = find_solution_parallel<separation_function,distance_function>(possibilities,stats,min_sep,max_path_num(),threads,
+                uint max_p_num = max_path_num();
+                if (reallocate)
+                {
+                    max_p_num *= ends.size();
+                }
+                
+                sol = find_solution_parallel<separation_function,distance_function>(possibilities,stats,min_sep,max_p_num,threads,
                     false,
                     verbosity >= DubinsFleetPlanner_VERY_VERBOSE,
                     *times.begin());
@@ -809,6 +875,7 @@ public:
      * @param delta_t       Wanted time separation between arrivals.
      * @param wind_x        X component of the wind vector. Default to no wind.
      * @param wind_y        Y component of the wind vector. Default to no wind.
+     * @param reallocate If true, allow aircraft to swap endpoints. Default to false.
      * @param max_iters     Maximal number of iterations before aborting research. Default to 300
      * @param weave_iters   Number of iterations to add between two failed samples. Default to 2
      * @param min_weave_delta   Minimal value between two iterations for weaving between them. Default to 1.
@@ -827,6 +894,7 @@ public:
         const std::vector<AircraftStats>& stats, double min_sep,
         const std::vector<double>& delta_t,
         double wind_x = 0., double wind_y = 0.,
+        bool reallocate = false,
         uint max_iters = 300, uint weave_iters = 2,
         double min_weave_delta =1., double min_weave_frac =0.0001,
         int threads = -1,
@@ -954,6 +1022,7 @@ public:
                 stats,
                 min_sep,times,
                 wind_x,wind_y,
+                reallocate,
                 threads,
                 obstacle_paths,obstacle_stats);
 

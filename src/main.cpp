@@ -69,6 +69,7 @@ struct program_arguments
     string out_pathname;
     double separation;
     double wind_x,wind_y;
+    bool reallocate;
     vector<double> start_length_extensions,end_length_extensions;
     int thread_num;
     int max_iters,weave_iters;
@@ -111,6 +112,9 @@ bool process_command_line(int argc, char* argv[], program_arguments& parsed_args
     
     ("wind-y"       , po::value<double>(&parsed_args.wind_y)->default_value(0.)
                     ,"Positional. Wind speed along the Y axis. Default to 0.")
+
+    ("reallocate,A" , po::bool_switch(&parsed_args.reallocate)->default_value(false)
+                    , "Flag. If set, allows aircraft to switch endpoints.")
     
     ("samples,s"    , po::value<int>(&parsed_args.samples)->default_value(1000)
                     ,"Number of samples for display and/or exporting to CSV. Default to 1000.")   
@@ -394,8 +398,14 @@ std::tuple<int,std::vector<Dubins>,ExtraPPResults> solve_case(const fs::path& in
     }
     else
     {
-        planner->solve<Dubins::are_XY_separated,Dubins::compute_XY_distance>(sols,extra,starts,ends,stats,args.separation,
-            dt,args.wind_x,args.wind_y,args.max_iters,args.weave_iters,args.min_weave_dist,args.min_weave_dist_percent,args.thread_num,args.max_solver_time,
+        planner->solve<Dubins::are_XY_separated,Dubins::compute_XY_distance>(sols,extra,starts,ends,stats,
+            args.separation,dt,
+            args.wind_x,args.wind_y,
+            args.reallocate,
+            args.max_iters,
+            args.weave_iters,args.min_weave_dist,args.min_weave_dist_percent,
+            args.thread_num,
+            args.max_solver_time,
             obstacle_paths,obstacle_stats);
     }
 
@@ -417,8 +427,14 @@ std::tuple<int,std::vector<Dubins>,ExtraPPResults> solve_case(const fs::path& in
         }
         else
         {
-            planner->solve<Dubins::are_XY_separated,Dubins::compute_XY_distance>(sols,_backup,starts,ends,stats,args.separation,
-                dt,args.wind_x,args.wind_y,args.max_iters,args.weave_iters,args.min_weave_dist,args.min_weave_dist_percent,args.thread_num,args.max_solver_time,
+            planner->solve<Dubins::are_XY_separated,Dubins::compute_XY_distance>(sols,_backup,starts,ends,stats,
+                args.separation,dt,
+                args.wind_x,args.wind_y,
+                args.reallocate,
+                args.max_iters,
+                args.weave_iters,args.min_weave_dist,args.min_weave_dist_percent,
+                args.thread_num,
+                args.max_solver_time,
                 obstacle_paths,obstacle_stats);
         }
     }
