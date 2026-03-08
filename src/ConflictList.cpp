@@ -136,7 +136,6 @@ std::vector<Dubins> find_pathplanning_LP_solution(
             costs[ac*max_path_num+p_index]  = 1e9;
             p_index++;
         }
-        std::cout << std::endl;
     }
 
     std::vector<double> lowers(var_num);
