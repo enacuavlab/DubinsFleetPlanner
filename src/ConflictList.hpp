@@ -65,7 +65,6 @@ typedef std::vector<std::vector<std::unique_ptr<Dubins>>> ListOfPossibilities;
 typedef std::vector<std::vector<std::shared_ptr<Dubins>>> SharedListOfPossibilities;
 
 uint number_of_valid_paths(const ListOfPossibilities& list);
-size_t list_hash(const ListOfPossibilities& list);
 
 // ---------- Separation functions ---------- //
 
@@ -141,11 +140,8 @@ std::vector<RichConflict_T> generic_parallel_compute_distances(
     const std::vector<AircraftStats>& stats, double sep,
     const Conflict_Map_T& map, bool all_values);
 
-
-// TODO: Compute the full matrix of separations, in order to find the best global separation
-
 /**
- * @brief Generate a base Highs model for our path finding problem
+ * @brief Solve the path finding problem using HiGHS ILP solver
  * 
  * We denote N the number of aircraft and P the number of paths per aircraft.
  * The decisions variables are the x_{ik} with 0 <= i < N and 0 <= p < P describing
@@ -165,31 +161,21 @@ std::vector<RichConflict_T> generic_parallel_compute_distances(
  *     Forall i,j and forall p,q M_{ijpq} * (x_{ip} + x_{jq}) <= 1
  *   (Note: the indices are flattened, assuming all aircraft have the same number of possible paths)
  * 
- * @param highs HiGHS instance to setup
- * @param AC_count Number of aircraft
- * @param max_paths_count Maximum number of possible paths per aircraft
- * @param verbosity Enable/Disable logging from HiGHS library (logging enabled for verbosity >= DubinsFleetPlanner_VERY_VERBOSE)
- * @return Highs A preconfigured model
- */
-void setup_base_model(Highs* highs, uint AC_count, uint max_paths_count, int verbosity=DubinsFleetPlanner_VERBOSE);
-
-/**
- * @brief Solve the path finding problem using HiGHS ILP solver
- * 
  * @param possibilites  List of possibles paths per aircraft
  * @param stats         Caracteristics of each aircraft
  * @param conflicts     List of conflicts (paths that cannot be taken together)
  * @param max_path_num  Maximum number of paths for an aircraft
  * @param THREADS       Number of threads to use. 0 choose automatically. Default to 0
+ * @param duration_based_costs  If true, the cost of each path is the time taken to realize it. Thus the objective becomes minimizing the sum of times.
+ *                              If false, costs are all set to 1.
  * @param preset_model  A preset HiGHS model to quickly setup
- * @return std::optional<std::vector<std::shared_ptr<Dubins>>> 
+ * @return std::vector<Dubins>
  */
-std::optional<std::vector<std::shared_ptr<Dubins>>> find_pathplanning_LP_solution(
+std::vector<Dubins> find_pathplanning_LP_solution(
     SharedListOfPossibilities& possibilites, 
     const std::vector<AircraftStats>& stats, 
     const std::vector<Conflict_T>& conflicts,
-    uint max_path_num, int THREADS = 0,
-    const Highs* preset_model = nullptr);
+    uint max_path_num, int THREADS, bool duration_based_costs, int verbosity);
 
 
 
@@ -205,8 +191,6 @@ std::optional<std::vector<std::shared_ptr<Dubins>>> find_pathplanning_LP_solutio
 std::vector<Conflict_T> drop_conflict_details(const std::vector<RichConflict_T>& vec, double min_dist);
 
 uint number_of_valid_paths(ListOfPossibilities& list);
-
-size_t list_hash(const ListOfPossibilities& list);
 
 
 template<Dubins::DubinsSeparationFunction separation_function>

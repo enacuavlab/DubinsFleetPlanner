@@ -308,12 +308,15 @@ def SRS_length(start:Pose2D, end:Pose2D) -> float:
 def __fit_radius(length_fun:typing.Callable[[Pose2D,Pose2D],float],start:Pose2D,end:Pose2D, min_r:float,max_r:float, target:float) -> typing.Optional[float]:
     obj = lambda r : r*length_fun(Pose2D(start.x/r,start.y/r,start.angle),Pose2D(end.x/r,end.y/r,end.angle)) - target
     
-    sol = root_scalar(obj,bracket=[min_r,max_r])
-    if sol.converged:
-        return sol.root
-    else:
+    try:
+        sol = root_scalar(obj,bracket=[min_r,max_r])
+        if sol.converged:
+            return sol.root
+        else:
+            return None
+    except ValueError:
         return None
-    
+        
     
 def __fit_endlengths(length_fun:typing.Callable[[Pose2D,Pose2D],float],start:Pose2D,end:Pose2D,ratio:float, target:float) -> typing.Optional[float]:
     assert 0 <= ratio <= 1

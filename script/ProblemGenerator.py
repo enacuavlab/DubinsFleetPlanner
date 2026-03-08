@@ -431,7 +431,7 @@ if __name__ == '__main__' and not DEBUG:
         filepath = path.joinpath(path.name+f"_{m}.csv")
         print(f"Writing at {filepath}  ...  ",end=' ')
         
-        tranposed_problem = [(stat,start,end,dt) for stat,start,end,dt in zip(stats,starts,ends,dts) ]
+        tranposed_problem = [AC_PP_Problem(stat,start,end,dt) for stat,start,end,dt in zip(stats,starts,ends,dts) ]
         
         write_pathplanning_problem_to_CSV(filepath,tranposed_problem)
         

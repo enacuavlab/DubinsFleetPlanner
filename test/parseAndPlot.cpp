@@ -8,7 +8,6 @@
 
 #include "ioUtils.hpp"
 #include "Aircraft.h"
-#include "GenericDubins.hpp"
 
 namespace fs = std::filesystem;
 namespace po = boost::program_options;
@@ -74,7 +73,7 @@ int main(int argc, char *argv[])
     // ----- Setting up variables and parsing ----- //
 
 
-    std::vector<std::shared_ptr<Dubins>> paths;
+    std::vector<Dubins> paths;
     std::vector<AircraftStats> stats;
     double min_sep;
     double wind_x, wind_y;

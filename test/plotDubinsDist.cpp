@@ -73,28 +73,20 @@ int main()
     // -------------------- Generate test cases -------------------- //
     uint i = 10;
 
-    Pose3D p1_start = ac10_start;//generate_pose(5*i+1, TEST_POS_RANGE, 0.1);
-    Pose3D p1_end   = ac10_end;//generate_pose(5*i+2, TEST_POS_RANGE, 0.1);
+    Pose3D p1_start = ac10_start;
+    Pose3D p1_end   = ac10_end;
 
-    Pose3D p2_start = ac13_start;//generate_pose(5*i+3, TEST_POS_RANGE, 0.1);
-    Pose3D p2_end   = ac13_end;//generate_pose(5*i+4, TEST_POS_RANGE, 0.1);
+    Pose3D p2_start = ac13_start;
+    Pose3D p2_end   = ac13_end;
 
     std::default_random_engine gen(5*i); // Some seeded RNG 
     std::uniform_real_distribution<double> dis_speedn(TEST_SPEED_RANGE/10, TEST_SPEED_RANGE);
 
-    // double p1_speed = dis_speedn(gen);
-    // double p2_speed = dis_speedn(gen);
     double min_separation = TEST_MIN_SEPARATION;
 
-    // std::vector<std::unique_ptr<Dubins>> p1_possibilities = list_possible_baseDubins(1.,TEST_MIN_TURN_RADIUS,p1_start,p1_end);
-    // std::vector<std::unique_ptr<Dubins>> p2_possibilities = list_possible_baseDubins(1.,TEST_MIN_TURN_RADIUS,p2_start,p2_end);
 
-    // double target_duration = 3*TEST_POS_RANGE;
-    // double p1_speed = 1.6;
-    // double p2_speed = 1.6;
-    double target_length_1 = 59.302868877849335;//target_duration*p1_speed;
-    double target_length_2 = 59.302868877849335;//target_duration*p2_speed;
-    // double min_separation = 1.;
+    double target_length_1 = 59.302868877849335;
+    double target_length_2 = 59.302868877849335;
 
     std::vector<std::unique_ptr<Dubins>> p1_possibilities = fit_possible_baseDubins(1.,TEST_MIN_TURN_RADIUS,
         p1_start,p1_end,target_length_1,DubinsFleetPlanner_PRECISION);
@@ -129,7 +121,7 @@ int main()
 
             double duration = std::min(d1->get_length()/p1_speed,d2->get_length()/p2_speed);
 
-            std::cout << "Checking for pair " << d1->get_type_abbr(true) << " " << d2->get_type_abbr(true) << "...";
+            std::cout << "Checking for pair " << d1->get_type_abbr() << " " << d2->get_type_abbr() << "...";
             if (d1->is_XY_separated_from(*d2,p1_speed,p2_speed,duration,min_separation))
             {
                 std::cout << " Valid!" << std::endl
@@ -167,7 +159,7 @@ int main()
     {
         auto& d1 = p1_possibilities[i1];
         Visualisation::plot_path<samples>(plot,*d1)
-            .label(std::string("1: ") + d1->get_type_abbr(true))
+            .label(std::string("1: ") + d1->get_type_abbr())
             .lineColor("blue")
             .dashType(i1);
     }
@@ -184,7 +176,7 @@ int main()
     {
         auto& d2 = p2_possibilities[i2];
         Visualisation::plot_path<samples>(plot,*d2)
-            .label(std::string("2: ") + d2->get_type_abbr(true))
+            .label(std::string("2: ") + d2->get_type_abbr())
             .lineColor("red")
             .dashType(i2);
     }

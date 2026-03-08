@@ -23,6 +23,7 @@
 #define DubinsFleetPlanner_ASSERTIONS @ASSERTIONS@
 
 #define DubinsFleetPlanner_PRECISION @PRECISION@
+#define DubinsFleetPlanner_ZERO_TOLERANCE @ZERO_TOLERANCE@
 
 #define DubinsFleetPlanner_SOLVE_WITH_DERIVATIVES @SOLVE_WITH_DERIVATIVES@
 

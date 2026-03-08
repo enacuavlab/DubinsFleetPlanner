@@ -220,6 +220,17 @@ std::tuple<double,double,double,double> normalize_poses(const Pose3D& start, con
 double pose_dist(const Pose3D& p1, const Pose3D& p2);
 
 /**
+ * @brief Compute the angle difference between two poses (i.e. the difference between the two theta values)
+ * 
+ * The difference is put in the [-PI,PI] angular domain
+ * 
+ * @param p1 First pose
+ * @param p2 Second pose
+ * @return double Angle difference, in [-PI,PI]
+ */
+double pose_aligned(const Pose3D& p1, const Pose3D& p2);
+
+/**
  * @brief Compute the 2D Euclidean distance between two poses, using the XY components
  * 
  * @param p1 First pose

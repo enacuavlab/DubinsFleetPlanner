@@ -79,7 +79,17 @@ def get_runway(airport:str,rw_name:str):
         return airports[airport].runways.data.query(f"name=='{rw_name}'").iloc[0] # type: ignore
     except ValueError:
         return None
-    
+
+def get_other_runway_name(rw_name:str):
+    rw_num = int(rw_name[:2])
+    rw_numbis = rw_num + (18 if rw_num < 18 else -18)
+    if len(rw_name) == 2:
+        return f"{rw_numbis:02}"
+    else:
+        if rw_name[2] == 'L':
+            return f"{rw_numbis:02}R"
+        else:
+            return f"{rw_numbis:02}L"
 @dataclasses.dataclass
 class FlightEndpoints:
     start:LatlonPose
@@ -191,7 +201,6 @@ def extract_flight_endpoints(flight:Flight,candidate_airports:typing.Iterable[st
     
     # Turn around and convert NM to meters
     rw_proj = destination(runway.latitude, runway.longitude, runway.bearing + 180, threshold_shift * NM_TO_METERS)
-
     
     return FlightEndpoints(
         flight_datapoint_to_pose(first_dpt),
@@ -232,6 +241,7 @@ def plot(ICAO_set:typing.Set[str], traffic:Traffic, expected_speed:float=200, th
     shifts = (expected_speed/60,expected_speed/60,threshold_shift)
     
     for i,flight in enumerate(traffic):
+        flight.map_leaflet()
         stats = ACStats(
             i,
             expected_speed/60, # Convert from kts (NM/h) to NM/minute

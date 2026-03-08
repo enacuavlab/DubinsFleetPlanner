@@ -51,11 +51,11 @@ int main()
 
     uint i = 10;
 
-    Pose3D p2_start = generate_pose(5*i+1, TEST_POS_RANGE, 0.1);
-    Pose3D p2_end   = generate_pose(5*i+2, TEST_POS_RANGE, 0.1);
+    Pose3D p2_start = generate_pose_2D(5*i+1, TEST_POS_RANGE);
+    Pose3D p2_end   = generate_pose_2D(5*i+2, TEST_POS_RANGE);
 
-    Pose3D p1_start = generate_pose(5*i+3, TEST_POS_RANGE, 0.1);
-    Pose3D p1_end   = generate_pose(5*i+4, TEST_POS_RANGE, 0.1);
+    Pose3D p1_start = generate_pose_2D(5*i+3, TEST_POS_RANGE);
+    Pose3D p1_end   = generate_pose_2D(5*i+4, TEST_POS_RANGE);
 
     std::default_random_engine gen(5*i); // Some seeded RNG 
     std::uniform_real_distribution<double> dis_speedn(TEST_SPEED_RANGE/10, TEST_SPEED_RANGE);
