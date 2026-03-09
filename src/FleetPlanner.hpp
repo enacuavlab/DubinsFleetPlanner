@@ -118,12 +118,13 @@ public:
  * @param delta_t   Arrival time differences
  * @param wind_x    Wind, x component
  * @param wind_y    Wind, y component
+ * @param reallocate If true, each aircraft will seek the shortest path to any end, instead of its allocated one.
  * @return double   Max of min travel times
  */
 double maxmin_dubins_traveltime(
     const std::vector<Pose3D>& starts, const std::vector<Pose3D>& ends,
     const std::vector<AircraftStats>& stats, const std::vector<double>& delta_t,
-    double wind_x, double wind_y
+    double wind_x, double wind_y, bool reallocate
 );
 
 std::vector<double> compute_arrival_times(const std::vector<double>& dts, double time_ref);
@@ -940,7 +941,7 @@ public:
 #endif
 
 
-        double min_time = maxmin_dubins_traveltime(starts,ends,stats,delta_t,wind_x,wind_y);
+        double min_time = maxmin_dubins_traveltime(starts,ends,stats,delta_t,wind_x,wind_y,reallocate);
 
         extra.initial_path_time = min_time;
 

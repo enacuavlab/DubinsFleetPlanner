@@ -20,12 +20,12 @@
 double maxmin_dubins_traveltime(
     const std::vector<Pose3D>& starts, const std::vector<Pose3D>& ends,
     const std::vector<AircraftStats>& stats, const std::vector<double>& delta_t,
-    double wind_x, double wind_y
+    double wind_x, double wind_y, bool reallocate
 )
 {
 
 #if defined(DubinsFleetPlanner_ASSERTIONS) && DubinsFleetPlanner_ASSERTIONS > 0
-    assert(starts.size() == ends.size());
+    assert(starts.size() <= ends.size());
     assert(starts.size() == stats.size());
     assert(starts.size() == delta_t.size()+1);
 #endif
@@ -36,25 +36,50 @@ double maxmin_dubins_traveltime(
     for(uint i = 0; i < N; i++)
     {
         const Pose3D& s        = starts[i];
-        const Pose3D& e        = ends[i];
         const AircraftStats& p = stats[i];
 
-        std::unique_ptr<Dubins> dd = shortest_possible_baseDubins(
-            p.climb,
-            p.turn_radius,
-            s,e,
-            wind_x,wind_y
-        );
+        double this_ac_best_traveltime = INFINITY;
+
+        if (reallocate)
+        {
+            for(const Pose3D& e : ends)
+            {
+                std::unique_ptr<Dubins> dd = shortest_possible_baseDubins(
+                    p.climb,
+                    p.turn_radius,
+                    s,e,
+                    wind_x,wind_y
+                );
+
+                this_ac_best_traveltime = std::min(
+                    this_ac_best_traveltime,
+                    dd->get_length()/p.airspeed
+                );
+            }
+        }
+        else
+        {
+            const Pose3D& e        = ends[i];
+    
+            std::unique_ptr<Dubins> dd = shortest_possible_baseDubins(
+                p.climb,
+                p.turn_radius,
+                s,e,
+                wind_x,wind_y
+            );
+
+            this_ac_best_traveltime = dd->get_length()/p.airspeed;
+        }
 
         if (i == 0)
         {
-            min_travel_time = dd->get_length()/p.airspeed;
+            min_travel_time = this_ac_best_traveltime;
         }
         else
         {
             min_travel_time = std::max(
                 min_travel_time,
-                dd->get_length()/p.airspeed - delta_sum);
+                this_ac_best_traveltime - delta_sum);
             
             delta_sum += delta_t[i-1];
         }
