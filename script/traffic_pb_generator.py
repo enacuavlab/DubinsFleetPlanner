@@ -128,7 +128,17 @@ class FlightEndpoints:
         )
     
     def to_AC_PP_Problem(self,transformer:Transformer,timeshifts:list[pd.Timedelta],flatten:bool=True) -> AC_PP_Problem:
-        """ Assumes transformer convert into meters (which are then converted in NM)
+        """
+        Export from this flight endpoints an Aircraft Path Planning problem  
+        
+        
+        Args:
+            transformer (Transformer): Convert latlon to a flat projection. Assumes final projection is in meters (which are then converted in NM)
+            timeshifts (list[pd.Timedelta]): Allowed time differences with respect to current time of arrival (different planning objectives)
+            flatten (bool, optional): Set all vertical values to 0. Defaults to True.
+
+        Returns:
+            AC_PP_Problem: _description_
         """
         
         sx,sy = transformer.transform(self.start.latitude,self.start.longitude)
@@ -144,7 +154,7 @@ class FlightEndpoints:
         timeslots = []
         for ts in timeshifts:
             slot = ts + (self.end_time - self.start_time)
-            if slot.total_seconds() > 0:
+            if slot.total_seconds() >= 0:
                 timeslots.append(slot.total_seconds()/60)
         
         return AC_PP_Problem(

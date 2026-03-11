@@ -625,7 +625,7 @@ protected:
     }
 
     /**
-     * @brief List all possible paths for a fleet given their arrival times
+     * @brief List all possible paths for a fleet given their possible travel times.
      * 
      * @param starts    Starting poses
      * @param ends      Ending poses (ground referential)
@@ -633,6 +633,7 @@ protected:
      * @param timeslots Several possible times of arrival for each aircraft
      * @param wind_x    Wind, X component
      * @param wind_y    Wind, Y component
+     * @param allow_shortest_paths If true, adds as possible paths the shortest ones (durations will most likely be out of the timeslots).
      * @return ListOfPossibilities List of possible paths per aircraft
      */
     ListOfPossibilities list_all_possibilities(
@@ -1118,8 +1119,8 @@ public:
      * @param wind_x        X component of the wind vector. Default to no wind.
      * @param wind_y        Y component of the wind vector. Default to no wind.
      * @param threads       Number of threads to use for solving. 
-     *                          If nonpositive, disable threading
-     *                          If 1, set the number of threads to std::thread::hardware_concurrency()
+     *                          If negative, disable threading
+     *                          If 0, set the number of threads to std::thread::hardware_concurrency()
      *                          Otherwise, use the given value
      * @param obstacle_paths Paths acting as obstacles (representing other aircraft)
      * @param obstacle_stats Flight characteristics of the obstacle aircraft
