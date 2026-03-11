@@ -74,9 +74,11 @@ std::vector<DynamicPathShape> set_length_SLS(const Pose3D& start, const Pose3D& 
  * @param _turn_radius  Turn radius for Dubins
  * @param _start        Starting point
  * @param _end          Ending point
+ * @param wind_x        Wind vector, x axis (TODO: Not yet implemented)
+ * @param wind_y        Wind vector, y axis (TODO: Not yet implemented)
  * @return std::vector<std::unique_ptr<Dubins>> 
  */
-std::vector<std::unique_ptr<Dubins>> list_possible_baseDubins(double _climb, double _turn_radius, const Pose3D& _start, const Pose3D& _end);
+std::vector<std::unique_ptr<Dubins>> list_possible_baseDubins(double _climb, double _turn_radius, const Pose3D& _start, const Pose3D& _end, double wind_x = 0., double wind_y = 0.);
 
 /**
  * @brief Provide the shortest Dubins path for the given configuration (TODO: Take wind into account)

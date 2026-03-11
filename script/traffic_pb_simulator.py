@@ -61,6 +61,7 @@ def solve_problem(solver:pathlib.Path,src_dir:pathlib.Path,dest_dir:pathlib.Path
     # cmd.append('2')
     
     cmd.append('--straights-only')
+    cmd.append('--allow-shortest')
     
     if obstacle_path is not None:
         cmd.append('-O')
@@ -496,8 +497,8 @@ class ArrivalsSimulator:
             
             poss = self.step(timestep,reschedule_threshold,final_time,do_schedule,threads)
             log.append((self.__t,poss))
-            if self.__encountered_exception is not None:
-                break
+            # if self.__encountered_exception is not None:
+                # break
             
         return log
 

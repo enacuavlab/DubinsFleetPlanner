@@ -347,6 +347,19 @@ protected:
      */
     virtual uint max_path_num() const = 0; 
 
+    /**
+     * @brief Generate the list of shortest paths. It is a list as it considers the shortest path *for each type of path*
+     * 
+     * @param start     Starting pose
+     * @param end       Ending pose 
+     * @param stats     Aircraft statistics
+     * @param wind_x    Wind, X component (TODO: integrate properly)
+     * @param wind_y    Wind, Y component (TODO: integrate properly)
+     * @return std::vector<std::unique_ptr<Dubins>> 
+     */
+    virtual std::vector<std::unique_ptr<Dubins>> generate_shortest_paths(
+        const Pose3D& start, const Pose3D& end, const AircraftStats& stats, double wind_x, double wind_y) const;
+
 
     /**********************************************************************************/
     /*                                                                                */
@@ -1124,6 +1137,7 @@ public:
      *                          Otherwise, use the given value
      * @param obstacle_paths Paths acting as obstacles (representing other aircraft)
      * @param obstacle_stats Flight characteristics of the obstacle aircraft
+     * @param add_shortest  If true, adds shortest possible paths for each aircraft. Note that with this enabled, a pth may have a duration outside of the allocated timeslots. 
      * @return std::set<uint> The set of aircraft IDs with no possible paths
      */
     template<Dubins::DubinsSeparationFunction separation_function, Dubins::DubinsDistanceFunction distance_function>
@@ -1135,7 +1149,8 @@ public:
         const std::vector<std::vector<double>>& timeslots,
         double wind_x = 0., double wind_y = 0.,
         int threads = -1,
-        const std::vector<Dubins>& obstacle_paths = {}, const std::vector<AircraftStats>& obstacle_stats = {}
+        const std::vector<Dubins>& obstacle_paths = {}, const std::vector<AircraftStats>& obstacle_stats = {},
+        bool add_shortest = false
     ) const
     {
         // Timing
@@ -1172,6 +1187,24 @@ public:
         extra.initial_path_time = maxmin_ts;
 
         ListOfPossibilities possibilities = list_all_possibilities(starts,ends,stats,timeslots,wind_x,wind_y);
+
+        if (add_shortest)
+        {
+            for(uint i = 0; i < N; i++)
+            {
+                auto& paths = possibilities[i];
+                const AircraftStats& stat = stats[i];
+                const Pose3D& start = starts[i];
+                const Pose3D& end   = ends[i];
+
+                auto shortests = generate_shortest_paths(start,end,stat,wind_x,wind_y);
+                paths.insert(
+                    paths.end(),
+                    std::move_iterator(shortests.begin()),
+                    std::move_iterator(shortests.end())
+                );
+            }
+        }
 
         filter_colliding_paths<distance_function>(possibilities,stats,obstacle_paths,obstacle_stats,min_sep);
 
@@ -1364,7 +1397,52 @@ private:
     uint max_path_num() const
     {
         return start_lengths.size()*generated_path_num*end_lengths.size();
-    } 
+    }
+    
+    /**
+     * @brief Generate the list of shortest paths with specified endlengths. It is a list as it considers the shortest path *for each type of path*
+     * 
+     * @param start     Starting pose
+     * @param end       Ending pose 
+     * @param stats     Aircraft statistics
+     * @param wind_x    Wind, X component (TODO: integrate properly)
+     * @param wind_y    Wind, Y component (TODO: integrate properly)
+     * @return std::vector<std::unique_ptr<Dubins>> 
+     */
+    std::vector<std::unique_ptr<Dubins>> generate_shortest_paths(
+        const Pose3D& start, const Pose3D& end, const AircraftStats& stats, double wind_x, double wind_y) const override
+        {
+            std::vector<std::unique_ptr<Dubins>> output;
+
+            for(double sl : start_lengths)
+            {
+                Pose3D shifted_start = follow_dubins<STRAIGHT>(start,sl, 1., 0., stats.turn_radius);        //TODO: Verticality 
+                DynamicPathShape shape_start(STRAIGHT, start, shifted_start, 1., stats.turn_radius, 0.);    //TODO: Verticality 
+
+                for(double el : end_lengths)
+                {
+                    Pose3D shifted_end = follow_dubins<STRAIGHT>(end,-el, 1., 0., stats.turn_radius);       //TODO: Verticality 
+                    DynamicPathShape shape_end(STRAIGHT, shifted_end, end, 1., stats.turn_radius, 0.);      //TODO: Verticality
+
+                    auto possible = list_possible_baseDubins(stats.climb,stats.turn_radius,shifted_start,shifted_end,wind_x,wind_y);
+
+                    for(auto& b : possible)
+                    {
+                        std::vector<DynamicPathShape> extended_shapes = {shape_start};
+                        extended_shapes.insert(
+                            extended_shapes.end(),
+                            b->get_all_sections().begin(),
+                            b->get_all_sections().end());
+
+                        extended_shapes.push_back(shape_end);
+
+                        output.push_back(std::make_unique<Dubins>(start,end,extended_shapes));
+                    }     
+                }
+            }
+
+            return output;
+        }
 
 public:
     StraightExtendedDubinsFleetPlanner(double _prec, double _max_r_dur,
@@ -1482,7 +1560,7 @@ static std::vector<std::unique_ptr<Dubins>> generate_both_straight_and_radius_fi
 }
 
 /**
- * @brief Plannification based on the 6 fundamental Dubins paths using the minimal turn radius,
+ * @brief Plannification based on the 8 basic Dubins paths using the minimal turn radius,
  * extended by well-chosen straight at the start and end
  * 
  */

@@ -80,9 +80,6 @@ std::vector<std::unique_ptr<Dubins>> generate_extended_fitted_dubins(
                 extended_shapes.push_back(shape_end);
 
                 output.push_back(std::make_unique<Dubins>(start,end,extended_shapes));
-                // output.push_back(std::make_unique<ExtendedDubins<beginMove,endMove>>(
-                //     _climb, _turn_radius,start,end,sl,el,b)
-                // );
             }        
         }
     }

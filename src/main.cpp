@@ -70,6 +70,7 @@ struct program_arguments
     double separation;
     double wind_x,wind_y;
     bool reallocate;
+    bool allow_shortest;
     vector<double> start_length_extensions,end_length_extensions;
     int thread_num;
     int max_iters,weave_iters;
@@ -115,21 +116,31 @@ bool process_command_line(int argc, char* argv[], program_arguments& parsed_args
 
     ("reallocate,A" , po::bool_switch(&parsed_args.reallocate)->default_value(false)
                     , "Flag. If set, allows aircraft to switch endpoints.")
+
+    ("obstacles,O"  , po::value<string>(&parsed_args.obstacle_pathname)->default_value("")
+                    , "Path to a JSON file describing multiple paths to be considered as obstacles")
     
-    ("samples,s"    , po::value<int>(&parsed_args.samples)->default_value(1000)
-                    ,"Number of samples for display and/or exporting to CSV. Default to 1000.")   
-    
-    ("extend-start,es", po::value<vector<double>>(&parsed_args.start_length_extensions)->multitoken()
+    ("extend-start ", po::value<vector<double>>(&parsed_args.start_length_extensions)->multitoken()
                     ,"Use extended Dubins curves with the given lengths, for the starts")
-    ("extend-end,ee", po::value<vector<double>>(&parsed_args.end_length_extensions)->multitoken()
+    ("extend-end"   , po::value<vector<double>>(&parsed_args.end_length_extensions)->multitoken()
                     ,"Use extended Dubins curves with the given lengths, for the ends. If undefined while starts are, copy starts.")
 
-    ("straights-only,so", po::bool_switch(&parsed_args.straight_only)->default_value(false)
+    ("straights-only", po::bool_switch(&parsed_args.straight_only)->default_value(false)
                     , "Allow only straight extensions. Applies only if 'extended' is used")
+
+    ("allow-shortest", po::bool_switch(&parsed_args.allow_shortest)->default_value(false)
+                    , "Only relevant for solving with timeslots. If true, allows adding the shortest paths (ignoring timeslots). Default to false.")
+    
+    ("line,l"       , po::bool_switch(&parsed_args.line_fit)->default_value(false)
+                    , "Add paths with minimal turn radius and fitted extra straights at start and end")
+    ("line-ratios"  , po::value<vector<double>>(&parsed_args.ratios)->multitoken()
+                    , "If 'line' is activated, specifies the ratios (between 0 and 1) to use for extra straights generation. If undefined, default to 0, 0.5 and 1")
+
 
     ("threads,t"    , po::value<int>(&parsed_args.thread_num)->default_value(-1)
                     ,"Number of threads to use (if 0, the program chooses automatically). Disabled multi-threading by default.")
 
+    
     ("precision,p"  , po::value<double>(&parsed_args.precision)->default_value(1e-3)
                     ,"Numeric precision for computations. Default to 1e-3.")
     ("max-r-length,r", po::value<double>(&parsed_args.max_r_length)->default_value(3.)
@@ -138,19 +149,10 @@ bool process_command_line(int argc, char* argv[], program_arguments& parsed_args
                     ,"Maximal number of iterations. Default to 300.")
     ("weave,w"      , po::value<int>(&parsed_args.weave_iters)->default_value(2)
                     ,"Number of samples to add when resampling between two points. Default to 2.")
-    ("weave-dist,wd", po::value<double>(&parsed_args.min_weave_dist)->default_value(0.1)
+    ("weave-dist"   , po::value<double>(&parsed_args.min_weave_dist)->default_value(0.1)
                     ,"Minimal value required between two time-points for ressampling between them (no ressampling if below). Default to 0.1")
-    ("weave-dist-percent,wdp", po::value<double>(&parsed_args.min_weave_dist_percent)->default_value(0.0001)
+    ("weave-dist-percent", po::value<double>(&parsed_args.min_weave_dist_percent)->default_value(0.0001)
                     ,"Minimal value required between two time-points for ressampling between them as a fraction of the maximal duration (no ressampling if below). Default to 0.0001")
-
-    ("help", "Produce help message")
-    ("verbose,v"    , po::value<int>(&parsed_args.verbosity)->default_value(1)
-                    , "Set verbosity, from 0 (silent), to 3 (very very verbose). Default to 1.")
-
-    ("line,l"       , po::bool_switch(&parsed_args.line_fit)->default_value(false)
-                    , "Add paths with minimal turn radius and fitted extra straights at start and end")
-    ("line-ratios,lr", po::value<vector<double>>(&parsed_args.ratios)->multitoken()
-                    , "If 'line' is activated, specifies the ratios (between 0 and 1) to use for extra straights generation. If undefined, default to 0, 0.5 and 1")
 
     ("max-time,T"   , po::value<int>(&parsed_args.max_solver_time)->default_value(60)
                     , "Maximal allowed runtime for the solver, in seconds. Default to 60s.")
@@ -158,8 +160,12 @@ bool process_command_line(int argc, char* argv[], program_arguments& parsed_args
     ("recompute,R"  , po::bool_switch(&parsed_args.recompute)->default_value(false)
                     , "Force overwriting output file. Otherwise, skip cases where an output file is found. "
                       "Only relevant when parsing cases from directories. Default to False")
-    ("obstacles,O"  , po::value<string>(&parsed_args.obstacle_pathname)->default_value("")
-                    , "Path to a JSON file describing multiple paths to be considered as obstacles")
+    
+    ("verbose,v"    , po::value<int>(&parsed_args.verbosity)->default_value(1)
+                    , "Set verbosity, from 0 (silent), to 3 (very very verbose). Default to 1.")
+    ("samples,S"    , po::value<int>(&parsed_args.samples)->default_value(1000)
+                    ,"Number of samples for display and/or exporting to CSV. Default to 1000.")
+    ("help", "Produce help message")
     ;
     
     // Specify positional arguments
@@ -394,7 +400,8 @@ std::tuple<int,std::vector<Dubins>,ExtraPPResults> solve_case(const fs::path& in
     {
         planner->solve_with_timeslots<Dubins::are_XY_separated,Dubins::compute_XY_distance>(sols,extra,starts,ends,stats,args.separation,timeslots,
             args.wind_x,args.wind_y,args.thread_num,
-            obstacle_paths,obstacle_stats);
+            obstacle_paths,obstacle_stats,
+            args.allow_shortest);
     }
     else
     {
@@ -423,7 +430,8 @@ std::tuple<int,std::vector<Dubins>,ExtraPPResults> solve_case(const fs::path& in
         {
             planner->solve_with_timeslots<Dubins::are_XY_separated,Dubins::compute_XY_distance>(sols,_backup,starts,ends,stats,0,timeslots,
                 args.wind_x,args.wind_y,args.thread_num,
-                obstacle_paths,obstacle_stats);
+                obstacle_paths,obstacle_stats,
+                args.allow_shortest);
         }
         else
         {

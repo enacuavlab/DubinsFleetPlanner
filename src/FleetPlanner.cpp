@@ -59,7 +59,7 @@ double maxmin_dubins_traveltime(
         }
         else
         {
-            const Pose3D& e        = ends[i];
+            const Pose3D& e = ends[i];
     
             std::unique_ptr<Dubins> dd = shortest_possible_baseDubins(
                 p.climb,
@@ -159,3 +159,9 @@ std::set<uint> acs_without_paths(const ListOfPossibilities& all_paths)
     
     return output;
 }
+
+std::vector<std::unique_ptr<Dubins>> AbstractFleetPlanner::generate_shortest_paths(
+        const Pose3D& start, const Pose3D& end, const AircraftStats& stats, double wind_x, double wind_y) const
+    {
+        return list_possible_baseDubins(stats.climb,stats.turn_radius,start,end,wind_x,wind_y);
+    }
