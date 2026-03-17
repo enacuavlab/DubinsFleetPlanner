@@ -41,6 +41,9 @@ class Pose2D(typing.NamedTuple):
     x:float
     y:float
     angle:float
+    
+    def __str__(self) -> str:
+        return f"$x={self.x:.3f},y={self.y:.3f},\\theta={np.rad2deg(self.angle):.2f}°$"
 
 @dataclass
 class Pose3D:
@@ -48,6 +51,9 @@ class Pose3D:
     y:float # Y coordinate
     z:float # Z coordinate
     theta:float # XY orientation, in radian
+    
+    def __str__(self) -> str:
+        return f"$x={self.x:.3f},y={self.y:.3f},z={self.z:.3f},\\theta={np.rad2deg(self.theta):.2f}°$"
     
     def to_numpy(self) -> np.ndarray:
         return np.array([self.x,self.y,self.z,self.theta])
