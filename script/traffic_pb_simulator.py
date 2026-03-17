@@ -536,7 +536,7 @@ def main():
                         help="List of ICAO codes for airports in which to look for landings in the given dataset. Default to LFPO,LFPG,LFPB",
                         default=["LFPO","LFPG","LFPB"])
     parser.add_argument('-s','--threshold-shift',type=float,dest='threshold_shift',
-                        help='Distance relative to runway threshold for defining last straight, in NM. Default to 20.',default=20)
+                        help='Distance relative to runway threshold for defining last straight, in NM. Default to 10.',default=10)
     parser.add_argument('--cmd-shift',type=float,dest='cmd_shift',
                         help="Duration (in minutes) for which no commands should issued (that is, go straight). Default to 2 minutes.", default=2)
     parser.add_argument('--epsg',type=int,help="EPSG code for XY projection of (lat,lon) coordinates from WGS84. Default to 9794 (i.e. Lambert-93)",
