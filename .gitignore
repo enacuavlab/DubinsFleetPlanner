@@ -48,6 +48,9 @@
 # CMake build location
 build/**
 
+# Data collected
+script/traffic_fetcher/data/**
+
 # Data produced
 debug_cases/**
 cases_precise/**
@@ -57,3 +60,4 @@ results/**
 ##### Editors #####
 # VSCode
 .vscode/**
+
