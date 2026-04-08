@@ -123,6 +123,52 @@ def compute_for_different_shifts(radius:float,lengths:np.ndarray,start:Pose2D,en
 
 #################### Plotting ####################
 
+def plot_fits(stats:ACStats, start:Pose2D, end:Pose2D):
+    fig,axe = plt.subplots()
+    axe:Axes
+    
+    j = 0
+    
+    colors = [my_cmap6[0],my_cmap6[2],my_cmap6[3],my_cmap6[4]]
+    
+    for name,planner,marker,markersize in [#("LRL",plan_LRL),
+                         #("RLR",plan_RLR), 
+                         ("LSL",plan_LSL,"o",5),
+                         #("LSR",plan_LSR), 
+                         #("RSL",plan_RSL),
+                         ("RSR",plan_RSR,"+",11), 
+                         ("SLS",plan_SLS,"o",5), ("SRS",plan_SRS,"+","11")
+                         ]:
+        
+        color = colors[ j % len(colors)]
+        # color = '0.2'
+        j += 1
+        
+        path = planner(stats,start,end)
+        if path is not None:
+            l = path.total_length
+            samples = np.linspace(0,l,100)
+            points = []
+            
+            for i,s in enumerate(samples):
+                points.append(path.pose_at(samples[i]))
+            
+            
+            plot_pose2d_sequence(axe,points,False,True,label=f"S-{name}",
+                color=color, 
+                marker=marker,markersize=markersize,markevery=0.2,
+                linestyle='dashed')
+        
+    for spine in axe.spines:
+        axe.spines[spine].set_visible(False)
+        
+    axe.set_xticks([])
+    axe.set_yticks([])
+    axe.set_aspect('equal')
+    axe.legend()
+    plt.show()
+
+
 def plot_straights(stats:ACStats, start:Pose2D, end:Pose2D, target_length:float):
     fig,axe = plt.subplots()
     axe:Axes
@@ -435,17 +481,18 @@ if __name__ == '__main__':
     
     ## Plotting paths
     
+    plot_fits(stats,start,end)
     # plot_straights(stats, start, end, 10.)
     
     ## Demo path planning for two
     
-    start_degrees2  = -40
-    end_degrees2    = 20
+    # start_degrees2  = -40
+    # end_degrees2    = 20
     
-    start2  = Pose2D(1,1,np.deg2rad(start_degrees2))
-    end2    = Pose2D(d,-2,np.deg2rad(end_degrees2))
-    stats2  = ACStats(2,1.,0.,0.5)
+    # start2  = Pose2D(1,1,np.deg2rad(start_degrees2))
+    # end2    = Pose2D(d,-2,np.deg2rad(end_degrees2))
+    # stats2  = ACStats(2,1.,0.,0.5)
 
-    plot_pathplanning([stats,stats2],[start,start2],[end,end2],10.,0.5)
+    # plot_pathplanning([stats,stats2],[start,start2],[end,end2],10.,0.5)
             
     
