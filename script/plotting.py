@@ -68,8 +68,8 @@ def plot_pose2d_sequence(ax:Axes,poses:list[Pose3D],endpoints:bool=False,endarro
     
     
     if (endarrows):
-        ax.quiver([xs[0]],[ys[0]],[np.cos(angles[0])],[np.sin(angles[0])],angles='xy',color=color)
-        ax.quiver([xs[-1]],[ys[-1]],[np.cos(angles[-1])],[np.sin(angles[-1])],angles='xy',color=color)
+        ax.quiver([xs[0]],[ys[0]],[np.cos(angles[0])],[np.sin(angles[0])],angles='xy',color='k')
+        ax.quiver([xs[-1]],[ys[-1]],[np.cos(angles[-1])],[np.sin(angles[-1])],angles='xy',color='k')
     
     return ax,lines
 
