@@ -77,9 +77,9 @@ def solve_problem(solver:pathlib.Path,src_dir:pathlib.Path,dest_dir:pathlib.Path
         for e in end_extensions:
             cmd.append(str(e))
     
-    print(cmd)
+    # print(cmd)
     output = subprocess.run(cmd)
-    print(output)
+    # print(output)
     output.check_returncode()
     return output
 
@@ -94,7 +94,7 @@ class ArrivalsSimulator:
     input_json_path:pathlib.Path    = pathlib.Path("input_json.json")
     output_json_path:pathlib.Path   = pathlib.Path("output_json.json")
     input_csv_path:pathlib.Path     = pathlib.Path("input_csv.csv")
-    max_reschedule:int  = 2  # Maximum number of reschedule for each aircraft
+    max_reschedule:int  = 3  # Maximum number of reschedule for each aircraft
     separation:float    = 5. # Overriden by the values in `flying` if it is defined
     z_alpha:float       = 1. # Overriden by the values in `flying` if it is defined
     wind_x:float        = 0. # Overriden by the values in `flying` if it is defined
@@ -285,12 +285,10 @@ class ArrivalsSimulator:
             candidate_acs.add(id)
             added_acs.add(id)
             output.append((nt.stats,nt.start.to_pose3D(self.transformer,True)))
-            # print(f"Adding {id} from tasks")
             self.tasklist[i] = nt
         
                 
         self.__t = new_t
-        # print(f"Set time to {new_t}")
         
         if self.__axes is not None:            
             for s,p in output:
@@ -339,23 +337,20 @@ class ArrivalsSimulator:
                 text.set_text(f"  {id}: T -{(t.end_time-new_t).total_seconds()/60:.1f} min")
                 
             
-            if self.__min_dist_line is not None:
+            if self.__min_dist_line is not None and len(output) >= 2:
                 min_dist, index1, index2 = min_XY_dist(list(p for _,p in output))
                 stat1,p1 = output[index1]
                 stat2,p2 = output[index2]
                 
                 label=f"Min distance ({stat1.id},{stat2.id}) : {min_dist:.2f} NM"
+                if min_dist < self.separation:
+                    label += "\n!!! LOSS OF SEPARATION !!!"
                 
                 self.__min_dist_line.set_xdata([p1.x,p2.x])
                 self.__min_dist_line.set_ydata([p1.y,p2.y])
                 self.__min_dist_line.set_label(label)
                 
                 self.__axes.legend(*self.__axes.get_legend_handles_labels())
-                
-                
-                
-            
-                
         
         # Compute which aircraft can be rescheduled
         if reschedule:
@@ -441,7 +436,9 @@ class ArrivalsSimulator:
                 ## Update the task ends with the planning results
                 for s,p in self.scheduled.trajectories:
                     i = self.__task_index[s.id]
-                    print(f"Change in arrival for {s.id}: {(pd.Timedelta(minutes=p.duration()) - (self.tasklist[i].end_time - new_t)).total_seconds()/60:.1f} min")
+                    dduration = (pd.Timedelta(minutes=p.duration()) - (self.tasklist[i].end_time - new_t)).total_seconds()/60
+                    if abs(dduration) > 0.1:
+                        print(f"Change in arrival for {s.id}: {abs(dduration):.1f} min {'earlier' if dduration < 0 else 'later'}")
                     self.tasklist[i].end_time = pd.Timedelta(minutes=p.duration()) + new_t
                     
                     if self.__axes is not None:
@@ -459,6 +456,8 @@ class ArrivalsSimulator:
                         
                     
             except Exception as e:
+                for id in candidate_acs:
+                    self.schedule_counters[id] -= 1
                 self.__encountered_exception = e
                 print(f"EXCEPTION: {e}")
                 
@@ -504,6 +503,45 @@ class ArrivalsSimulator:
 
 
 #################### Entrypoint ####################
+
+def iter_flightdata_by_day(input_file: pathlib.Path, time_column:str='timestamp', id_column:str='flight_id') -> typing.Generator[Traffic, None, None]:
+    """Load from the given Parquet file the timestamps and flight ids and group them by day. Produce a generator
+    yielding all columns from the Parquet file on a day by day basis (flights may start the day before or end the day after, the
+    associated points are provided).
+    
+    
+    A flight belong to a day if its first or last timestamp belong to it, we assume flights span less than 24h.
+
+    Args:
+        input_file (pathlib.Path): Path to the Parquet file containing the flight data.
+        time_column (str, optional): Column name for the timestamp. Defaults to 'timestamp'.
+        id_column (str, optional): Column name for the flight ID. Defaults to 'flight_id'.
+
+    Returns:
+        typing.Generator[Traffic, None, None]: Generator for each day's flight data as a Traffic object.
+
+    Yields:
+        Iterator[typing.Generator[Traffic, None, None]]: Iterator yielding Traffic objects for each day's flight data.
+    """
+    df = pd.read_parquet(input_file,columns=[time_column,id_column])
+    groups = df.groupby(id_column,sort=False)
+    min_vals = groups.min()
+    max_vals = groups.max()
+    min_vals['flight_id_col'] = min_vals.index
+    max_vals['flight_id_col'] = max_vals.index
+    
+    day_grouper = pd.Grouper(key=time_column, freq='D')
+    start_groups = min_vals.groupby(day_grouper,sort=True)
+    end_groups = max_vals.groupby(day_grouper,sort=True)
+    
+    for key in start_groups.groups.keys():
+        starting = start_groups.get_group(key)
+        ending = end_groups.get_group(key)
+        interval = starting.merge(ending, on='flight_id', how='outer', suffixes=('_start', '_end')).drop(columns=['flight_id_col_start', 'flight_id_col_end'])
+        
+        yield Traffic(pd.read_parquet(input_file,filters=[('flight_id', 'in', interval.index)]))
+    
+    
 
 def filter_traffic(traffic:Traffic,ICAO_set:typing.Iterable[str]) -> Traffic:
     flight_to_remove = set()
@@ -564,39 +602,12 @@ def main():
     solver = args.solver
     print("===== Parsing traffic... =====\n")
     if args.data is None:
-        traffic = filter_traffic(samples.quickstart,["LFPO","LFPG","LFPB"])
+        traffic_iter = [filter_traffic(samples.quickstart,["LFPO","LFPG","LFPB"])]
     else:
-        traffic = Traffic.from_file(args.data)
-        if traffic is None:
+        traffic_iter = iter_flightdata_by_day(args.data)
+        if traffic_iter is None:
             print("ERROR: Importing traffic failed. Exiting")
             exit(1)
-    
-    
-    endpoints:list[FlightEndpoints] = []
-    expected_speed = args.speed # kts
-    threshold_shift = args.threshold_shift # NM
-    transformer = Transformer.from_crs(
-        "EPSG:4326",   # WGS84 (lat, lon)
-        f"EPSG:{args.epsg}",
-    )
-    timeshifts = pd.timedelta_range(f"{args.intervals[0]} minute",f"{args.intervals[1]} minute",freq=f"{float(args.intervals[2])*60}s").to_list()
-    
-    for i,flight in enumerate(traffic):
-        stats = ACStats(
-            i,
-            expected_speed/60, # Convert from kts (NM/h) to NM/minute
-            1.,
-            expected_speed/(60*np.pi) # Full circle in 2 minutes
-        )
-        
-        r = extract_flight_endpoints(flight,args.ICAOs,stats,0.)
-        if r is None:
-            continue
-        else:
-            endpoints.append(r[1])
-            
-    
-    print("\n===== Traffic parsing done! =====\nSetting up simulator...")
     
     import matplotlib.pyplot as plt
     plt.ion()
@@ -604,26 +615,53 @@ def main():
     ax.set_aspect('equal')
     fig.tight_layout()
     
-    sim = ArrivalsSimulator(pathlib.Path(solver),
-                            transformer,
-                            timeshifts,
-                            threshold_shift,
-                            args.cmd_shift*expected_speed/60,
-                            endpoints,
-                            max_reschedule=args.max_reschedule,
-                            separation=args.mdist,
-                            wind_x=float(args.wind[0]),
-                            wind_y=float(args.wind[1]))
-    
-    sim.attach_axes(ax)
-    
-    sim.simulate(pd.Timedelta(f"{args.timestep} minute"),
-        pd.Timedelta(f"{args.time_threshold} minute"),
-        pd.Timedelta(f"{args.time_threshold/3} minute"),
-        args.ac_threshold,
-        pd.Timedelta(f"{args.final_time} minute"),
-        args.threads
-    )
+    for traffic in traffic_iter:
+        endpoints:list[FlightEndpoints] = []
+        expected_speed = args.speed # kts
+        threshold_shift = args.threshold_shift # NM
+        transformer = Transformer.from_crs(
+            "EPSG:4326",   # WGS84 (lat, lon)
+            f"EPSG:{args.epsg}",
+        )
+        timeshifts = pd.timedelta_range(f"{args.intervals[0]} minute",f"{args.intervals[1]} minute",freq=f"{float(args.intervals[2])*60}s").to_list()
+        
+        for i,flight in enumerate(traffic):
+            stats = ACStats(
+                i,
+                expected_speed/60, # Convert from kts (NM/h) to NM/minute
+                1.,
+                expected_speed/(60*np.pi) # Full circle in 2 minutes
+            )
+            
+            r = extract_flight_endpoints(flight,args.ICAOs,stats,0.)
+            if r is None:
+                continue
+            else:
+                endpoints.append(r[1])
+                
+        
+        print("\n===== Traffic parsing done! =====\nSetting up simulator...")
+        
+        sim = ArrivalsSimulator(pathlib.Path(solver),
+                                transformer,
+                                timeshifts,
+                                threshold_shift,
+                                args.cmd_shift*expected_speed/60,
+                                endpoints,
+                                max_reschedule=args.max_reschedule,
+                                separation=args.mdist,
+                                wind_x=float(args.wind[0]),
+                                wind_y=float(args.wind[1]))
+        
+        sim.attach_axes(ax)
+        
+        sim.simulate(pd.Timedelta(f"{args.timestep} minute"),
+            pd.Timedelta(f"{args.time_threshold} minute"),
+            pd.Timedelta(f"{args.time_threshold/3} minute"),
+            args.ac_threshold,
+            pd.Timedelta(f"{args.final_time} minute"),
+            args.threads
+        )
     
     
     

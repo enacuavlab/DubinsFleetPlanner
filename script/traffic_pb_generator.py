@@ -77,19 +77,38 @@ def get_enddatas(flight:Flight,airport:str):
 def get_runway(airport:str,rw_name:str):
     try:
         return airports[airport].runways.data.query(f"name=='{rw_name}'").iloc[0] # type: ignore
-    except ValueError:
+    except (ValueError, IndexError):
+        print(f"WARNING: Runway {rw_name} not found for airport {airport}")
+        print(airports[airport].runways.data)
         return None
 
-def get_other_runway_name(rw_name:str):
+def get_other_runway_name(rw_name:str) -> str:
+    """Given a runway name, try to find its name in the other direction.
+    
+    The rules are as follows:
+    - The name in split in two parts: a number (the first two characters) and an optional letter (the third character, if it exists)
+    - The number is converted to the other direction by adding 18 if it is less than 18, and substracting 18 otherwise. If the result is 0, it is replaced by 36.
+    - The letter, if it exists, is converted as follows: C is unchanged, R becomes L and L becomes R.
+
+    Args:
+        rw_name (str): Runway name
+
+    Returns:
+        str: Its guessed name in the other direction
+    """
     rw_num = int(rw_name[:2])
     rw_numbis = rw_num + (18 if rw_num < 18 else -18)
+    if rw_numbis == 0:
+        rw_numbis = 36
     if len(rw_name) == 2:
         return f"{rw_numbis:02}"
     else:
-        if rw_name[2] == 'L':
-            return f"{rw_numbis:02}R"
-        else:
+        if rw_name[2] == 'C':
+            return f"{rw_numbis:02}C"
+        elif rw_name[2] == 'R':
             return f"{rw_numbis:02}L"
+        else:
+            return f"{rw_numbis:02}R"
 @dataclasses.dataclass
 class FlightEndpoints:
     start:LatlonPose
