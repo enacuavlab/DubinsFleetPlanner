@@ -264,9 +264,9 @@ def SRS(start:Pose2D, goal:Pose2D) -> typing.Optional[tuple[float,float,float]]:
     ec = d * abs(np.sin(a)/np.sin(da))
     
     
-    first_l = cs - 1/np.tan((np.pi-da)/2)
+    first_l = cs - np.tan(da/2)
     second_l = mod2pi(a - b)
-    third_l = ec - 1/np.tan((np.pi-da)/2)
+    third_l = ec - np.tan(da/2)
     
     if first_l < 0 or third_l < 0:
         return None
@@ -275,17 +275,20 @@ def SRS(start:Pose2D, goal:Pose2D) -> typing.Optional[tuple[float,float,float]]:
     
 def SLS(start:Pose2D, goal:Pose2D) -> typing.Optional[tuple[float,float,float]]:
     d, a, b = transform(start, goal)
+    # Trajectory goes from S=(0,0) to E=(d,0)
+    # with start angle a and end angle b.
+    # Start and end axes intersect at point C
     
     da = central_angle(b - a)
     if np.isclose(da,0.0):
         return None
     
-    cs = d * np.abs(np.sin(b)/np.sin(da))
-    ec = d * np.abs(np.sin(a)/np.sin(da))
-    
-    first_l = cs - 1/np.tan((np.pi-da)/2)
+    cs = d * np.abs(np.sin(b)/np.sin(da)) # Law of sines on triangle SCE
+    ec = d * np.abs(np.sin(a)/np.sin(da)) # to compute SC and CE
+
+    first_l = cs - np.tan(da/2)
     second_l = mod2pi(b - a)
-    third_l = ec - 1/np.tan((np.pi-da)/2)
+    third_l = ec - np.tan(da/2)
     
     if first_l < 0 or third_l < 0:
         return None

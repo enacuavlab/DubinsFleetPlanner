@@ -415,7 +415,7 @@ double SRS_first_distance(double alpha, double beta, double d)
 
     double cs = d * std::abs(std::sin(beta)/std::sin(da));
 
-    double output = cs - 1/std::tan((M_PI-da)/2);  
+    double output = cs - std::tan(da/2);  
     return (output >= 0) ? output : NAN;
 }
 
@@ -436,7 +436,7 @@ double SRS_last_distance(double alpha, double beta, double d)
     
     double ec = d * std::abs(std::sin(alpha)/std::sin(da));
 
-    double output = ec - 1/std::tan((M_PI-da)/2);
+    double output = ec - std::tan(da/2);
     return (output >= 0) ? output : NAN;
 }
 
@@ -452,7 +452,7 @@ std::pair<double,double> SRS_possible_d(double alpha, double beta)
     double sC = std::abs(std::sin(beta)/std::sin(da));
     double eC = std::abs(std::sin(alpha)/std::sin(da));
 
-    double A = 1/std::tan((M_PI-da)/2);
+    double A = std::tan(da/2);
 
     double d_min = std::max(A/sC, A/eC);
     d_min = std::max(d_min, 0.);
@@ -485,7 +485,7 @@ double SLS_first_distance(double alpha, double beta, double d)
     
     double cs = d * std::abs(std::sin(beta)/std::sin(da));
 
-    double output = cs - 1/std::tan((M_PI-da)/2);
+    double output = cs - std::tan(da/2);
     return (output >= 0) ? output : NAN;
 }
 
@@ -506,7 +506,7 @@ double SLS_last_distance(double alpha, double beta, double d)
     
     double ec = d * std::abs(std::sin(alpha)/std::sin(da));
 
-    double output = ec - 1/std::tan((M_PI-da)/2);
+    double output = ec - std::tan(da/2);
     return (output >= 0) ? output : NAN;
 }
 
@@ -522,7 +522,7 @@ std::pair<double,double> SLS_possible_d(double alpha, double beta)
     double sC = std::abs(std::sin(beta)/std::sin(da));
     double eC = std::abs(std::sin(alpha)/std::sin(da));
 
-    double A = 1/std::tan((M_PI-da)/2);
+    double A = std::tan(da/2);
 
     double d_min = std::max(A/sC, A/eC);
     d_min = std::max(d_min, 0.);
