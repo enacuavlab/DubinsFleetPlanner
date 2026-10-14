@@ -406,8 +406,17 @@ std::vector<DynamicPathShape> set_radius_SRS(const Pose3D &start, const Pose3D &
     }
     else
     {
-        assert(abs(length - (s1.length + s2.length + s3.length)) < tol);
-        return output;
+        // assert(abs(length - (s1.length + s2.length + s3.length)) < tol);
+        if (abs(length - (s1.length + s2.length + s3.length)) >= tol)
+        {
+            return {};
+        }
+        else
+        {
+            return output;
+        }
+       
+        
     }
 }
 

@@ -858,8 +858,8 @@ DynamicPathShape::DynamicPathShape(DubinsMove _m, const Pose3D& start, const Pos
     }
     
 // #if defined(DubinsFleetPlanner_ASSERTIONS) && DubinsFleetPlanner_ASSERTIONS > 0
-    // Pose3D computed_start = initial_pose(output);
-    // Pose3D computed_end  = final_pose(output);
+    // Pose3D computed_start = initial_pose();
+    // Pose3D computed_end  = final_pose();
 // 
     // assert(pose_dist(computed_start,start) < DubinsFleetPlanner_PRECISION);
     // assert(pose_dist(computed_end,end) < DubinsFleetPlanner_PRECISION);
