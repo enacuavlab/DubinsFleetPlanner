@@ -21,10 +21,6 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_DEBUG_POSTFIX d)
 set(CMAKE_POLICY_VERSION_MINIMUM 3.28)
 
-set(CMAKE_VERBOSE_MAKEFILE ON)
-
-include(FetchContent)
-
 # -------------------- Project declaration -------------------- #
 project(DubinsFleetPlanner VERSION 0.1.0 LANGUAGES C CXX)
 
@@ -36,26 +32,12 @@ set(msvc_cxx "$<COMPILE_LANG_AND_ID:CXX,MSVC>")
 # -------------------- Required packages -------------------- #
 ### Boost ###
 
-set(Boost_USE_STATIC_LIBS        ON)  # only find static libs
-set(Boost_USE_DEBUG_LIBS        OFF)  # ignore debug libs and
-set(Boost_USE_RELEASE_LIBS       ON)  # only find release libs
-set(Boost_USE_MULTITHREADED      ON)
-set(Boost_USE_STATIC_RUNTIME     ON)
-find_package(Boost 1.89 CONFIG REQUIRED)
-
-include_directories(${Boost_INCLUDE_DIRS})
-
-### Eigen ###
-
-set(EIGEN_BUILD_DEMOS OFF)
-set(EIGEN_BUILD_DOC OFF)
-set(EIGEN_BUILD_SPBENCH OFF)
-set(EIGEN_BUILD_TESTING OFF)
-set(EIGEN_LEAVE_TEST_IN_ALL_TARGET OFF)
-
-### JSON ###
-
-option(DubinsFleetPlanner_USE_EXTERNAL_JSON "Use an external JSON library (if none found, will download using FetchContent)" OFF)
+set(Boost_USE_STATIC_LIBS OFF)
+set(Boost_USE_MULTITHREADED ON)
+set(Boost_USE_STATIC_RUNTIME OFF)
+find_package(Boost 1.83 CONFIG REQUIRED)
+find_package(Eigen3 3.3 CONFIG REQUIRED NO_MODULE)
+find_package(nlohmann_json 3.11 CONFIG REQUIRED)
 
 ### Add lib subdirectory ###
 
@@ -65,11 +47,12 @@ set(libs_dir "${PROJECT_SOURCE_DIR}/libs")
 
 # -------------------- Options -------------------- #
 
-option(DubinsFleetPlanner_PARALLEL "Enable parallel solver (Requires HiGHS Library)" ON)
+option(DubinsFleetPlanner_PARALLEL "Enable parallel solver (Requires HiGHS submodule)" ON)
 
 option(DubinsFleetPlanner_ENABLE_ASSERTIONS "Enable assertion checks" ON)
 
-option(DubinsFleetPlanner_TESTING "Enable testing for path planning (will download GTest)" ON)
+option(DubinsFleetPlanner_TESTING "Enable testing for path planning (requires system GTest)" ON)
+option(DubinsFleetPlanner_VISUALISATION "Build visualisation test tools (will download Sciplot)" OFF)
 
 # -------------------- Targets -------------------- #
 

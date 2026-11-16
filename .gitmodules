@@ -1,13 +1,6 @@
-[submodule "ScalarMin"]
-	path = ScalarMin
-	url = git@github.com:spacewolfXfr/ScalarMin.git
-	branch = main
 [submodule "libs/ScalarMin"]
 	path = libs/ScalarMin
 	url = git@github.com:spacewolfXfr/ScalarMin.git
 [submodule "libs/HiGHS"]
 	path = libs/HiGHS
 	url = git@github.com:ERGO-Code/HiGHS.git
-[submodule "libs/json"]
-	path = libs/json
-	url = https://github.com/nlohmann/json.git

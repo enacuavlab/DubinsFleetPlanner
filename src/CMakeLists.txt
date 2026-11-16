@@ -3,10 +3,7 @@
 # This software is released under the MIT License.
 # https://opensource.org/licenses/MIT
 
-include(FetchContent)
-
-find_package(Boost CONFIG REQUIRED COMPONENTS program_options chrono system container_hash)
-set(Boost_DEBUG ON)
+find_package(Boost CONFIG REQUIRED COMPONENTS program_options chrono system)
 
 
 #################### General configuration ####################
@@ -48,39 +45,36 @@ set(DubinsFleetPlannerLib_SRC
 set(DubinsFleetPlannerLib_INCL
     ${CMAKE_CURRENT_BINARY_DIR}
     ${PROJECT_SOURCE_DIR}/src
-    ${libs_dir}/eigen
     ${libs_dir}/ScalarMin
     ${libs_dir}/csv_reader)
 
-if(DubinsFleetPlanner_PARALLEL)
-    ### HiGHS Solver ###
+### HiGHS Solver ###
 
-    set(HIGHS_DIR ${libs_dir}/HiGHS/build)
-    find_package(HIGHS REQUIRED)
-
-    set(DubinsFleetPlannerLib_SRC
-        ${DubinsFleetPlannerLib_SRC}
-        ConflictList.cpp)
-
+if(NOT EXISTS "${libs_dir}/HiGHS/CMakeLists.txt")
+    message(FATAL_ERROR
+        "HiGHS source is missing. Initialize the submodule with "
+        "'git submodule update --init libs/HiGHS'.")
 endif()
+
+set(BUILD_CXX_EXE OFF CACHE BOOL "" FORCE)
+set(BUILD_TESTING OFF CACHE BOOL "" FORCE)
+add_subdirectory(${libs_dir}/HiGHS ${CMAKE_BINARY_DIR}/HiGHS EXCLUDE_FROM_ALL)
 
 add_library(DubinsFleetPlannerLib SHARED ${DubinsFleetPlannerLib_SRC})
 
 target_include_directories(DubinsFleetPlannerLib PUBLIC ${DubinsFleetPlannerLib_INCL})
 
-if(DubinsFleetPlanner_PARALLEL)
-    ### HiGHS Solver + BOOST ###
-
-    target_link_libraries(DubinsFleetPlannerLib nlohmann_json::nlohmann_json Eigen3::Eigen highs::highs ${Boost_LIBRARIES})
-else()
-    ### BOOST only ###
-    target_link_libraries(DubinsFleetPlannerLib nlohmann_json::nlohmann_json Eigen3::Eigen ${Boost_LIBRARIES})
-
-endif()
+target_link_libraries(DubinsFleetPlannerLib
+    nlohmann_json::nlohmann_json
+    Eigen3::Eigen
+    highs::highs
+    Boost::program_options
+    Boost::chrono
+    Boost::system)
 
 # target_link_libraries(DubinsFleetPlanner PUBLIC Boost::headers ScalarMin)
 
 add_executable(DubinsFleetPlanner main.cpp)
 
-target_include_directories(DubinsFleetPlanner PUBLIC ${DubinsFleetPlannerLib_INCL} ${Boost_INCLUDE_DIRS})
-target_link_libraries(DubinsFleetPlanner LINK_PUBLIC DubinsFleetPlannerLib ${Boost_LIBRARIES})
+target_include_directories(DubinsFleetPlanner PUBLIC ${DubinsFleetPlannerLib_INCL})
+target_link_libraries(DubinsFleetPlanner LINK_PUBLIC DubinsFleetPlannerLib)
