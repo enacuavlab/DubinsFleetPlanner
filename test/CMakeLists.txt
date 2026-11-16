@@ -18,13 +18,10 @@
 
 #################### Test folder ####################
 
-include(FetchContent)
-
 ########## Visual tests ##########
 
-option(DubinsFleetPlanner_VISUALISATION "Include visualisation in the solver (for debug/demo purpose; will download Sciplot)" ON)
-
-# if(DubinsFleetPlanner_VISUALISATON)
+if(DubinsFleetPlanner_VISUALISATION)
+    include(FetchContent)
     FetchContent_Declare(
         sciplot
         GIT_REPOSITORY https://github.com/sciplot/sciplot.git
@@ -73,7 +70,7 @@ option(DubinsFleetPlanner_VISUALISATION "Include visualisation in the solver (fo
     add_executable(ParseAndPlot parseAndPlot.cpp)
     target_link_libraries(ParseAndPlot PUBLIC sciplot DubinsFleetPlannerLib ${Boost_LIBRARIES})
     target_include_directories(ParseAndPlot PUBLIC "${PROJECT_SOURCE_DIR}/src" ${Boost_LIBRARIES})
-# endif()
+endif()
 
 ########## Coverage ##########
 
@@ -89,15 +86,7 @@ endif()
 
 ########## Procedural tests ##########
 
-FetchContent_Declare(
-    googletest
-    GIT_REPOSITORY https://github.com/google/googletest.git
-    GIT_TAG        52eb8108c5bdec04579160ae17225d66034bd723 # release-1.17.0
-    )
-
-# For Windows: Prevent overriding the parent project's compiler/linker settings
-set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
-FetchContent_MakeAvailable(googletest)
+find_package(GTest 1.14 CONFIG REQUIRED)
 
 include(GoogleTest)
 
